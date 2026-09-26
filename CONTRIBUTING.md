@@ -8,6 +8,7 @@ changes its shape. Thank you for caring about it.
 go install ./cmd/kolo    # onto $(go env GOPATH)/bin, which may not be on PATH
 go run ./cmd/kolo up     # a hub, lending this directory
 go test ./...
+node --test tests/*.test.cjs
 ```
 
 ## What lands

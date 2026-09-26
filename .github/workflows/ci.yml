@@ -36,6 +36,13 @@ jobs:
       - name: vet
         run: go vet ./...
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: browser logic
+        run: node --test tests/*.test.cjs
+
       # gofmt exits zero whatever it finds, so the files it names are the test.
       - name: gofmt
         run: |

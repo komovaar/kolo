@@ -383,6 +383,7 @@
         </svg>
       </button>
       <div class="me-menu" hidden>
+        <button class="me-item attention-toggle" type="button" aria-pressed="false">enable desktop alerts</button>
         <a class="me-item" href="https://github.com/whosgotch/kolo" target="_blank" rel="noreferrer">source</a>
         <form method="post" action="/logout"><button class="me-item" type="submit">sign out</button></form>
       </div>
@@ -477,6 +478,7 @@
 
 <script src="/assets/xterm.js"></script>
 <script src="/assets/addon-canvas.js"></script>
+<script src="/assets/attention.js"></script>
 <script>
 // One page, two views: the door, and the org's agents. Which agent is open
 // comes from the URL, so opening one and reloading lands back on it.
@@ -618,6 +620,11 @@ let me = {};
 // the side without waiting on a round trip that has nothing to do with it.
 let lastAgents = [];
 let refreshRun = 0;
+const attention = new KoloAttention(el('.attention-toggle'), agentInURL, (name) => {
+  location.hash = `#/agent/${name}`;
+});
+addEventListener('pagehide', () => attention.reset());
+el('.me-menu form').addEventListener('submit', () => attention.reset());
 
 async function refresh() {
   const run = ++refreshRun;
@@ -632,6 +639,7 @@ async function refresh() {
   if (run !== refreshRun) return null;
   signedIn = resp.status !== 401;
   if (!signedIn) {
+    attention.reset();
     show('signin');
     el('.signin .problem').hidden = !location.search.includes('refused');
     return null;
@@ -644,9 +652,11 @@ async function refresh() {
   try {
     data = await resp.json();
   } catch (_) {
+    if (run !== refreshRun) return null;
     el('.me .status').textContent = 'unreadable response';
     return null;
   }
+  if (run !== refreshRun) return null;
   show('app');
   el('.me .status').textContent = 'online';
   el('.me .name').textContent = data.you.name;
@@ -654,6 +664,7 @@ async function refresh() {
   me = data.you;
   hosts = data.hosts;
   lastAgents = data.agents || [];
+  attention.update(lastAgents);
   drawGroups(lastAgents);
   // Nothing running anywhere: the home screen is the mark, not a mark with
   // a list beside it.

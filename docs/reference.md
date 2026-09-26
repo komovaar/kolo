@@ -11,6 +11,7 @@ how to report a hole, see [SECURITY.md](../SECURITY.md).
 - [The shape of it](#the-shape-of-it)
 - [Agents](#agents)
 - [Typing and control](#typing-and-control)
+- [Attention alerts](#attention-alerts)
 - [Restart and resume](#restart-and-resume)
 - [The log](#the-log)
 - [Screen size](#screen-size)
@@ -181,6 +182,30 @@ An earlier version read the choices off dialogs and drew buttons. It worked for
 exactly one agent's dialog and guessed at everyone else's. If an agent ever
 offers its questions through a real interface, kolo will use that instead.
 
+## Attention alerts
+
+The browser tab title counts running agents whose screens show a question.
+Open your name menu and choose **enable desktop alerts** to also receive a
+desktop notification when an agent starts waiting for an answer. Your browser
+asks permission only when you choose this option. The preference is saved in
+this browser for this hub; use the same menu to disable it.
+
+Click an alert to open that agent. Alerts contain its name, never terminal
+content. A question already visible in your focused agent screen does not
+produce an alert. Repeated status refreshes do not repeat the alert while the
+same question remains detected. Loading the page shows the waiting count
+without replaying old questions as notifications.
+
+Keep a Kolo tab open. This version uses the agent list's three-second refresh;
+background tabs may be throttled or suspended by the browser, so delivery is
+best effort. Desktop alerts require a supported desktop browser and HTTPS
+(or localhost). Plain HTTP on a LAN address and unsupported mobile browsers
+still show the waiting count. There is no delivery after all tabs are closed,
+no email or push service, and no guarantee that nobody else is watching.
+Alerts depend on the same screen markers as the agent list; unknown agent
+kinds cannot report questions. Two questions without an observed idle or busy
+state between them count as one waiting episode.
+
 ## Restart and resume
 
 **Agents are supervised.** If one exits, kolo starts it again. One that will
@@ -265,8 +290,9 @@ link that works from another machine. `-hub` overrides it.
 restart and resume (including pinned conversation ids), discovery of installed
 agents (`-allow '*'`), and the log.
 
-**Not built yet:** a notification when an agent stalls on a question and nobody
-is watching.
+**Attention alerts:** a waiting count in the browser tab and optional desktop
+notifications while the page is open. See [Attention alerts](#attention-alerts)
+for browser requirements and delivery limits.
 
 Interrupt, restart and start fresh travel on the watch websocket. The page
 offers restart; interrupt and start fresh are protocol-only controls:

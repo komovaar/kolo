@@ -797,8 +797,12 @@ func TestThePageIsServed(t *testing.T) {
 	if !bytes.Contains(body, []byte("<title>kolo</title>")) {
 		t.Errorf("not the page: %.80s", body)
 	}
-	if got := call(t, s, "GET", "/assets/xterm.js", "", ""); got.StatusCode != http.StatusOK {
-		t.Errorf("assets: %s", got.Status)
+	for _, asset := range []string{"xterm.js", "attention.js"} {
+		got := call(t, s, "GET", "/assets/"+asset, "", "")
+		if got.StatusCode != http.StatusOK {
+			t.Errorf("asset %s: %s", asset, got.Status)
+		}
+		got.Body.Close()
 	}
 }
 
