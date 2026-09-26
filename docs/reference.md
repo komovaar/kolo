@@ -163,13 +163,13 @@ because a paste that quietly went nowhere would look like one that worked.
 |---|---|---|
 | stop | the page | always |
 | interrupt | the protocol only | only while that kind's `busy` marker is on screen, using that kind's key |
-| restart, start fresh | the protocol only | always |
+| restart | the page and protocol | always |
+| start fresh | the protocol only | always |
 
-The page draws a stop control and nothing else. Interrupt, restart and start
-fresh travel on the watch websocket and the host honours them, but the page
-stopped offering buttons for them once it was clear nobody used them. Anything
-speaking the protocol can still send them, and the log records them like any
-other action.
+The page offers stop in the agent list and restart below the open screen.
+Restart asks for confirmation before interrupting work and attempts to resume
+the conversation when the agent supports it. Interrupt and start fresh remain
+available through the watch websocket. The log records each action.
 
 ### Why there is no button to answer a question
 
@@ -268,8 +268,8 @@ agents (`-allow '*'`), and the log.
 **Not built yet:** a notification when an agent stalls on a question and nobody
 is watching.
 
-Interrupt, restart and start fresh are built, and travel on the watch
-websocket. That the page draws no buttons for them is a decision, not a gap:
+Interrupt, restart and start fresh travel on the watch websocket. The page
+offers restart; interrupt and start fresh are protocol-only controls:
 see [What kolo can press for you](#what-kolo-can-press-for-you).
 
 ## Repo layout
