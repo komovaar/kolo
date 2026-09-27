@@ -52,10 +52,17 @@ with `kolo up`, the hub and host happen to run in the same process.
 **Only hosts install kolo.** Everyone else opens a link. It is one Go binary
 with nothing beside it.
 
-**Agents are communal.** Anyone in the org can watch any agent, type at it, or
-stop it. There are no roles and no permissions. Instead every action is
-recorded against the person who took it, and that record is what makes the
-arrangement work.
+**Agents are communal.** Members normally can watch, type at, and control any
+agent. A member marked `"read_only": true` in the org file can watch every
+agent and read the activity log, but cannot create, rename, type at, interrupt,
+restart, start fresh, or stop agents. The hub enforces this for HTTP requests
+and every WebSocket command, including connections already open when access
+changes. File edits take effect on the hub's next reload, usually within two
+seconds. Existing members without the field keep control access.
+
+An invite may also carry `"read_only": true`; members who claim it inherit
+that access. Changing or withdrawing an invite does not change members who
+already joined. Change those members individually in the org file.
 
 ## Agents
 
@@ -141,8 +148,8 @@ Sharing a directory still means sharing its files. Kolo does not referee that.
 
 ## Typing and control
 
-Anyone in the org can type at any agent. There is no lock to take and nobody to
-ask.
+Any member with control access can type at any agent. There is no lock to take
+and nobody to ask. Read-only members can watch the same screen.
 
 Keystrokes go to the agent as you press them. Whoever typed last is shown to
 everyone else as the typist. Everything typed goes into the log under your
@@ -249,8 +256,8 @@ crediting the person who happened to press Enter.
 
 **Nothing an agent prints is kept.** Only what people did.
 
-The log is what stands in for roles. Everyone may do everything, because
-everyone can see who did what.
+The log records who used the shared controls. Read-only members can read it
+too; it includes members' typed lines and may contain sensitive information.
 
 ## Screen size
 

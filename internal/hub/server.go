@@ -416,9 +416,8 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
-	member, ok := s.authenticate(r)
+	member, ok := s.authorizeControl(w, r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	var req createRequest
@@ -464,9 +463,8 @@ func (s *Server) handleCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRelabel(w http.ResponseWriter, r *http.Request) {
-	member, ok := s.authenticate(r)
+	member, ok := s.authorizeControl(w, r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	name := r.PathValue("name")
@@ -486,9 +484,8 @@ func (s *Server) handleRelabel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
-	member, ok := s.authenticate(r)
+	member, ok := s.authorizeControl(w, r)
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	name := r.PathValue("name")
@@ -511,6 +508,19 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	s.journal.add(Entry{Agent: name, What: WhatStopped, Who: member.Person()})
 	s.journal.forget(name)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) authorizeControl(w http.ResponseWriter, r *http.Request) (Member, bool) {
+	member, ok := s.authenticate(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return Member{}, false
+	}
+	if member.ReadOnly {
+		http.Error(w, "read-only access: you can watch agents but cannot control them", http.StatusForbidden)
+		return Member{}, false
+	}
+	return member, true
 }
 
 func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
@@ -666,6 +676,23 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 		if msg.Type != "keys" && msg.Type != "interrupt" && msg.Type != "restart" && msg.Type != "fresh" {
 			continue
 		}
+		// Recheck each command: a connection may outlive a change to its access.
+		s.orgMu.RLock()
+		current, allowed := s.org.memberForHash(member.TokenHash)
+		s.orgMu.RUnlock()
+		if !allowed {
+			return
+		}
+		if current.ReadOnly {
+			if err := write(ctx, conn, struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}{"refused", "read-only access: you can watch agents but cannot control them"}); err != nil {
+				return
+			}
+			continue
+		}
+		member = current
 		send, ok := s.registry.Sender(name)
 		if !ok {
 			s.refuseViewer(name, "the agent is no longer available")

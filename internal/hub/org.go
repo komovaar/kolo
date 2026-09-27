@@ -41,6 +41,7 @@ type Host struct {
 // Member is one person in an org. Only the token hash is stored: the file ends
 // up in backups and version control.
 type Member struct {
+	ReadOnly  bool   `json:"read_only,omitempty"`
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	TokenHash string `json:"token_hash"`
@@ -54,6 +55,7 @@ const maxMemberName = 40
 // Invite is a join link, weaker than a member token: it only mints a member,
 // and stops working at Expires.
 type Invite struct {
+	ReadOnly  bool   `json:"read_only,omitempty"`
 	ID        string `json:"id"`
 	TokenHash string `json:"token_hash"`
 	// The link's own token, kept where a member's never is, so the one link can
@@ -74,11 +76,12 @@ func (i Invite) Spent(now time.Time) bool { return !now.Before(i.Expires) }
 // Person is a member as others see them, a separate type from Member so the
 // token hash can't leak into a response.
 type Person struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ReadOnly bool   `json:"read_only,omitempty"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
 }
 
-func (m Member) Person() Person { return Person{ID: m.ID, Name: m.Name} }
+func (m Member) Person() Person { return Person{ID: m.ID, Name: m.Name, ReadOnly: m.ReadOnly} }
 
 // Load reads an org file; a running hub reloads it on change.
 func Load(path string) (*Org, error) {
@@ -284,12 +287,17 @@ func (o *Org) VerifyMember(token string) (Member, bool) {
 // Needn't be constant-time: the hash comes from an already authenticated
 // connection.
 func (o *Org) knowsMember(hash string) bool {
+	_, ok := o.memberForHash(hash)
+	return ok
+}
+
+func (o *Org) memberForHash(hash string) (Member, bool) {
 	for _, m := range o.Members {
 		if m.TokenHash == hash {
-			return true
+			return m, true
 		}
 	}
-	return false
+	return Member{}, false
 }
 
 func (o *Org) knowsHost(hash string) bool {
@@ -344,11 +352,20 @@ func AddInvite(path, id string, expires time.Time, uses int) (*Org, string, erro
 // already holds it. Where AddInvite would make team-2, this keeps one link
 // named team and lets the old one stop working.
 func SetInvite(path, id string, expires time.Time, uses int) (*Org, string, error) {
+	return setInvite(path, id, expires, uses, false)
+}
+
+// SetReadOnlyInvite mints a link whose members may watch but cannot control agents.
+func SetReadOnlyInvite(path, id string, expires time.Time, uses int) (*Org, string, error) {
+	return setInvite(path, id, expires, uses, true)
+}
+
+func setInvite(path, id string, expires time.Time, uses int, readOnly bool) (*Org, string, error) {
 	token, hash, err := NewToken()
 	if err != nil {
 		return nil, "", err
 	}
-	fresh := Invite{ID: id, TokenHash: hash, Token: token, Expires: expires, Uses: uses}
+	fresh := Invite{ID: id, TokenHash: hash, Token: token, Expires: expires, Uses: uses, ReadOnly: readOnly}
 	org, err := update(path, func(o *Org) error {
 		for i, v := range o.Invites {
 			if v.ID == id {
@@ -404,7 +421,8 @@ func Claim(path, token, name string) (org *Org, member Member, memberToken strin
 			}
 		}
 		member = Member{
-			ID: o.freeID(slug(name)), Name: name, TokenHash: hash,
+			ReadOnly: o.Invites[i].ReadOnly,
+			ID:       o.freeID(slug(name)), Name: name, TokenHash: hash,
 			Joined: time.Now().Round(time.Second), Via: o.Invites[i].ID,
 		}
 		o.Members = append(o.Members, member)
