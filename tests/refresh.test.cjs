@@ -15,9 +15,9 @@ function page() {
   const updates = [], screens = [];
   let resets = 0;
   const context = vm.createContext({
-    refreshRun: 0, signedIn: false, location: { search: '' },
+    refreshRun: 0, signedIn: false, renamingId: null, location: { search: '' },
     el: () => ({ classList: { toggle() {} } }),
-    show: (name) => screens.push(name), drawGroups() {}, drawChoices() {},
+    show: (name) => screens.push(name), drawGroups() {}, drawChoices() {}, applyAccess() {},
     attention: { update: (agents) => updates.push(agents[0].name), reset: () => { resets++; } },
   });
   vm.runInContext(refresh, context);

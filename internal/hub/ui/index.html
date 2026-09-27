@@ -413,8 +413,7 @@
       </div>
     </section>
 
-    <!-- What stands in for roles. Everyone may do everything, so everyone can
-         see who did what, and seeing it should not mean knowing curl. -->
+    <!-- Everyone can read who used the shared agent controls. -->
     <section class="log" hidden>
       <div class="log-head">
         <h2>Log</h2>
@@ -615,7 +614,23 @@ function kindGlyph(command) {
 
 let hosts = [];
 let signedIn = false;
-let me = {};
+let me = { read_only: true };
+
+function canControl() {
+  return signedIn && !me.read_only;
+}
+
+function applyAccess() {
+  const allowed = canControl();
+  term.options.disableStdin = !allowed;
+  el('.side .new').hidden = !allowed;
+  el('.watch .restart').hidden = !allowed;
+  el('.watch .restart').disabled = !allowed || !socket || socket.readyState !== WebSocket.OPEN;
+  if (!allowed) {
+    renamingId = null;
+    if (!el('.scrim').hidden) closeCreate();
+  }
+}
 // The agents from the last successful refresh, kept so a rename can redraw
 // the side without waiting on a round trip that has nothing to do with it.
 let lastAgents = [];
@@ -639,6 +654,7 @@ async function refresh() {
   if (run !== refreshRun) return null;
   signedIn = resp.status !== 401;
   if (!signedIn) {
+    applyAccess();
     attention.reset();
     show('signin');
     el('.signin .problem').hidden = !location.search.includes('refused');
@@ -658,14 +674,15 @@ async function refresh() {
   }
   if (run !== refreshRun) return null;
   show('app');
-  el('.me .status').textContent = 'online';
+  el('.me .status').textContent = data.you.read_only ? 'read-only · online' : 'online';
   el('.me .name').textContent = data.you.name;
   el('.me .initial').textContent = (data.you.name.trim().slice(0, 1) || '?').toUpperCase();
   me = data.you;
+  applyAccess();
   hosts = data.hosts;
   lastAgents = data.agents || [];
   attention.update(lastAgents);
-  drawGroups(lastAgents);
+  if (!renamingId) drawGroups(lastAgents);
   // Nothing running anywhere: the home screen is the mark, not a mark with
   // a list beside it.
   el('.home').classList.toggle('empty', lastAgents.length === 0);
@@ -681,6 +698,7 @@ let renamingId = null;
 let renameDraft = '';
 
 function startRename(a) {
+  if (!canControl()) return;
   renamingId = a.name;
   renameDraft = a.label || a.name;
   drawGroups(lastAgents);
@@ -692,6 +710,7 @@ function cancelRename() {
 }
 
 async function commitRename() {
+  if (!canControl()) { cancelRename(); return; }
   const id = renamingId;
   const draft = renameDraft.trim();
   const current = lastAgents.find((a) => a.name === id);
@@ -765,6 +784,7 @@ function drawGroups(agents) {
         <svg width="12" height="12" viewBox="0 0 13 13"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>`;
     head.querySelector('.label').textContent = host;
+    head.querySelector('.add').hidden = !canControl();
     if (hostInfo && hostInfo.error) {
       head.title = hostInfo.error;
       head.querySelector('.chip').classList.add('problem');
@@ -835,7 +855,7 @@ function drawGroups(agents) {
         const name = document.createElement('span');
         name.className = 'name';
         name.textContent = a.label || a.name;
-        name.title = 'double-click to rename';
+        name.title = canControl() ? 'double-click to rename' : 'read-only access';
         name.ondblclick = (ev) => { ev.stopPropagation(); startRename(a); };
         rowInner.append(name);
       }
@@ -853,6 +873,7 @@ function drawGroups(agents) {
       rowInner.append(chip);
       const drop = document.createElement('button');
       drop.type = 'button';
+      drop.hidden = !canControl();
       drop.className = 'drop';
       drop.title = 'stop';
       drop.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
@@ -954,6 +975,7 @@ el('#new-host').onchange = drawChoices;
 // regardless of what's open behind it, and closes back to exactly that.
 let createHostPref = null;
 function openCreate(hostPref) {
+  if (!canControl()) return;
   createHostPref = hostPref || null;
   drawChoices();
   el('.scrim').hidden = false;
@@ -972,6 +994,7 @@ el('.scrim').onclick = (ev) => { if (ev.target === el('.scrim')) closeCreate(); 
 
 el('form.create').onsubmit = async (ev) => {
   ev.preventDefault();
+  if (!canControl()) return;
   const submit = ev.target.querySelector('button[type=submit]');
   if (submit.disabled) return;
   submit.disabled = true;
@@ -1002,6 +1025,7 @@ el('form.create').onsubmit = async (ev) => {
 };
 
 async function stop(name) {
+  if (!canControl()) return;
   if (!confirm(`Stop ${name}? Its conversation goes with it.`)) return;
   try {
     const resp = await fetch(`/v1/agents/${name}`, { method: 'DELETE' });
@@ -1036,7 +1060,7 @@ const baseFont = 13;
 const term = new Terminal({
   // Keystrokes go to the agent as they are pressed. See onData below. Whoever
   // types last is the typist the others see.
-  disableStdin: false,
+  disableStdin: true,
   cursorBlink: true,
   // What the agent says is what the machine says, so it is said in the
   // brand's mono. The stack behind it is what draws until the file arrives.
@@ -1179,7 +1203,7 @@ function connect(name) {
   // reports its own close, which would land after the replacement opened.
   ws.onopen = () => {
     if (ws !== socket) return;
-    el('.watch .restart').disabled = false;
+    el('.watch .restart').disabled = !canControl();
     say('.watch .note', `watching ${name}`);
   };
 
@@ -1260,6 +1284,10 @@ function keyboardChanged() {
 // tell sends one thing to the agent. Who it is from is the hub's word, taken
 // from the connection, so there is nothing to send about that.
 function tell(what) {
+  if (!canControl()) {
+    say('.watch .note', 'read-only access: you can watch this agent');
+    return false;
+  }
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     say('.watch .note', 'not connected', true);
     return false;
@@ -1269,6 +1297,7 @@ function tell(what) {
 }
 
 el('.watch .restart').onclick = () => {
+  if (!canControl()) return;
   if (!confirm('Restart this agent? Its current work will be interrupted. Kolo will resume its conversation when this agent supports it.')) return;
   tell({ type: 'restart' });
 };
@@ -1377,10 +1406,10 @@ async function route() {
 addEventListener('hashchange', route);
 route();
 // The list is a live thing: agents appear when somebody else makes one, and
-// change status on their own. Paused mid-rename: a redraw would tear out
-// the input a member is still typing into.
+// change status on their own. Refresh access even mid-rename; refresh() defers
+// redrawing that row until editing ends, unless control access was revoked.
 setInterval(() => {
-  if (!signedIn || renamingId) return;
+  if (!signedIn) return;
   refresh();
   // Only while the newest entry is in view. Entries arrive at the top, and
   // redrawing under somebody who has scrolled back moves what they are

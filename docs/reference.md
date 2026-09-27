@@ -71,6 +71,12 @@ preserves its access. To change it, use `kolo invite -id observers -new
 -read-only=false` (or `true`). This replaces the invitation, not existing
 members' access.
 
+The browser identifies these members as **read-only** beneath their name,
+hides create, stop and restart controls, and disables terminal input and
+renaming. Watching screens, reading the log, zooming, and attention alerts
+remain available. If access changes while the page is open, its next refresh
+updates these controls; the server independently checks every command.
+
 ## Agents
 
 Any command that draws a terminal will run. The org can watch it, type at it,
