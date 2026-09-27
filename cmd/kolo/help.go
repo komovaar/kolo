@@ -114,8 +114,14 @@ certificates browsers do not trust but whose limits are generous.
     kolo invite -new
     kolo invite -list
     kolo invite -id contractors -uses 3 -days 1
+    kolo invite -id observers -read-only
     kolo invite -off contractors
     kolo invite -off spent
+
+Use -read-only for a link that permits watching agents and reading the log,
+but cannot control them. Existing links retain their access when shown or
+renewed. Changing access requires -new and an explicit -read-only=true or
+-read-only=false. Members who already joined keep their current access.
 
 An org keeps one link, called team, and every kolo invite and kolo up
 shows that same one. A team of thirty is one link sent thirty times, not
@@ -194,7 +200,11 @@ worse answer to a typo than carrying on.
 	"token": `Mints one credential, for one person or one machine.
 
     kolo token -id dana -name "Dana"
+    kolo token -id observer -read-only
     kolo token -host -id devbox -hub https://hub.acme.com
+
+Use -read-only for a member who may watch agents and read the log but cannot
+control agents. This flag cannot be combined with -host.
 
 For most orgs kolo invite has replaced this for people: it is one link
 rather than a token per person, sent somewhere private. What is left here

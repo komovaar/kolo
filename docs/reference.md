@@ -64,6 +64,13 @@ An invite may also carry `"read_only": true`; members who claim it inherit
 that access. Changing or withdrawing an invite does not change members who
 already joined. Change those members individually in the org file.
 
+Create a read-only invitation with `kolo invite -id observers -read-only`, or
+a direct member token with `kolo token -id observer -read-only`. `kolo who`
+and `kolo invite -list` show each member or link's access. Renewing a link
+preserves its access. To change it, use `kolo invite -id observers -new
+-read-only=false` (or `true`). This replaces the invitation, not existing
+members' access.
+
 ## Agents
 
 Any command that draws a terminal will run. The org can watch it, type at it,

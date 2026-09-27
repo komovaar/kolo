@@ -19,6 +19,7 @@ func inviteCmd(args []string) error {
 	days := fs.Int("days", inviteDays, "how many days a link made now works for")
 	uses := fs.Int("uses", defaultUses, "how many people may use it, or 0 for anyone who has it")
 	fresh := fs.Bool("new", false, "replace this link with a new one, so the old one stops working")
+	readOnly := fs.Bool("read-only", false, "members using this link may watch agents but cannot control them")
 	listing := fs.Bool("list", false, "show every link there is, working or not, instead of one")
 	var off list
 	fs.Var(&off, "off", "withdraw the link with this `name` instead of showing one: repeat or comma-separate for several, all for every link, spent for the ones that no longer work")
@@ -55,10 +56,26 @@ func inviteCmd(args []string) error {
 
 	// The standing link unless it is gone, expired, spent or unshowable.
 	v, ok := org.Invite(*id)
+	accessSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "read-only" {
+			accessSet = true
+		}
+	})
+	if ok && !accessSet {
+		*readOnly = v.ReadOnly
+	}
+	if ok && accessSet && v.ReadOnly != *readOnly && !*fresh {
+		return fmt.Errorf("link %s already has %s access; use -new with -read-only=%t to replace it", *id, accessName(v.ReadOnly), *readOnly)
+	}
 	made := false
 	if *fresh || !ok || !v.Showable(time.Now()) {
 		expires := time.Now().Add(time.Duration(*days) * 24 * time.Hour)
-		if org, _, err = hub.SetInvite(*orgPath, *id, expires, *uses); err != nil {
+		makeInvite := hub.SetInvite
+		if *readOnly {
+			makeInvite = hub.SetReadOnlyInvite
+		}
+		if org, _, err = makeInvite(*orgPath, *id, expires, *uses); err != nil {
 			return missingOrg(err, *orgPath)
 		}
 		v, _ = org.Invite(*id)
@@ -72,6 +89,7 @@ func inviteCmd(args []string) error {
 	}
 	fmt.Printf("    %s\n\n", hub.InviteURL(reachAt(*hubURL, org), v.Token))
 	fmt.Printf("%s, until %s. They say what to call them and are in.\n", usesLeft(v), v.Expires.Local().Format("Mon 2 Jan 15:04"))
+	fmt.Printf("Access: %s.\n", accessName(v.ReadOnly))
 	fmt.Printf("Nothing to install, no token to paste.\n\n")
 	fmt.Printf("Anyone holding it can use it: kolo invite -new replaces it, kolo invite\n-off %s withdraws it, and kolo who says who came through.\n", v.ID)
 	return nil
@@ -151,7 +169,7 @@ func listInvites(org *hub.Org) error {
 		if !v.Showable(now) {
 			shown = "cannot be shown again"
 		}
-		fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", v.ID, usesLeft(v),
+		fmt.Fprintf(out, "%s\t%s\t%s\t%s\t%s\n", v.ID, accessName(v.ReadOnly), usesLeft(v),
 			"until "+v.Expires.Local().Format("Mon 2 Jan 15:04"), shown)
 	}
 	out.Flush()

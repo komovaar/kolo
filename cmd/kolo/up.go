@@ -289,14 +289,19 @@ func strayOrg(fs *flag.FlagSet) {
 // Minted only when there isn't one to show: an invite made before kolo kept
 // its token can't be printed again, so it is replaced.
 func standingInvite(orgPath string, org *hub.Org) (_ *hub.Org, _ hub.Invite, minted bool, err error) {
-	if v, ok := org.Invite(standingID); ok && v.Showable(time.Now()) {
+	v, ok := org.Invite(standingID)
+	if ok && v.Showable(time.Now()) {
 		return org, v, false, nil
 	}
-	org, _, err = hub.SetInvite(orgPath, standingID, time.Now().Add(inviteDays*24*time.Hour), defaultUses)
+	makeInvite := hub.SetInvite
+	if v.ReadOnly {
+		makeInvite = hub.SetReadOnlyInvite
+	}
+	org, _, err = makeInvite(orgPath, standingID, time.Now().Add(inviteDays*24*time.Hour), defaultUses)
 	if err != nil {
 		return nil, hub.Invite{}, false, err
 	}
-	v, _ := org.Invite(standingID)
+	v, _ = org.Invite(standingID)
 	return org, v, true, nil
 }
 

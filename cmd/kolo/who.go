@@ -38,7 +38,7 @@ func whoCmd(args []string) error {
 
 	fmt.Fprintf(out, "members\t%d\n", len(org.Members))
 	for _, m := range org.Members {
-		fmt.Fprintf(out, "  %s\t%s\t%s\n", m.ID, m.Name, joinedHow(m))
+		fmt.Fprintf(out, "  %s\t%s\t%s\t%s\n", m.ID, m.Name, accessName(m.ReadOnly), joinedHow(m))
 	}
 	if len(org.Members) == 0 {
 		fmt.Fprintln(out, "  (nobody yet: send them an invite)")
@@ -52,7 +52,7 @@ func whoCmd(args []string) error {
 	live := org.Live(time.Now())
 	fmt.Fprintf(out, "\nlinks that still work\t%d\n", len(live))
 	for _, v := range live {
-		fmt.Fprintf(out, "  %s\t%s\t%s\n", v.ID, usesLeft(v), "until "+v.Expires.Local().Format("Mon 2 Jan 15:04"))
+		fmt.Fprintf(out, "  %s\t%s\t%s\t%s\n", v.ID, accessName(v.ReadOnly), usesLeft(v), "until "+v.Expires.Local().Format("Mon 2 Jan 15:04"))
 	}
 	if len(live) == 0 {
 		fmt.Fprintln(out, "  (none: kolo invite makes one)")
@@ -101,4 +101,11 @@ func usesLeft(v hub.Invite) string {
 		return "1 use left"
 	}
 	return fmt.Sprintf("%d uses left", v.Uses)
+}
+
+func accessName(readOnly bool) string {
+	if readOnly {
+		return "read-only"
+	}
+	return "control"
 }

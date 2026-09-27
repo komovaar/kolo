@@ -111,6 +111,7 @@ func tokenCmd(args []string) error {
 	id := fs.String("id", "", "member or host id")
 	name := fs.String("name", "", "member's display name (defaults to the id)")
 	asHost := fs.Bool("host", false, "credentials for a machine that will run agents, not a person")
+	readOnly := fs.Bool("read-only", false, "this member may watch agents but cannot control them")
 	hubURL := fs.String("hub", "", "where they will reach the hub (default where the hub said it was at its last start)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, "usage: kolo token -id <id> [-name <name>]")
@@ -126,6 +127,9 @@ func tokenCmd(args []string) error {
 	}
 	if *name == "" {
 		*name = *id
+	}
+	if *asHost && *readOnly {
+		return fmt.Errorf("-read-only is for members; it cannot be combined with -host")
 	}
 
 	token, hash, err := hub.NewToken()
@@ -146,11 +150,12 @@ func tokenCmd(args []string) error {
 		return nil
 	}
 
-	org, err := hub.AddMember(*orgPath, hub.Member{ID: *id, Name: *name, TokenHash: hash})
+	org, err := hub.AddMember(*orgPath, hub.Member{ID: *id, Name: *name, TokenHash: hash, ReadOnly: *readOnly})
 	if err != nil {
 		return missingOrg(err, *orgPath)
 	}
 	fmt.Printf("Added %s to %s.\n\n", *name, *orgPath)
+	fmt.Printf("Access: %s.\n\n", accessName(*readOnly))
 	fmt.Printf("Send %s these two, once. The token is stored nowhere:\n\n", *name)
 	fmt.Printf("    %s\n    %s\n\n", reachAt(*hubURL, org), token)
 	fmt.Println("The hub keeps only the hash, so a lost token is replaced rather than recovered.")
