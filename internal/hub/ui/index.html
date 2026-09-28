@@ -249,7 +249,7 @@
     .home-intro .mark-big { display: none; }
   }
   @media (max-width: 480px) {
-    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 180px minmax(0, 1fr); }
+    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 220px minmax(0, 1fr); }
     .side { border-right: 0; border-bottom: 1px solid var(--line); }
     .brand { padding: 8px 12px; flex-wrap: nowrap; }
     .brand .new { margin: 0 0 0 8px; width: auto; }
@@ -276,10 +276,17 @@
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .field-row.single { grid-template-columns: 1fr; }
   .field label { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .field-help, .machine-help { color: var(--dim); margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+  .kind-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .kind-type { font: 12px var(--ui); color: var(--dim); }
+  .dialog .create { overflow-y: auto; }
   .dialog input, .dialog select { background: var(--raised); color: var(--text); border: 1px solid var(--line);
               border-radius: 7px; padding: 9px 11px; font: 13px var(--mono); width: 100%; }
   .dialog input:focus, .dialog select:focus { outline: none;
               border-color: color-mix(in srgb, var(--structure) 55%, var(--line)); }
+  .dialog input:focus-visible, .dialog select:focus-visible {
+    outline: 2px solid var(--kolo-brass); outline-offset: 2px;
+  }
 
   /* A native select can't show a mark next to a name, so the agent field is
      drawn by hand: a short, known set, seen all at once. Falls back to a
@@ -341,8 +348,7 @@
             border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
             color: var(--dim); font: 11.5px var(--ui); white-space: nowrap; z-index: 1; }
 
-  /* One line, always: a note appearing and going must not resize the screen
-     above it, which would cost every watcher a repaint at a new size. */
+  /* Allow status guidance to wrap on small screens instead of hiding it. */
   .watch-bar { min-height: 40px; padding: 4px 16px 10px; display: flex;
                align-items: center; gap: 10px; }
   .watch-bar .note { flex: 1; min-width: 0; margin: 0; color: var(--dim);
@@ -502,51 +508,53 @@
   </main>
 </div>
 
-<!-- New agent, as a dialog: a deliberate, occasional act, reachable from
-     either + regardless of what's open behind it, and closing back to
-     exactly that. -->
+<!-- Session creation returns focus to the action that opened it. -->
 <div class="scrim" hidden>
-  <div class="dialog" role="dialog" aria-label="new agent">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="create-title">
     <div class="dialog-head">
       <svg class="mark" width="14" height="14" viewBox="0 0 18 18" role="img" aria-label="Kolo">
         <path fill-rule="evenodd" fill="currentColor"
           d="M0.72,9 a8.28,8.28 0 1,0 16.56,0 a8.28,8.28 0 1,0 -16.56,0 Z
              M4.1886,7.9326 a5.8788,5.8788 0 1,0 11.7576,0 a5.8788,5.8788 0 1,0 -11.7576,0 Z"/>
       </svg>
-      <h2>New agent</h2>
+      <h2 id="create-title">New session</h2>
       <button type="button" class="icon-btn close" title="close">
         <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
     </div>
     <form class="create">
       <div class="dialog-body">
+        <p class="machine-help"></p>
         <div class="field agent-field">
-          <label>agent</label>
-          <div class="kind-picker" hidden></div>
-          <input name="command" list="known-commands" placeholder="any command, like claude --model opus" hidden disabled>
+          <label for="new-command" id="program-label">Program</label>
+          <div class="kind-picker" role="group" aria-labelledby="program-label" aria-describedby="command-help" hidden></div>
+          <input id="new-command" name="command" list="known-commands" placeholder="e.g. claude or bash" aria-describedby="command-help" hidden disabled required>
           <datalist id="known-commands"></datalist>
+          <p class="field-help" id="command-help"></p>
         </div>
         <div class="field-row">
           <div class="field host-field">
-            <label for="new-host">host</label>
+            <label for="new-host">Machine</label>
             <select id="new-host" name="host"></select>
           </div>
           <div class="field">
             <label for="new-dir">directory</label>
             <select id="new-dir" name="dir"></select>
-            <input name="dir" placeholder="anywhere, like /home/me/proj" hidden disabled>
+            <input name="dir" aria-label="Directory" placeholder="e.g. /home/me/project" hidden disabled required>
           </div>
         </div>
         <div class="field">
-          <label for="new-name">name</label>
-          <input id="new-name" name="name" placeholder="name" maxlength="32" required>
+          <label for="new-name">Session name</label>
+          <input id="new-name" name="name" placeholder="e.g. fix-login" maxlength="32" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" aria-describedby="name-help" required>
+          <p class="field-help" id="name-help">1–32 lowercase letters, numbers, or dashes. Start and end with a letter or number.</p>
         </div>
       </div>
-      <p class="note dialog-note"></p>
+      <p class="note dialog-note" role="status"></p>
       <div class="dialog-foot">
-        <button type="submit" class="go">
+        <button type="button" class="go cancel">Cancel</button>
+        <button type="submit" class="go primary">
           <svg width="13" height="13" viewBox="0 0 14 14"><path d="M2.5 7.5 5.5 10.5 11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
-          create
+          Start session
         </button>
       </div>
     </form>
@@ -930,18 +938,21 @@ function drawGroups(agents) {
     const group = document.createElement('div');
     group.className = 'group';
 
-    const head = document.createElement('button');
+    const head = document.createElement('div');
     head.className = 'group-head';
-    head.type = 'button';
+    head.setAttribute('role', 'button');
+    head.tabIndex = 0;
     head.innerHTML = `
       <svg class="chevron" width="10" height="10" viewBox="0 0 10 10"><path d="M2.5 1.5l4 3.5-4 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
       <span class="chip"><svg width="10" height="10" viewBox="0 0 14 14"><rect x="1" y="1.5" width="12" height="8" rx="1.3" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M5 12.5h4M7 9.5v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span>
       <span class="label"></span>
       <span class="spacer"></span>
-      <button type="button" class="icon-btn add" title="new agent on ${host}">
+      <button type="button" class="icon-btn add">
         <svg width="12" height="12" viewBox="0 0 13 13"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>`;
     head.querySelector('.label').textContent = host;
+    head.querySelector('.add').title = `New session on ${host}`;
+    head.querySelector('.add').setAttribute('aria-label', `New session on ${host}`);
     head.querySelector('.add').hidden = !canControl();
     if (hostInfo && hostInfo.error) {
       head.title = hostInfo.error;
@@ -953,10 +964,16 @@ function drawGroups(agents) {
       head.querySelector('.spacer').before(problem);
     }
     const isCollapsed = !!collapsed[host];
+    head.setAttribute('aria-expanded', String(!isCollapsed));
     head.querySelector('.chevron').classList.toggle('open', !isCollapsed);
     head.onclick = () => {
       collapsed[host] = !collapsed[host];
       drawGroups(agents);
+    };
+    head.onkeydown = (ev) => {
+      if (ev.target === head && (ev.key === 'Enter' || ev.key === ' ')) {
+        ev.preventDefault(); head.click();
+      }
     };
     head.querySelector('.add').onclick = (ev) => {
       ev.stopPropagation();
@@ -1056,13 +1073,21 @@ function drawGroups(agents) {
 // choices are the host's own terms, so nothing can be picked that will only
 // be refused a moment later, unless the host lent any command or any
 // directory, in which case that field opens up into free text.
+let choicesSnapshot = '';
+let createPending = false;
 function drawChoices() {
+  if (createPending) return;
   const hostSel = el('#new-host'), dirSel = el('#new-dir'), dirInput = el('input[name=dir]');
   const picker = el('.kind-picker'), cmdInput = el('input[name=command]'), known = el('#known-commands');
   const hostField = el('.host-field');
-  const chosen = hostSel.value || createHostPref;
+  const chosen = createHostPref || hostSel.value;
+  const snapshot = JSON.stringify([hosts, chosen]);
+  if (snapshot === choicesSnapshot) return;
+  choicesSnapshot = snapshot;
   fill(hostSel, hosts.map((h) => h.id));
   if (chosen && hosts.some((h) => h.id === chosen)) hostSel.value = chosen;
+  choicesSnapshot = JSON.stringify([hosts, hostSel.value]);
+  createHostPref = null;
   // Asking which host is not a question when only one machine is lending
   // itself. The field disappears rather than making you answer something
   // that only ever has one answer.
@@ -1070,6 +1095,8 @@ function drawChoices() {
   el('.field-row').classList.toggle('single', hosts.length <= 1);
 
   const host = hosts.find((h) => h.id === hostSel.value) || hosts[0];
+  el('.machine-help').textContent = host ? `Run on ${host.id}. Programs and directories are shared by this machine.`
+    : 'Connect a machine before starting a session.';
   const lendingEverywhere = !!host && (host.dirs || []).includes('*');
   dirSel.hidden = dirSel.disabled = lendingEverywhere;
   dirInput.hidden = dirInput.disabled = !lendingEverywhere;
@@ -1080,22 +1107,32 @@ function drawChoices() {
   cmdInput.hidden = cmdInput.disabled = !lendingAny;
   known.replaceChildren();
   if (lendingAny) {
+    el('#command-help').textContent = 'This machine allows any command. Enter an installed agent, shell, or other program.';
     for (const name of new Set([...(host.allow || []).filter((c) => c !== '*'), ...(host.found || [])])) {
       const option = document.createElement('option');
       option.value = name;
       known.append(option);
     }
   } else {
-    drawKindPicker(host ? host.allow : []);
+    drawKindPicker(host?.allow || []);
   }
-  el('form.create button[type=submit]').disabled = hosts.length === 0;
-  say('.dialog-note', hosts.length === 0 ? 'No machine is lending itself to this org right now.' : '');
+  const ready = !!host && (host.allow || []).length > 0 && (host.dirs || []).length > 0;
+  el('form.create button[type=submit]').disabled = !ready;
+  say('.dialog-note', !host ? 'No machines connected. Run kolo host on a configured machine.'
+    : !ready ? 'This machine must share a program and a directory before you can start a session.' : '');
 }
 
 // drawKindPicker is the agent field for a host that lends a fixed set of
 // commands: one row per command, a mark next to each rather than a plain
 // list a select could already do.
 let pickedCommand = null;
+function programKind(command) {
+  const program = programOf(command).toLowerCase().replace(/\.exe$/, '');
+  if (['sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'pwsh', 'powershell', 'cmd'].includes(program)) return 'Shell';
+  if (['claude', 'opencode', 'codex', 'gemini', 'cursor', 'cursor-agent', 'copilot', 'qwen', 'windsurf', 'replit'].includes(program)) return 'AI agent';
+  return 'Command';
+}
+
 function drawKindPicker(commands) {
   const picker = el('.kind-picker');
   picker.replaceChildren();
@@ -1103,13 +1140,22 @@ function drawKindPicker(commands) {
   for (const command of commands) {
     const choice = document.createElement('button');
     choice.type = 'button';
+    choice.setAttribute('aria-pressed', String(command === pickedCommand));
     choice.className = 'kind-choice' + (command === pickedCommand ? ' on' : '');
     const mark = kindGlyph(command);
-    choice.innerHTML = `<span class="kind-chip"><svg width="10" height="10" viewBox="${mark.viewBox}">${mark.inner}</svg></span><span></span>`;
-    choice.querySelector('span:last-child').textContent = command;
-    choice.onclick = () => { pickedCommand = command; drawKindPicker(commands); };
+    choice.innerHTML = `<span class="kind-chip" aria-hidden="true"><svg width="10" height="10" viewBox="${mark.viewBox}">${mark.inner}</svg></span><span class="kind-label"></span><span class="kind-type"></span>`;
+    choice.querySelector('.kind-label').textContent = command;
+    choice.querySelector('.kind-type').textContent = programKind(command);
+    choice.onclick = () => {
+      pickedCommand = command;
+      drawKindPicker(commands);
+      picker.querySelector('[aria-pressed="true"]').focus();
+    };
     picker.append(choice);
   }
+  el('#command-help').textContent = !commands.length ? 'No programs are shared by this machine.'
+    : programKind(pickedCommand) === 'Shell' ? 'Shell session: run commands directly. No AI agent is attached.'
+    : 'Start this program in the directory below. Everyone with access can follow the session.';
 }
 
 // options may be absent rather than empty: a host that lends nothing sends null
@@ -1132,30 +1178,49 @@ el('#new-host').onchange = drawChoices;
 // The dialog is reachable from either +, the heading's and each group's,
 // regardless of what's open behind it, and closes back to exactly that.
 let createHostPref = null;
+let createOpener = null;
 function openCreate(hostPref) {
   if (!canControl()) return;
+  createOpener = document.activeElement;
   createHostPref = hostPref || null;
+  choicesSnapshot = '';
   drawChoices();
   el('.scrim').hidden = false;
+  el('.app').inert = true;
   el('#new-name').focus();
 }
 function closeCreate() {
   el('.scrim').hidden = true;
+  el('.app').inert = false;
   el('form.create').reset();
+  choicesSnapshot = '';
   say('.dialog-note', '');
+  if (signedIn) (createOpener?.isConnected && createOpener.getClientRects().length
+    ? createOpener : el('.brand-home')).focus();
 }
 el('.side .new').onclick = () => openCreate(null);
 el('.home-new').onclick = () => openCreate(null);
 el('.side .log-open').onclick = () => { location.hash = '#/log'; };
 el('.brand-home').onclick = () => { location.hash = ''; };
 el('.dialog .close').onclick = closeCreate;
+el('.dialog .cancel').onclick = closeCreate;
 el('.scrim').onclick = (ev) => { if (ev.target === el('.scrim')) closeCreate(); };
+el('.scrim').onkeydown = (ev) => {
+  if (ev.key === 'Escape') { ev.preventDefault(); closeCreate(); }
+  if (ev.key !== 'Tab') return;
+  const controls = [...el('.dialog').querySelectorAll('button, input, select')]
+    .filter((node) => !node.disabled && node.getClientRects().length);
+  const first = controls[0], last = controls[controls.length - 1];
+  if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+  else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+};
 
 el('form.create').onsubmit = async (ev) => {
   ev.preventDefault();
   if (!canControl()) return;
   const submit = ev.target.querySelector('button[type=submit]');
   if (submit.disabled) return;
+  createPending = true;
   submit.disabled = true;
   const form = new FormData(ev.target);
   const lendingAny = !el('input[name=command]').hidden;
@@ -1179,13 +1244,15 @@ el('form.create').onsubmit = async (ev) => {
   } catch (_) {
     say('.dialog-note', 'Could not reach the hub. Nothing was created.', true);
   } finally {
+    createPending = false;
     submit.disabled = false;
+    drawChoices();
   }
 };
 
 async function stop(name) {
   if (!canControl()) return;
-  if (!confirm(`Stop ${name}? Its conversation goes with it.`)) return;
+  if (!confirm(`Stop session ${name}? This ends its running process and removes the session for everyone.`)) return;
   try {
     const resp = await fetch(`/v1/agents/${name}`, { method: 'DELETE' });
     if (!resp.ok) {

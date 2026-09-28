@@ -5,7 +5,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
-const source = ['sessionState', 'describe'].map((name) =>
+const source = ['sessionState', 'describe', 'programOf', 'programKind'].map((name) =>
   html.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))[0]).join('\n');
 const page = vm.createContext({ canControl: () => true });
 vm.runInContext(source, page);
@@ -32,4 +32,13 @@ test('input guidance respects read-only access and unknown activity', () => {
   assert.match(page.describe('dialog'), /member with control access/);
   assert.match(page.describe('idle'), /read-only/);
   assert.match(page.describe('unknown'), /Activity detection is unavailable/);
+});
+
+test('shells and arbitrary commands are not presented as AI agents', () => {
+  assert.equal(page.programKind('/bin/bash -l'), 'Shell');
+  assert.equal(page.programKind('C:\\tools\\pwsh.exe'), 'Shell');
+  assert.equal(page.programKind('claude --model opus'), 'AI agent');
+  assert.equal(page.programKind('codex'), 'AI agent');
+  assert.equal(page.programKind('npm run dev'), 'Command');
+  assert.equal(page.programKind(null), 'Command');
 });
