@@ -22,8 +22,8 @@
     --raised-hover: color-mix(in srgb, var(--kolo-chalk) 9%, var(--kolo-bg));
     --line: color-mix(in srgb, var(--kolo-slate) 16%, transparent);
     --text: var(--kolo-fg);
-    --dim: var(--kolo-fg-muted);
-    --faint: color-mix(in srgb, var(--kolo-fg-muted) 75%, transparent);
+    --dim: color-mix(in srgb, var(--kolo-chalk) 30%, var(--kolo-slate));
+    --faint: color-mix(in srgb, var(--kolo-chalk) 20%, var(--kolo-slate));
     --structure: var(--kolo-accent);
     --ui: var(--kolo-sans);
     --mono: var(--kolo-mono);
@@ -40,13 +40,15 @@
 
   button, input, select { font: inherit; color: inherit; background: none; border: none; }
   button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; opacity: 0.55; }
+  :focus-visible { outline: 2px solid var(--kolo-brass); outline-offset: 3px; }
   svg { display: block; flex: none; }
 
   /* Icon-weight controls: no fill, no border, a hover tint. The one shape
      every clickable thing in this app shares, whether it carries a label
      or not. */
   .icon-btn { background: none; border: 1px solid transparent; border-radius: 6px;
-              width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+              width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
               color: var(--dim); }
   .icon-btn:hover { background: var(--raised); color: var(--text); }
   .icon-btn.off { opacity: 0.35; cursor: default; }
@@ -57,6 +59,10 @@
   .go svg { color: var(--faint); }
   .go:hover { background: color-mix(in srgb, var(--kolo-chalk) 8%, transparent); }
   .go:active { transform: translateY(1px); }
+  .primary { background: var(--structure); color: var(--kolo-chalk); padding: 9px 14px;
+             border: 1px solid color-mix(in srgb, var(--kolo-chalk) 20%, var(--structure)); }
+  .primary:hover { background: color-mix(in srgb, var(--structure) 85%, var(--kolo-chalk)); }
+  .primary svg { color: currentColor; }
 
   /* The mark, wherever it is drawn as text. */
   .ascii-mark { font-family: var(--mono); font-weight: 700; line-height: var(--kolo-mono-line);
@@ -100,6 +106,7 @@
   .dialog-head .mark { width: 14px; height: 14px; color: var(--text); fill: var(--text); }
   .brand .spacer { flex: 1; }
   .brand .icon-btn + .icon-btn { margin-left: 2px; }
+  .brand .new { margin-left: 8px; font-size: 12px; padding: 7px 9px; white-space: nowrap; }
 
   .groups { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 8px; display: flex;
             flex-direction: column; gap: 2px; }
@@ -119,7 +126,7 @@
                         color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .group-head:hover .label { color: var(--text); }
   .group-head .spacer { flex: 1; min-width: 4px; }
-  .group-head .icon-btn { opacity: 0; }
+  .group-head .icon-btn { opacity: 0.8; }
   .group-head:hover .icon-btn { opacity: 1; }
   .group-body { display: flex; flex-direction: column; gap: 1px; padding-left: 10px; }
   .group-body.collapsed { display: none; }
@@ -158,7 +165,7 @@
   .kind-chip { flex: none; width: 17px; height: 17px; border-radius: 999px; background: var(--raised);
                border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
                color: var(--dim); }
-  .agent .dir { display: block; padding-left: 14px; color: var(--faint); font: 11px var(--mono);
+  .agent .dir { display: block; padding-left: 14px; color: var(--faint); font: 12px var(--mono);
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .dot { width: 7px; height: 7px; border-radius: 999px; flex: none; background: var(--kolo-state-idle); }
@@ -213,14 +220,39 @@
 
   /* ---- nothing open ------------------------------------------------------- */
 
-  .home { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
-          align-items: center; justify-content: center; gap: 6px; }
-  /* Held back to near-background weight: the mark is what the empty screen
-     is made of, not something it is asking you to read. */
-  .mark-big .ascii-mark { font-size: 13px; margin-bottom: 0; opacity: 0.4; }
-  /* With no agent anywhere, the mark takes the room it is otherwise politely
-     sharing, and sits back further for having taken it. */
-  .home.empty .mark-big .ascii-mark { font-size: clamp(13px, 2.2vw, 26px); opacity: 0.28; }
+  .home { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(24px, 5vw, 64px); }
+  .home-content { max-width: 880px; margin: 0 auto; }
+  .home-intro { display: flex; align-items: center; justify-content: space-between; gap: 24px;
+                padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .home h1 { font-size: clamp(24px, 3vw, 32px); line-height: 1.2; margin: 0 0 12px; }
+  .home p { color: var(--dim); max-width: 50ch; margin: 0 0 20px; }
+  .eyebrow { color: var(--faint); font: 12px var(--mono); margin-bottom: 14px; }
+  .mark-big .ascii-mark { font-size: 7px; opacity: 0.7; }
+  .home-section { margin-top: 28px; }
+  .home-section h2 { font-size: 15px; margin: 0 0 12px; }
+  .home-summary { margin-top: 24px !important; }
+  .host-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+  .host-card { border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--raised); min-width: 0; }
+  .host-card h3 { font: 500 14px var(--mono); margin: 0 0 8px; overflow-wrap: anywhere; }
+  .host-card p { margin: 0 0 12px; overflow-wrap: anywhere; font-size: 13px; }
+  .host-card .host-error { color: var(--kolo-brass); }
+  .home-setup { padding: 20px; border: 1px dashed var(--line); border-radius: 10px; }
+  .home-setup code { display: inline-block; padding: 8px 12px; background: var(--raised); border-radius: 6px; }
+  .home-setup p:last-child { margin: 12px 0 0; }
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 200px minmax(0, 1fr); }
+    .brand { flex-wrap: wrap; }
+    .brand .new { margin: 10px 0 0; width: 100%; justify-content: center; }
+    .home-intro .mark-big { display: none; }
+  }
+  @media (max-width: 480px) {
+    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: 180px minmax(0, 1fr); }
+    .side { border-right: 0; border-bottom: 1px solid var(--line); }
+    .brand { padding: 8px 12px; flex-wrap: nowrap; }
+    .brand .new { margin: 0 0 0 8px; width: auto; }
+    .me { padding: 5px 12px; }
+    .home { padding: 24px 18px; }
+  }
 
   /* ---- the dialog ----------------------------------------------------------- */
 
@@ -369,8 +401,9 @@
       <button class="icon-btn log-open" title="log">
         <svg width="13" height="13" viewBox="0 0 13 13"><path d="M2 3.5h9M2 6.5h9M2 9.5h5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
-      <button class="icon-btn new" title="new agent">
+      <button class="go primary new" title="Start an agent or shell session">
         <svg width="13" height="13" viewBox="0 0 13 13"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        New session
       </button>
     </div>
     <div class="groups"></div>
@@ -391,10 +424,28 @@
   </aside>
 
   <main>
-    <!-- Nothing open: the mark alone. Starting an agent lives in the side,
-         so this screen does not repeat the offer. -->
     <section class="home" hidden>
-      <div class="mark-big"><div class="ascii-mark"></div></div>
+      <div class="home-content">
+        <div class="home-intro">
+          <div>
+            <div class="eyebrow">KOLO / WORKSPACE</div>
+            <h1>Your shared workspace</h1>
+            <p class="home-guide">Start an agent or shell on a connected machine, or open a session from the sidebar.</p>
+            <button type="button" class="go primary home-new">New session</button>
+          </div>
+          <div class="mark-big" aria-hidden="true"><div class="ascii-mark"></div></div>
+        </div>
+        <p class="home-summary"></p>
+        <section class="home-section" aria-labelledby="machines-title">
+          <h2 id="machines-title">Connected machines</h2>
+          <div class="host-cards"></div>
+          <div class="home-setup" hidden>
+            <p>No machines are connected yet. Connect a machine to make its agents and directories available here.</p>
+            <code>kolo host</code>
+            <p>Run this on a machine already configured for your organization.</p>
+          </div>
+        </section>
+      </div>
     </section>
 
     <section class="watch" hidden>
@@ -624,6 +675,7 @@ function applyAccess() {
   const allowed = canControl();
   term.options.disableStdin = !allowed;
   el('.side .new').hidden = !allowed;
+  el('.home-new').hidden = !allowed;
   el('.watch .restart').hidden = !allowed;
   el('.watch .restart').disabled = !allowed || !socket || socket.readyState !== WebSocket.OPEN;
   if (!allowed) {
@@ -683,11 +735,60 @@ async function refresh() {
   lastAgents = data.agents || [];
   attention.update(lastAgents);
   if (!renamingId) drawGroups(lastAgents);
-  // Nothing running anywhere: the home screen is the mark, not a mark with
-  // a list beside it.
-  el('.home').classList.toggle('empty', lastAgents.length === 0);
+  drawHome();
   drawChoices();
   return data;
+}
+
+// Preserve card focus across routine polling when their content has not changed.
+let homeSnapshot = '';
+function drawHome() {
+  const allowed = canControl();
+  const snapshot = JSON.stringify([hosts, lastAgents.map((a) => [a.host, a.status]), allowed]);
+  if (snapshot === homeSnapshot) return;
+  homeSnapshot = snapshot;
+  el('.home-guide').textContent = allowed
+    ? 'Start an agent or shell on a connected machine, or open a session from the sidebar.'
+    : 'You have read-only access. Open a session from the sidebar to follow its progress.';
+  el('.home-new').disabled = hosts.length === 0;
+  el('.side .new').disabled = hosts.length === 0;
+  el('.home-setup').hidden = hosts.length > 0;
+  const count = lastAgents.length;
+  el('.home-summary').textContent = count
+    ? `${count} ${count === 1 ? 'session' : 'sessions'} in this workspace. Select one in the sidebar to open it.`
+    : 'No sessions yet. Your first session will appear here and in the sidebar.';
+  const cards = el('.host-cards');
+  cards.replaceChildren();
+  for (const host of hosts) {
+    const card = document.createElement('article');
+    card.className = 'host-card';
+    const title = document.createElement('h3');
+    title.textContent = host.id;
+    const detail = document.createElement('p');
+    const commands = host.allow || [];
+    detail.textContent = commands.includes('*') ? 'Allows any command'
+      : commands.length ? `Available: ${commands.join(', ')}` : 'No commands shared';
+    const sessions = document.createElement('p');
+    const count = lastAgents.filter((a) => a.host === host.id).length;
+    sessions.textContent = `${count} ${count === 1 ? 'session' : 'sessions'}`;
+    card.append(title, detail, sessions);
+    if (host.error) {
+      const error = document.createElement('p');
+      error.className = 'host-error';
+      error.textContent = host.error;
+      card.append(error);
+    }
+    if (allowed) {
+      const start = document.createElement('button');
+      start.type = 'button';
+      start.className = 'go';
+      start.textContent = 'New session →';
+      start.disabled = !commands.length || !(host.dirs || []).length;
+      start.onclick = () => openCreate(host.id);
+      card.append(start);
+    }
+    cards.append(card);
+  }
 }
 
 // Which agent's name is being edited, and what it currently reads, kept at
@@ -987,6 +1088,7 @@ function closeCreate() {
   say('.dialog-note', '');
 }
 el('.side .new').onclick = () => openCreate(null);
+el('.home-new').onclick = () => openCreate(null);
 el('.side .log-open').onclick = () => { location.hash = '#/log'; };
 el('.brand-home').onclick = () => { location.hash = ''; };
 el('.dialog .close').onclick = closeCreate;

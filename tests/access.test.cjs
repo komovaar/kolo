@@ -33,6 +33,7 @@ test('read-only refresh disables input, hides actions and closes pending edits',
   p.context.applyAccess();
   assert.equal(p.context.term.options.disableStdin, true);
   assert.equal(p.el('.side .new').hidden, true);
+  assert.equal(p.el('.home-new').hidden, true);
   assert.equal(p.el('.watch .restart').hidden, true);
   assert.equal(p.el('.watch .restart').disabled, true);
   assert.equal(p.context.renamingId, null);
@@ -46,6 +47,7 @@ test('promoting then demoting access updates the existing terminal controls', ()
   p.context.applyAccess();
   assert.equal(p.context.term.options.disableStdin, false);
   assert.equal(p.el('.side .new').hidden, false);
+  assert.equal(p.el('.home-new').hidden, false);
   assert.equal(p.el('.watch .restart').disabled, false);
   p.context.me.read_only = true;
   p.context.applyAccess();
