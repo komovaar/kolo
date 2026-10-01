@@ -89,7 +89,10 @@ agent's own screen:
    list can say what each one is doing instead of showing black rectangles.
 2. **How to resume its conversation.** Without this, every restart starts over.
 
-Kolo ships descriptions for `claude` and `opencode`.
+Kolo ships descriptions for `claude`, `codex`, and `opencode`.
+Codex restarts with `codex resume --last`, which selects the most recent
+conversation in that working directory. If another Codex session uses the same
+directory, it may become the one Kolo resumes.
 
 ### Describing another kind
 
@@ -98,12 +101,12 @@ kind completely. The two are never merged.
 
 ```json
 {
-  "codex": {
+  "robo": {
     "markers": {
-      "idle": ["? for shortcuts"],
-      "busy": "esc to interrupt",
-      "dialogFooter": "Esc to cancel",
-      "dialogSelected": "❯"
+      "idle": ["type a message"],
+      "busy": "working",
+      "dialogFooter": "Press enter to continue",
+      "dialogSelected": "›"
     },
     "resume": ["--continue"]
   }

@@ -445,6 +445,28 @@ sleep 30
 	bounce(t, a, "checkups", a.Restart, fmt.Sprintf("args [--model opus --resume %s]", sessionOf(t, a, "checkups")))
 }
 
+func TestCodexRestartUsesTheLastSessionInItsDirectory(t *testing.T) {
+	defer quickRestarts()()
+	dir := t.TempDir()
+	script := fakeAgentNamed(t, dir, "codex", `printf 'args [%s]\r\n? for shortcuts\r\n' "$*"
+sleep 30
+`)
+	command := script + " --model gpt-6"
+	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{command}}, "")
+	t.Cleanup(a.StopAll)
+
+	if err := a.Start(spec("checkups", dir, command)); err != nil {
+		t.Fatal(err)
+	}
+	nextReport(t, a)
+	waitFor(t, func() bool {
+		return strings.Contains(screenOf(t, a, "checkups").Text(), "args [--model gpt-6]")
+	})
+
+	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6 resume --last]")
+	bounce(t, a, "checkups", a.Fresh, "args [--model gpt-6]")
+}
+
 func TestRestartResumesAndFreshDoesNot(t *testing.T) {
 	defer quickRestarts()()
 	dir := t.TempDir()

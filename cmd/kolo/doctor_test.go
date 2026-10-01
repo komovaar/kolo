@@ -70,14 +70,15 @@ func agent(name, dir, command, state string, since time.Time) host.Record {
 
 func TestDoctorSaysWhatEachAgentKindCosts(t *testing.T) {
 	// The file named is the one it was told to read, not the default path.
-	installed(t, "claude", "sh")
+	installed(t, "claude", "codex", "sh")
 	kinds := filepath.Join(t.TempDir(), "kinds.json")
-	out, ok := report(t, host.State{Allows: []string{"claude", "sh"}}, kinds)
+	out, ok := report(t, host.State{Allows: []string{"claude", "codex", "sh"}}, kinds)
 	if !ok {
 		t.Errorf("a machine with nothing wrong reported a fault:\n%s", out)
 	}
 	for _, want := range []string{
 		"claude", "--resume {session}",
+		"codex", "resume --last",
 		"sh", "watch, type and stop",
 		// A word at a time: where the lines fall depends on the agent names.
 		"browser", kinds,

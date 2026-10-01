@@ -152,6 +152,18 @@ var kinds = map[string]Adapter{
 		Continue:  []string{"--continue"},
 		Interrupt: "esc",
 	},
+	"codex": {
+		Markers: detect.Markers{
+			Idle:           []string{"? for shortcuts"},
+			Busy:           "esc to interrupt",
+			DialogFooter:   "Press enter to continue",
+			DialogSelected: "›",
+		},
+		// Codex scopes --last to the current working directory. Kolo permits
+		// only one Codex agent per directory because this cannot name a session.
+		Resume:    []string{"resume", "--last"},
+		Interrupt: "esc",
+	},
 	"opencode": {
 		Markers: detect.Markers{
 			// Both states share the status bar, and the busy marker is added

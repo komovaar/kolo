@@ -50,7 +50,7 @@ mid-sentence. Whoever typed last drives, and everyone sees who.
 tunnel. The hub still has to accept browser and host connections; `kolo up`
 runs that hub on the same machine and listens on the address it prints.
 
-**Anything that draws a terminal.** Claude Code and opencode out of the box,
+**Anything that draws a terminal.** Claude Code, Codex CLI, and opencode out of the box,
 and one small file describes another.
 
 ## Early

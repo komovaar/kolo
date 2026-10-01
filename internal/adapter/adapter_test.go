@@ -25,6 +25,29 @@ func TestAKindIsTheBinaryNotTheCommandLine(t *testing.T) {
 	}
 }
 
+func TestCodexIsABuiltInKind(t *testing.T) {
+	kind := For("/usr/local/bin/codex --model gpt-6")
+	if kind.Markers.Blank() {
+		t.Fatal("Codex screens have no markers")
+	}
+	if got, ok := kind.ResumeArgs(""); !ok || !slices.Equal(got, []string{"resume", "--last"}) {
+		t.Errorf("Codex resumes with %v, %v", got, ok)
+	}
+	for _, tt := range []struct {
+		screen string
+		want   detect.State
+	}{
+		{"› Ask Codex to do anything\n? for shortcuts", detect.Idle},
+		{"◦ Working (3s • esc to interrupt)", detect.Busy},
+		{"› 1. Yes\n  2. No", detect.Dialog},
+		{"Welcome to Codex\n> 1. Sign in with ChatGPT\nPress enter to continue", detect.Dialog},
+	} {
+		if got := kind.Markers.Of(tt.screen); got != tt.want {
+			t.Errorf("Codex screen %q read as %s, want %s", tt.screen, got, tt.want)
+		}
+	}
+}
+
 func TestArgvSplitsOnWhitespace(t *testing.T) {
 	got := Argv("  claude   --model opus ")
 	if !slices.Equal(got, []string{"claude", "--model", "opus"}) {

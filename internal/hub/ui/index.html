@@ -851,7 +851,8 @@ function drawSession() {
     ? `${agent.host} · ${agent.command} · ${agent.dir}` : 'Waiting for session details';
   el('.session-head .session-state').textContent = state.label;
   el('.session-head .session-state').dataset.state = state.key;
-  el('.session-head .session-state').title = agent?.error || '';
+  el('.session-head .session-state').title = agent?.error ||
+    (agent?.status === 'running' && state.key === 'unknown' ? 'Activity is unknown; typing still works.' : '');
   el('.session-access').textContent = canControl() ? 'You can control this session' : 'Read-only access';
   el('.session-stop').disabled = !agent || !canControl();
 }
