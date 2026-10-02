@@ -371,8 +371,8 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 		}
 		switch report.Type {
 		case "status":
-			s.registry.SetStatus(report.Name, report.Status, label(report.Error, maxLabel))
-			if report.Status == StatusFailed {
+			accepted := s.registry.SetStatus(h.ID, report.Name, report.Status, label(report.Error, maxLabel))
+			if accepted && report.Status == StatusFailed {
 				s.journal.add(Entry{Agent: report.Name, What: WhatFailed, Text: report.Error})
 			}
 		case "host":

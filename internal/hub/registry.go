@@ -244,12 +244,15 @@ func (r *Registry) Add(a Agent) (Sender, error) {
 	return h.send, nil
 }
 
-func (r *Registry) SetStatus(name, status, reason string) {
+// SetStatus accepts a report only from the host that owns the agent.
+func (r *Registry) SetStatus(hostID, name, status, reason string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if a, h := r.find(name); h != nil {
+	if a, h := r.find(name); h != nil && h.info.ID == hostID {
 		a.Status, a.Error = status, reason
+		return true
 	}
+	return false
 }
 
 // SetLabel changes what an agent is called on screen. Name, which the host and

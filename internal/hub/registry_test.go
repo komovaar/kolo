@@ -102,6 +102,25 @@ func TestRemoveFreesTheNameAndTheDirectory(t *testing.T) {
 	}
 }
 
+func TestOnlyOwningHostCanReportAgentStatus(t *testing.T) {
+	r := registryFixture(t)
+	if err := r.Join("laptop", []string{"/work/web"}, []string{"claude"}, nil, nil, nil, func(any) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Add(agentFixture("checkups", "/work/api")); err != nil {
+		t.Fatal(err)
+	}
+	if r.SetStatus("laptop", "checkups", StatusFailed, "forged") {
+		t.Fatal("another host's report was accepted")
+	}
+	if got, _ := r.Agent("checkups"); got.Status != StatusStarting || got.Error != "" {
+		t.Fatalf("another host changed the agent: %+v", got)
+	}
+	if !r.SetStatus("devbox", "checkups", StatusRunning, "") {
+		t.Fatal("owning host's report was refused")
+	}
+}
+
 func TestSetLabelLeavesNameAlone(t *testing.T) {
 	r := registryFixture(t)
 	if _, err := r.Add(agentFixture("checkups", "/work/api")); err != nil {
