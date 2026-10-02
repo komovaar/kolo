@@ -102,6 +102,30 @@ func TestRemoveFreesTheNameAndTheDirectory(t *testing.T) {
 	}
 }
 
+func TestStopCannotAddressAnAgentThatReusedTheName(t *testing.T) {
+	r := registryFixture(t)
+	if err := r.Join("laptop", []string{"/work/web"}, []string{"claude"}, nil, nil, nil, func(any) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Add(agentFixture("checkups", "/work/api")); err != nil {
+		t.Fatal(err)
+	}
+	old, _ := r.Agent("checkups")
+	r.Leave("devbox")
+	if _, err := r.Add(Agent{Name: "checkups", Host: "laptop", Dir: "/work/web", Command: "claude"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := r.SenderFor(old); ok {
+		t.Fatal("old stop request reached the new host")
+	}
+	if r.RemoveIf(old) {
+		t.Fatal("old stop request removed the new agent")
+	}
+	if got, ok := r.Agent("checkups"); !ok || got.Host != "laptop" {
+		t.Fatalf("new agent was lost: %+v", got)
+	}
+}
+
 func TestOnlyOwningHostCanReportAgentStatus(t *testing.T) {
 	r := registryFixture(t)
 	if err := r.Join("laptop", []string{"/work/web"}, []string{"claude"}, nil, nil, nil, func(any) error { return nil }); err != nil {

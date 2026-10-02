@@ -241,13 +241,19 @@ func TestAClippedTypedLineSaysItWasTruncated(t *testing.T) {
 func TestJournalRecordsWhatMembersDo(t *testing.T) {
 	s, memberToken, hostToken := hubFixture(t)
 	ctx := testContext(t)
-	joinAsHost(t, ctx, s, hostToken)
+	conn := joinAsHost(t, ctx, s, hostToken)
 
 	body := `{"name":"checkups","host":"devbox","dir":"/work/api","command":"claude"}`
 	if resp := create(t, s, memberToken, body); resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create: %s", resp.Status)
 	}
-	if resp := call(t, s, "DELETE", "/v1/agents/checkups", memberToken, ""); resp.StatusCode != http.StatusNoContent {
+	var spawned spawn
+	readFrame(t, ctx, conn, &spawned)
+	result := deleteAsync(t, s, memberToken, "checkups")
+	var told stop
+	readFrame(t, ctx, conn, &told)
+	acknowledgeStop(t, ctx, conn, told)
+	if resp := awaitDelete(t, result); resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("delete: %s", resp.Status)
 	}
 

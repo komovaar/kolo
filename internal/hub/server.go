@@ -32,6 +32,7 @@ var pages, _ = fs.Sub(files, "ui")
 const (
 	helloTimeout = 10 * time.Second
 	writeTimeout = 10 * time.Second
+	stopTimeout  = 15 * time.Second
 )
 
 // coder/websocket reads 32 KiB by default, which a repaint outgrows: a 120x40
@@ -54,6 +55,7 @@ type Server struct {
 	orgMu    sync.RWMutex
 	org      *Org
 	registry *Registry
+	stops    *stopRequests
 	screens  *screens
 	typists  *typists
 	journal  *journal
@@ -89,7 +91,7 @@ func Listen(org *Org, addr string) (*Server, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
-		org: org, registry: NewRegistry(), screens: newScreens(),
+		org: org, registry: NewRegistry(), stops: newStopRequests(), screens: newScreens(),
 		typists: newTypists(), conns: newConns(), ln: ln, ctx: ctx, cancel: cancel,
 		ping: pingEvery, pingBy: pingWithin,
 	}
@@ -359,6 +361,8 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 			s.journal.forget(name)
 		}
 	}()
+	// Fail outstanding stops before the name can be claimed by a reconnect.
+	defer s.stops.dropHost(h.ID)
 
 	if err := write(ctx, conn, hostWelcome{Type: "welcome", Org: s.orgName(), Host: h.ID}); err != nil {
 		return
@@ -377,6 +381,8 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 			}
 		case "host":
 			s.registry.SetHostError(h.ID, report.Error)
+		case "stopped":
+			s.stops.ack(h.ID, report.Name, report.Request)
 		}
 	}
 }
@@ -489,19 +495,37 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.PathValue("name")
-	send, ok := s.registry.Sender(name)
+	agent, ok := s.registry.Agent(name)
 	if !ok {
 		http.Error(w, "no agent called "+name, http.StatusNotFound)
 		return
 	}
-	if err := send(stop{Type: "stop", Name: name}); err != nil {
+	pending, ok := s.stops.begin(agent.Host, name)
+	if !ok {
+		http.Error(w, "this agent is already stopping", http.StatusConflict)
+		return
+	}
+	defer s.stops.finish(name, pending)
+	send, ok := s.registry.SenderFor(agent)
+	if !ok {
 		http.Error(w, "the host went away before the agent could be stopped", http.StatusServiceUnavailable)
 		return
 	}
-	// Keep the agent visible until its host has accepted the stop. Removing it
-	// first made a failed delivery look successful and left the process running
-	// with no way for the org to address it.
-	if _, ok := s.registry.Remove(name); !ok {
+	if err := send(stop{Type: "stop", Name: name, Request: pending.id}); err != nil {
+		http.Error(w, "the host went away before the agent could be stopped", http.StatusServiceUnavailable)
+		return
+	}
+	select {
+	case stopped := <-pending.result:
+		if !stopped {
+			http.Error(w, "the host went away before the agent could be stopped", http.StatusServiceUnavailable)
+			return
+		}
+	case <-time.After(stopTimeout):
+		http.Error(w, "the host did not confirm the stop", http.StatusGatewayTimeout)
+		return
+	}
+	if !s.registry.RemoveIf(agent) {
 		http.Error(w, "the agent was already stopped", http.StatusConflict)
 		return
 	}
@@ -806,10 +830,11 @@ type hostWelcome struct {
 }
 
 type agentReport struct {
-	Type   string `json:"type"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Error  string `json:"error"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Request uint64 `json:"request,omitempty"`
+	Status  string `json:"status"`
+	Error   string `json:"error"`
 }
 
 type spawn struct {
@@ -818,8 +843,9 @@ type spawn struct {
 }
 
 type stop struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Request uint64 `json:"request"`
 }
 
 type createRequest struct {

@@ -148,7 +148,18 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				agents.report(c.Agent.Name, hub.StatusFailed, err.Error())
 			}
 		case "stop":
-			agents.Stop(c.Name)
+			done := agents.Stop(c.Name)
+			go func(name string, request uint64) {
+				select {
+				case <-done:
+				case <-ctx.Done():
+					return
+				}
+				select {
+				case agents.reports <- stoppedReport{Type: "stopped", Name: name, Request: request}:
+				case <-ctx.Done():
+				}
+			}(c.Name, c.Request)
 		case "keys":
 			if err := agents.Type(c.Name, c.Keys); err != nil {
 				agents.refuse(c.Name, err.Error())
@@ -199,11 +210,18 @@ type welcome struct {
 }
 
 type command struct {
-	Type  string    `json:"type"`
-	Name  string    `json:"name"`
-	From  string    `json:"from"`
-	Keys  string    `json:"keys"`
-	Agent hub.Agent `json:"agent"`
+	Type    string    `json:"type"`
+	Name    string    `json:"name"`
+	Request uint64    `json:"request"`
+	From    string    `json:"from"`
+	Keys    string    `json:"keys"`
+	Agent   hub.Agent `json:"agent"`
+}
+
+type stoppedReport struct {
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Request uint64 `json:"request"`
 }
 
 // https is never silently connected to in the clear.

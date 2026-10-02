@@ -106,6 +106,56 @@ func create(t *testing.T, s *Server, token, body string) *http.Response {
 	return call(t, s, "POST", "/v1/agents", token, body)
 }
 
+type requestResult struct {
+	resp *http.Response
+	err  error
+}
+
+func deleteAsync(t *testing.T, s *Server, token, name string) <-chan requestResult {
+	t.Helper()
+	req, err := http.NewRequest("DELETE", "http://"+s.Addr()+"/v1/agents/"+name, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	result := make(chan requestResult, 1)
+	go func() {
+		resp, err := (&http.Client{Timeout: 5 * time.Second}).Do(req)
+		result <- requestResult{resp, err}
+	}()
+	return result
+}
+
+func awaitDelete(t *testing.T, result <-chan requestResult) *http.Response {
+	t.Helper()
+	got := <-result
+	if got.err != nil {
+		t.Fatal(got.err)
+	}
+	t.Cleanup(func() { got.resp.Body.Close() })
+	return got.resp
+}
+
+func acknowledgeStop(t *testing.T, ctx context.Context, conn *websocket.Conn, told stop) {
+	t.Helper()
+	if told.Type != "stop" || told.Request == 0 {
+		t.Fatalf("bad stop request: %+v", told)
+	}
+	b, err := json.Marshal(stoppedReport{Type: "stopped", Name: told.Name, Request: told.Request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type stoppedReport struct {
+	Type    string `json:"type"`
+	Name    string `json:"name"`
+	Request uint64 `json:"request"`
+}
+
 func list(t *testing.T, s *Server, token string) listResponse {
 	t.Helper()
 	resp := call(t, s, "GET", "/v1/agents", token, "")
@@ -283,19 +333,52 @@ func TestDeleteTellsTheHost(t *testing.T) {
 	var cmd spawn
 	readFrame(t, ctx, conn, &cmd)
 
-	if got := call(t, s, "DELETE", "/v1/agents/checkups", memberToken, ""); got.StatusCode != http.StatusNoContent {
-		t.Fatalf("delete: %s", got.Status)
-	}
+	result := deleteAsync(t, s, memberToken, "checkups")
 	var told stop
 	readFrame(t, ctx, conn, &told)
 	if told.Type != "stop" || told.Name != "checkups" {
 		t.Errorf("the host was told %+v", told)
+	}
+	if got := list(t, s, memberToken); len(got.Agents) != 1 {
+		t.Errorf("agent disappeared before the host confirmed its stop: %+v", got.Agents)
+	}
+	// A late or unrelated completion cannot release the name.
+	acknowledgeStop(t, ctx, conn, stop{Type: "stop", Name: told.Name, Request: told.Request + 1})
+	if got := list(t, s, memberToken); len(got.Agents) != 1 {
+		t.Errorf("unrelated stop report removed the agent: %+v", got.Agents)
+	}
+	acknowledgeStop(t, ctx, conn, told)
+	if got := awaitDelete(t, result); got.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete: %s", got.Status)
 	}
 	if got := list(t, s, memberToken); len(got.Agents) != 0 {
 		t.Errorf("still listed: %+v", got.Agents)
 	}
 	if got := call(t, s, "DELETE", "/v1/agents/checkups", memberToken, ""); got.StatusCode != http.StatusNotFound {
 		t.Errorf("deleting it twice = %s", got.Status)
+	}
+}
+
+func TestDeleteDoesNotSucceedWhenHostDisconnectsBeforeAcknowledging(t *testing.T) {
+	s, memberToken, hostToken := hubFixture(t)
+	ctx := testContext(t)
+	conn := joinAsHost(t, ctx, s, hostToken)
+	if got := create(t, s, memberToken, `{"name":"checkups","host":"devbox","dir":"/work/api","command":"claude"}`); got.StatusCode != http.StatusCreated {
+		t.Fatalf("create: %s", got.Status)
+	}
+	var spawned spawn
+	readFrame(t, ctx, conn, &spawned)
+	result := deleteAsync(t, s, memberToken, "checkups")
+	var told stop
+	readFrame(t, ctx, conn, &told)
+	conn.CloseNow()
+	if got := awaitDelete(t, result); got.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("delete without acknowledgment: %s", got.Status)
+	}
+	for _, entry := range s.journal.tail("checkups", 10) {
+		if entry.What == WhatStopped {
+			t.Fatal("an unconfirmed stop was journaled as successful")
+		}
 	}
 }
 
@@ -328,11 +411,15 @@ func TestRelabelDoesNotTellTheHost(t *testing.T) {
 	// that's the very next frame: a canceled read on this library closes the
 	// connection outright, so a short-deadline read can't be used to probe
 	// for silence without tearing the host down first.
-	call(t, s, "DELETE", "/v1/agents/checkups", memberToken, "")
+	result := deleteAsync(t, s, memberToken, "checkups")
 	var told stop
 	readFrame(t, ctx, conn, &told)
 	if told.Type != "stop" || told.Name != "checkups" {
 		t.Errorf("the relabel left something queued ahead of the stop: %+v", told)
+	}
+	acknowledgeStop(t, ctx, conn, told)
+	if got := awaitDelete(t, result); got.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete: %s", got.Status)
 	}
 }
 

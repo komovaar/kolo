@@ -277,6 +277,29 @@ func (r *Registry) Sender(name string) (Sender, bool) {
 	return nil, false
 }
 
+// SenderFor only addresses the agent the caller saw, even if a disconnect
+// freed its name and another host has since claimed it.
+func (r *Registry) SenderFor(expected Agent) (Sender, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, h := r.find(expected.Name)
+	if h == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
+		return nil, false
+	}
+	return h.send, true
+}
+
+func (r *Registry) RemoveIf(expected Agent) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, h := r.find(expected.Name)
+	if h == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
+		return false
+	}
+	delete(h.agents, a.Name)
+	return true
+}
+
 // Remove forgets an agent and returns its host's sender.
 func (r *Registry) Remove(name string) (Sender, bool) {
 	r.mu.Lock()

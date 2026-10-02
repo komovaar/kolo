@@ -99,7 +99,16 @@ done
 		problem, _ := io.ReadAll(stopped.Body)
 		t.Fatalf("stop: %s: %s", stopped.Status, problem)
 	}
-	waitFor(t, func() bool { return len(agents.Names()) == 0 })
+	if names := agents.Names(); len(names) != 0 {
+		t.Fatalf("stop completed while agents were still running: %v", names)
+	}
+	recreated := memberRequest(t, server, memberToken, http.MethodPost, "/v1/agents", body)
+	defer recreated.Body.Close()
+	if recreated.StatusCode != http.StatusCreated {
+		problem, _ := io.ReadAll(recreated.Body)
+		t.Fatalf("recreate after stop: %s: %s", recreated.Status, problem)
+	}
+	waitFor(t, func() bool { return len(agents.Names()) == 1 })
 }
 
 func memberRequest(t *testing.T, server *hub.Server, token, method, path, body string) *http.Response {

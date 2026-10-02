@@ -71,6 +71,7 @@ type process struct {
 	started  time.Time
 	stopping bool
 	stopped  chan struct{}
+	done     chan struct{}
 	fails    int
 	// fresh means the next launch must not resume.
 	fresh bool
@@ -179,7 +180,7 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 	// name free.
 	a.running[spec.Name] = &process{
 		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session,
-		stopped: make(chan struct{}),
+		stopped: make(chan struct{}), done: make(chan struct{}),
 	}
 	a.mu.Unlock()
 	return nil
@@ -233,6 +234,7 @@ func (a *Agents) launch(name string) error {
 	if !ok || p.stopping {
 		a.mu.Unlock()
 		started.Close()
+		started.Wait()
 		return fmt.Errorf("%s is no longer wanted", name)
 	}
 	live := session.New(cols, rows, kind.Markers)
@@ -398,6 +400,7 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		delete(a.running, name)
 		a.mu.Unlock()
 		a.save()
+		close(p.done)
 		return
 	}
 	reason := reasonFor(err, "the agent exited")
@@ -436,6 +439,7 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		}
 		a.mu.Unlock()
 		a.save()
+		close(p.done)
 		return
 	}
 	if err := a.launch(name); err != nil {
@@ -452,33 +456,46 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		a.save()
 		if !stopped {
 			a.report(name, hub.StatusFailed, reasonFor(err, "the agent could not be restarted"))
+		} else {
+			close(p.done)
 		}
 		return
 	}
 	a.report(name, hub.StatusRunning, "")
 }
 
-// Stop ends an agent for good. Stopping something not running isn't an error.
-func (a *Agents) Stop(name string) {
+// Stop ends an agent for good. The returned channel closes once the process
+// and its record are gone. Stopping something absent completes immediately.
+func (a *Agents) Stop(name string) <-chan struct{} {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	var running *agent.Agent
-	if ok && !p.stopping {
-		// Set before the kill, so wait's restart doesn't race this stop.
-		p.stopping = true
-		close(p.stopped)
-		running = p.agent
+	if !ok {
+		a.mu.Unlock()
+		done := make(chan struct{})
+		close(done)
+		return done
 	}
+	if p.stopping {
+		a.mu.Unlock()
+		return p.done
+	}
+	var running *agent.Agent
+	// Set before the kill, so wait's restart doesn't race this stop.
+	p.stopping = true
+	close(p.stopped)
+	running = p.agent
 	a.mu.Unlock()
 
 	switch {
 	case running != nil:
 		running.Close()
-	case ok:
+	default:
 		// Nothing will call wait, so forget here.
 		a.forget(name)
 		a.save()
+		close(p.done)
 	}
+	return p.done
 }
 
 // StopAll ends every agent for host shutdown; what ran stays in the state file.
