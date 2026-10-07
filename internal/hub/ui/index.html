@@ -562,6 +562,7 @@
 </div>
 
 <script src="/assets/xterm.js"></script>
+<script src="/assets/terminal-queries.js"></script>
 <script src="/assets/addon-canvas.js"></script>
 <script src="/assets/attention.js"></script>
 <script>
@@ -1335,6 +1336,7 @@ const term = new Terminal({
            cursor: '#2C6F62', selectionBackground: '#2C6F62' },
 });
 term.open(el('#term'));
+KoloTerminalQueries.hostReplies(term);
 
 // The DOM renderer sets block glyphs in whatever font the browser picks, which
 // leaves seams between quadrants. The canvas renderer draws them itself, the way

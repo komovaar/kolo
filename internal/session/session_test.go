@@ -59,6 +59,25 @@ func TestWriteReachesTheViewer(t *testing.T) {
 	}
 }
 
+func TestQueriesHaveOneResponderWithZeroOrManyViewers(t *testing.T) {
+	s := New(40, 8, detect.Markers{})
+	var replies []string
+	s.SetResponder(func(reply []byte) {
+		replies = append(replies, string(reply))
+		// Response admission can announce queue overflow without deadlocking.
+		s.Announce(map[string]string{"type": "test"})
+	})
+	s.Write([]byte("\x1b[3;4H\x1b[6n"))
+	for range 2 {
+		_, _, cancel := s.Subscribe()
+		defer cancel()
+	}
+	s.Write([]byte("\x1b[6n"))
+	if len(replies) != 2 || replies[0] != "\x1b[3;4R" || replies[1] != replies[0] {
+		t.Fatalf("one response per query, independent of viewers: %q", replies)
+	}
+}
+
 func TestSubscribeLosesNothingUnderWrites(t *testing.T) {
 	s := New(80, 24, adapter.For("claude").Markers)
 

@@ -27,6 +27,7 @@ type Session struct {
 	subs      map[*subscriber]struct{}
 	settled   string
 	settledAt time.Time
+	respond   func([]byte)
 }
 
 type subscriber struct {
@@ -55,12 +56,25 @@ func (s *Session) Viewers() int {
 // stalling on a slow viewer would stall the agent.
 func (s *Session) Write(p []byte) (int, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.screen.Write(p)
+	replies := s.screen.WriteWithReplies(p)
+	respond := s.respond
 	s.noteChange()
 	s.send(Message{Data: append([]byte(nil), p...)})
+	s.mu.Unlock()
+	// Queuing a reply can announce refusal back to this session. Keep that
+	// callback outside the screen lock, and never wait for a PTY write here.
+	if respond != nil && len(replies) > 0 {
+		respond(replies)
+	}
 	return len(p), nil
+}
+
+// SetResponder is used only by the host's authoritative terminal. Hub and
+// browser viewers model the output without supplying competing query answers.
+func (s *Session) SetResponder(respond func([]byte)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.respond = respond
 }
 
 func (s *Session) State() detect.State {

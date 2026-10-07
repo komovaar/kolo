@@ -244,6 +244,20 @@ func (a *Agents) launch(name string) error {
 		live.Announce(event{Type: "refused", Text: err.Error()})
 	})
 	input := relay.New(inputSender{ctx: writes.ctx, agent: started}, live.Screen, kind)
+	live.SetResponder(func(reply []byte) {
+		for len(reply) > 0 {
+			// One PTY read can contain many queries, whose answers exceed the
+			// per-message input limit. The queue's total limit still applies.
+			chunk := string(reply[:min(len(reply), 32<<10)])
+			reply = reply[len(chunk):]
+			if err := writes.enqueue(len(chunk), func() error { return input.Type(chunk) }); err != nil {
+				if writes.ctx.Err() == nil {
+					live.Announce(event{Type: "refused", Text: "Terminal query response was not sent: " + err.Error()})
+				}
+				break
+			}
+		}
+	})
 	p.agent, p.started, p.live, p.input = started, time.Now(), live, input
 	p.writes = writes
 	p.status = hub.StatusRunning

@@ -21,7 +21,8 @@ const (
 )
 
 type Screen struct {
-	term vt10x.Terminal
+	term  vt10x.Terminal
+	modes replayState
 
 	mu sync.Mutex
 	// Leading bytes of a rune the last write ended mid-way. See Write.
@@ -29,12 +30,21 @@ type Screen struct {
 }
 
 func New(cols, rows int) *Screen {
-	return &Screen{term: vt10x.New(vt10x.WithSize(cols, rows))}
+	s := &Screen{term: vt10x.New(vt10x.WithSize(cols, rows))}
+	s.modes.reset(cols, rows)
+	return s
 }
 
 // Write never fails and always reports the whole slice consumed: vt10x drops an
 // incomplete rune at a PTY read boundary (vt_posix.go), breaking io.Copy.
 func (s *Screen) Write(p []byte) (int, error) {
+	s.WriteWithReplies(p)
+	return len(p), nil
+}
+
+// WriteWithReplies returns terminal query answers from the authoritative
+// model. The host queues them with input; viewer-side models discard them.
+func (s *Screen) WriteWithReplies(p []byte) []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -44,13 +54,14 @@ func (s *Screen) Write(p []byte) (int, error) {
 		s.partial = nil
 	}
 	tail := incompleteTail(buf)
+	var replies []byte
 	if body := buf[:len(buf)-tail]; len(body) > 0 {
-		s.term.Write(body)
+		replies = s.write(body)
 	}
 	if tail > 0 {
 		s.partial = append([]byte(nil), buf[len(buf)-tail:]...)
 	}
-	return len(p), nil
+	return replies
 }
 
 // incompleteTail returns how many bytes at the end of b begin an incomplete rune.
@@ -68,9 +79,24 @@ func incompleteTail(b []byte) int {
 	return 0
 }
 
-func (s *Screen) Resize(cols, rows int) { s.term.Resize(cols, rows) }
+func (s *Screen) Resize(cols, rows int) {
+	if cols < 1 || rows < 1 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if oldCols, oldRows := s.term.Size(); cols == oldCols && rows == oldRows {
+		return
+	}
+	s.term.Resize(cols, rows)
+	s.modes.resize(cols, rows)
+}
 
-func (s *Screen) Size() (cols, rows int) { return s.term.Size() }
+func (s *Screen) Size() (cols, rows int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.term.Size()
+}
 
 // Text is the screen as plain rows, one per line.
 func (s *Screen) Text() string { return s.term.String() }

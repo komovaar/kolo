@@ -189,6 +189,19 @@ Stop and restart cancel blocked writes and discard that process's pending
 input. Pending input is never replayed into a restarted process. Queued
 interrupts recheck the current screen before pressing the interrupt key.
 
+Joining or reconnecting restores the screen together with application cursor
+and keypad modes, bracketed paste, mouse and focus reporting, scroll margins,
+tab stops, cursor state, and drawing attributes. Arrow keys and pastes keep
+the encoding the running program requested.
+
+The host answers terminal queries through the same bounded input queue,
+independently of viewers. Browser terminals do not send automatic query
+answers or log them as somebody's typing. Supported queries include cursor
+and device status, terminal identity, mode status, character-grid size,
+scroll margins, drawing attributes, and palette/theme colours. Queries for
+browser pixel dimensions are unanswered: each viewer scales the shared grid
+to its own window.
+
 ### What kolo can press for you
 
 | action | offered by | allowed when |
