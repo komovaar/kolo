@@ -162,6 +162,14 @@ they are allowed to share a directory.
 
 Sharing a directory still means sharing its files. Kolo does not referee that.
 
+**Session labels are saved on the hub.** Double-click a session's name in the
+sidebar to rename it. This changes its display label; the session identifier,
+URLs and host command stay the same. A successful rename is saved before the
+hub confirms it and survives browser reloads, host reconnects, and hub or host
+restarts. Labels belong to the exact session, so stopping it and reusing the
+identifier starts with a new label. The API can clear a label with
+`PATCH /v1/agents/{name}` and `{"label":""}` to display its identifier again.
+
 ## Typing and control
 
 Any member with control access can type at any agent. There is no lock to take
@@ -377,6 +385,15 @@ Everything a machine remembers is in `~/.kolo`.
 The org file also holds `hub`, the address the hub last started on. Nothing
 reads it at runtime: it is there so `kolo invite` and `kolo token` print a
 link that works from another machine. `-hub` overrides it.
+
+The hub saves session-label overrides in `<org-file>.labels`, with owner-only
+permissions. Back up this file alongside the org file to preserve renamed
+sessions. Confirmed stops remove the matching overrides; disconnects retain
+them. An org created only in memory keeps labels for the current hub run.
+If the label file is unreadable or uses an unsupported format, startup fails
+and leaves it unchanged. Stop the hub, repair the file, then restart. Changes
+made to this file while the hub runs must be read by restarting the hub;
+a rename refuses to overwrite those edits.
 
 ## What works today
 

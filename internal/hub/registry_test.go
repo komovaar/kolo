@@ -151,7 +151,7 @@ func TestSetLabelLeavesNameAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := r.SetLabel("checkups", "Auth Refactor")
+	got, err := r.setLabel("checkups", "Auth Refactor", func(Agent) error { return nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestSetLabelLeavesNameAlone(t *testing.T) {
 		t.Fatalf("the name moved: %+v", agents)
 	}
 
-	if _, err := r.SetLabel("nobody", "x"); err == nil {
+	if _, err := r.setLabel("nobody", "x", func(Agent) error { return nil }); err == nil {
 		t.Error("relabeled an agent that does not exist")
 	}
 }

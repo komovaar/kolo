@@ -261,16 +261,20 @@ func (r *Registry) SetStatus(hostID, name, status, reason string) bool {
 	return false
 }
 
-// SetLabel changes what an agent is called on screen. Name, which the host and
-// every open connection address it by, is untouched.
-func (r *Registry) SetLabel(name, label string) (Agent, error) {
+// setLabel keeps the session registered throughout persistence. A reconnect
+// or replacement cannot slip between saving a label and publishing it. The
+// caller holds labels.mu first, as host greetings do. save must not reenter r.
+func (r *Registry) setLabel(name, value string, save func(Agent) error) (Agent, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(name)
 	if h == nil {
 		return Agent{}, fmt.Errorf("no agent called %q", name)
 	}
-	a.Label = label
+	if err := save(*a); err != nil {
+		return Agent{}, err
+	}
+	a.Label = value
 	return *a, nil
 }
 

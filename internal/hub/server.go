@@ -60,6 +60,7 @@ type Server struct {
 	screens     *screens
 	typists     *typists
 	journal     *journal
+	labels      *sessionLabels
 	// Held across any read-modify-write of the org file.
 	orgFile sync.Mutex
 	// Last read error for the org file, so a lasting one is logged once.
@@ -101,6 +102,14 @@ func Listen(org *Org, addr string) (*Server, error) {
 	if err != nil {
 		cancel()
 		ln.Close()
+		return nil, err
+	}
+
+	s.labels, err = openLabels(org.path)
+	if err != nil {
+		cancel()
+		ln.Close()
+		s.browsers.close()
 		return nil, err
 	}
 
@@ -204,6 +213,7 @@ func (s *Server) Close() error {
 	}
 	s.journal.Close()
 	err := s.srv.Close()
+	s.labels.close()
 	s.browsers.close()
 	return err
 }
@@ -395,7 +405,7 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.registry.Join(h.ID, hello.Dirs, hello.Allow, hello.Found, hello.ByName, hello.Agents, sender(s.ctx, conn)); err != nil {
+	if err := s.labels.join(s.registry, h.ID, hello.Dirs, hello.Allow, hello.Found, hello.ByName, hello.Agents, sender(s.ctx, conn)); err != nil {
 		conn.Close(websocket.StatusPolicyViolation, err.Error())
 		return
 	}
@@ -546,9 +556,9 @@ func (s *Server) handleRelabel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newLabel := label(req.Label, maxLabel)
-	agent, err := s.registry.SetLabel(name, newLabel)
+	agent, status, err := s.labels.rename(s.registry, name, newLabel)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, err.Error(), status)
 		return
 	}
 	s.journal.add(Entry{Agent: name, What: WhatRelabeled, Who: member.Person(), Text: newLabel})
@@ -594,6 +604,9 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	if !s.registry.RemoveIf(agent) {
 		http.Error(w, "the agent was already stopped", http.StatusConflict)
 		return
+	}
+	if err := s.labels.forget(agent); err != nil {
+		log.Printf("hub: could not remove label for stopped session %s: %v", name, err)
 	}
 	s.journal.add(Entry{Agent: name, What: WhatStopped, Who: member.Person()})
 	s.journal.forget(name)
