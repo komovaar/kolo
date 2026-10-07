@@ -92,7 +92,7 @@ func hostCmd(args []string) error {
 		log.Print(err)
 	}
 	if names := agents.Names(); len(names) > 0 {
-		log.Printf("brought back %s", strings.Join(names, " "))
+		log.Printf("restored saved sessions: %s (including any that need recovery)", strings.Join(names, " "))
 	}
 	host.Run(ctx, agents, func(e host.Event) {
 		switch {

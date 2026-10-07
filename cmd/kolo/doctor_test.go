@@ -224,3 +224,20 @@ func TestDoctorReportsFailedSessionsInsteadOfStaleActivity(t *testing.T) {
 		t.Fatalf("failure was confused with screen activity:\n%s", out)
 	}
 }
+
+func TestDoctorExplainsCorruptStateWithoutChangingIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agents.json")
+	damaged := []byte(`{"agents":`)
+	if err := os.WriteFile(path, damaged, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	ok, err := doctor(&out, path, absent(t))
+	if err != nil || ok || !strings.Contains(out.String(), "file left unchanged") || !strings.Contains(out.String(), path+".bak") {
+		t.Fatalf("damaged-state diagnosis: ok=%v, err=%v\n%s", ok, err, out.String())
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || string(got) != string(damaged) {
+		t.Fatalf("doctor changed the original: %q, %v", got, err)
+	}
+}

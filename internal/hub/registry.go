@@ -176,7 +176,7 @@ func (r *Registry) SetHostError(id, reason string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if h, ok := r.hosts[id]; ok {
-		h.info.Error = label(reason, maxLabel)
+		h.info.Error = label(reason, maxError)
 	}
 }
 

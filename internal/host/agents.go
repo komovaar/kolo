@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -42,13 +41,16 @@ const tick = 200 * time.Millisecond
 // Agents tracks running sessions and failed sessions awaiting recovery on this machine.
 type Agents struct {
 	cfg Config
-	// Where the running set is written across restarts; empty keeps it in memory.
+	// Where desired sessions are written across restarts; empty keeps them in memory.
 	state string
 
 	mu      sync.Mutex
 	running map[string]*process
 	// An org stop forgets an agent; a machine shutdown keeps it to restart.
 	closing bool
+	// A failed restore protects the original file from every later save.
+	restoring  bool
+	restoreErr string
 
 	// A full buffer drops news rather than blocking a process trying to exit.
 	reports chan any
@@ -154,15 +156,40 @@ func baseOf(command string) string {
 	return command
 }
 
-func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
-	spec.Dir = filepath.Clean(spec.Dir)
+func (a *Agents) permitted(spec hub.Agent) error {
 	if !slices.Contains(a.cfg.Dirs, spec.Dir) && !slices.Contains(a.cfg.Dirs, hub.DirAny) {
 		return fmt.Errorf("this machine does not lend %s", spec.Dir)
 	}
 	if !a.runs(spec.Command) {
 		return fmt.Errorf("this machine does not run %s", spec.Command)
 	}
+	return nil
+}
 
+func conflict(spec, other hub.Agent) error {
+	if other.Dir != spec.Dir {
+		return nil
+	}
+	sameKind := baseOf(spec.Command) == baseOf(other.Command)
+	if sameKind && !(resumesByName(spec.Command) && resumesByName(other.Command)) {
+		return fmt.Errorf("one %s to a directory: two of them asking for \"the last conversation here\" would come back as each other. Stop the other session or use a second checkout",
+			baseOf(spec.Command))
+	}
+	return nil
+}
+
+func newProcess(spec hub.Agent, fresh bool, session string) *process {
+	return &process{
+		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session, supervising: true,
+		stopped: make(chan struct{}), done: make(chan struct{}),
+	}
+}
+
+func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
+	spec.Dir = filepath.Clean(spec.Dir)
+	if err := a.permitted(spec); err != nil {
+		return err
+	}
 	return a.retain(spec, fresh, session)
 }
 
@@ -170,29 +197,23 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 // Retry performs the permission checks again before launching them.
 func (a *Agents) retain(spec hub.Agent, fresh bool, session string) error {
 	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.restoreErr != "" {
+		return fmt.Errorf("%s", a.restoreErr)
+	}
+	if a.restoring || a.closing {
+		return fmt.Errorf("this machine is restoring or shutting down")
+	}
 	if _, taken := a.running[spec.Name]; taken {
-		a.mu.Unlock()
 		return fmt.Errorf("%s is already running here", spec.Name)
 	}
-	// One agent of each kind to a directory, as hub.Registry.Add also checks.
+	// Desired failed sessions also reserve their conversation's directory.
 	for _, p := range a.running {
-		if p.spec.Dir != spec.Dir {
-			continue
-		}
-		sameKind := baseOf(spec.Command) == baseOf(p.spec.Command)
-		if sameKind && !(resumesByName(spec.Command) && resumesByName(p.spec.Command)) {
-			a.mu.Unlock()
-			return fmt.Errorf("one %s to a directory: two of them asking for \"the last conversation here\" would come back as each other. A second checkout is how the same repo runs in parallel",
-				baseOf(spec.Command))
+		if err := conflict(spec, p.spec); err != nil {
+			return err
 		}
 	}
-	// Reserved before the process exists, so two spawns can't both find the
-	// name free.
-	a.running[spec.Name] = &process{
-		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session, supervising: true,
-		stopped: make(chan struct{}), done: make(chan struct{}),
-	}
-	a.mu.Unlock()
+	a.running[spec.Name] = newProcess(spec, fresh, session)
 	return nil
 }
 
@@ -213,16 +234,23 @@ func (a *Agents) Retry(name string) error {
 		a.mu.Unlock()
 		return fmt.Errorf("%s is not a failed session here", name)
 	}
-	p.status, p.error, p.fails, p.supervising = hub.StatusStarting, "", 0, true
-	a.mu.Unlock()
-	// Recheck the machine's current permissions before attempting a launch.
-	if !slices.Contains(a.cfg.Dirs, p.spec.Dir) && !slices.Contains(a.cfg.Dirs, hub.DirAny) {
-		err := fmt.Errorf("this machine does not lend %s", p.spec.Dir)
-		a.failed(name, err.Error())
-		return err
+	if a.restoreErr != "" || a.restoring || a.closing {
+		a.mu.Unlock()
+		return fmt.Errorf("this machine cannot retry while restoring or shutting down")
 	}
-	if !a.runs(p.spec.Command) {
-		err := fmt.Errorf("this machine does not run %s", p.spec.Command)
+	p.status, p.error, p.fails, p.supervising = hub.StatusStarting, "", 0, true
+	err := a.permitted(p.spec)
+	if err == nil {
+		for other, held := range a.running {
+			if other != name {
+				if err = conflict(p.spec, held.spec); err != nil {
+					break
+				}
+			}
+		}
+	}
+	a.mu.Unlock()
+	if err != nil {
 		a.failed(name, err.Error())
 		return err
 	}
@@ -637,67 +665,15 @@ type Record struct {
 	Since time.Time `json:"since,omitzero"`
 }
 
-// ReadState reads a machine's last state file; a missing file is not an error.
-func ReadState(path string) (State, error) {
-	b, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return State{}, nil
-	}
-	if err != nil {
-		return State{}, fmt.Errorf("host: read %s: %w", path, err)
-	}
-	var state State
-	if err := json.Unmarshal(b, &state); err != nil {
-		return State{}, fmt.Errorf("host: parse %s: %w", path, err)
-	}
-	return state, nil
-}
-
-// Restore starts everything this machine was running when it last stopped.
-func (a *Agents) Restore() error {
-	if a.state == "" {
-		return nil
-	}
-	state, err := ReadState(a.state)
-	if err != nil {
-		return err
-	}
-	reserved := make([]string, 0, len(state.Agents))
-	for _, rec := range state.Agents {
-		var err error
-		if rec.Spec.Status == hub.StatusFailed {
-			err = a.retain(rec.Spec, rec.Fresh, rec.Session)
-		} else {
-			err = a.reserve(rec.Spec, false, rec.Session)
-		}
-		if err != nil {
-			a.report(rec.Spec.Name, hub.StatusFailed, err.Error())
-			continue
-		}
-		if rec.Spec.Status == hub.StatusFailed {
-			a.mu.Lock()
-			p := a.running[rec.Spec.Name]
-			p.status, p.error, p.supervising = hub.StatusFailed, rec.Spec.Error, false
-			a.mu.Unlock()
-			continue
-		}
-		reserved = append(reserved, rec.Spec.Name)
-	}
-	for _, name := range reserved {
-		a.begin(name)
-	}
-	return nil
-}
-
 func (a *Agents) save() {
 	a.saveMu.Lock()
 	defer a.saveMu.Unlock()
 
 	a.mu.Lock()
-	closing := a.closing
+	protected := a.closing || a.restoring || a.restoreErr != ""
 	a.mu.Unlock()
 
-	if a.state == "" || closing {
+	if a.state == "" || protected {
 		return
 	}
 	b, err := json.MarshalIndent(State{
@@ -734,37 +710,6 @@ func (a *Agents) Health() string {
 	a.healthMu.Lock()
 	defer a.healthMu.Unlock()
 	return a.health
-}
-
-// writeState replaces a state file only after its whole replacement reached
-// disk. Its unique temporary name keeps two host processes from clobbering
-// each other's in-progress write.
-func writeState(path string, b []byte) error {
-	dir, base := filepath.Split(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("make directory: %w", err)
-	}
-	f, err := os.CreateTemp(dir, base+".*")
-	if err != nil {
-		return fmt.Errorf("make temporary file: %w", err)
-	}
-	tmp := f.Name()
-	defer os.Remove(tmp)
-	defer f.Close()
-
-	if _, err := f.Write(b); err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("sync: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("replace: %w", err)
-	}
-	return nil
 }
 
 // Oldest first, so a machine coming back restores in the order the org made them.

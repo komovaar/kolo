@@ -273,7 +273,25 @@ screens stop reconnecting, while polling notices when a machine returns.
 
 **What is running is written down**, to the file `-state` names. Restarting the
 host, or the whole machine, brings the org's agents back in the order they were
-created.
+created. Sessions whose permissions or directory conflicts prevent restore
+are retained as failed sessions, with a reason on the page and in `kolo doctor`.
+A successful restore never discards them. Restore does not launch an already
+failed session; fix the problem and choose Retry, or Stop to remove its record.
+If permissions changed, restart the host with the intended `-dir` and `-allow`
+flags before retrying. Conflicting sessions must be stopped or moved to
+separate checkouts before retrying.
+
+**The previous state is recoverable.** Before restoring an existing valid
+state file, kolo saves its exact contents as `<state>.bak` with owner-only
+permissions. Routine saves do not replace this backup. An unreadable, damaged,
+unsupported, or ambiguous state file disables new sessions and remains
+untouched; the machine's health message and `kolo doctor` explain the problem.
+Stop the host before repairing the file or copying `<state>.bak` back to the
+state path, then restart it. Inspect the backup first: recovering it restores
+the session set from that earlier startup, including sessions since removed.
+The backup is refreshed only on a successful read at the next host startup.
+If the backup cannot be written, restore leaves the original file untouched
+and disables new sessions too.
 
 **Resume works two ways:**
 
