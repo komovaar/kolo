@@ -16,7 +16,7 @@ function page(readOnly) {
     return nodes.get(selector);
   };
   const context = vm.createContext({
-    signedIn: true, me: { read_only: readOnly }, term: { options: {} },
+    signedIn: true, me: { read_only: readOnly }, term: { options: {} }, screenReady: true,
     renamingId: 'api', WebSocket: { OPEN: 1 },
     socket: { readyState: 1, send: (data) => frames.push(JSON.parse(data)) },
     el, closeCreate: () => { closed++; el('.scrim').hidden = true; },

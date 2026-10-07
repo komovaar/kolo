@@ -194,6 +194,12 @@ and keypad modes, bracketed paste, mouse and focus reporting, scroll margins,
 tab stops, cursor state, and drawing attributes. Arrow keys and pastes keep
 the encoding the running program requested.
 
+Switching sessions, reconnecting, and restarting replace the browser terminal
+before replaying the snapshot. Old buffered output, partial escapes, terminal
+modes, and program-selected colours stay with the previous screen. Input is
+enabled after the new snapshot finishes rendering; leaving the session or
+signing out immediately removes its terminal.
+
 The host answers terminal queries through the same bounded input queue,
 independently of viewers. Browser terminals do not send automatic query
 answers or log them as somebody's typing. Supported queries include cursor

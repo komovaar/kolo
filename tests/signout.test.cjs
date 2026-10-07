@@ -27,11 +27,13 @@ function page() {
     signedIn: true, authLost: false, refreshRun: 0, authRun: 0,
     me: { name: 'Dana' }, hosts: [{ id: 'private' }], lastAgents: [{ name: 'private' }],
     watching: 'private', socket: null, reconnectTimer: null, typist: 'Dana', renamingId: null,
+    terminalOwner: null, screenReady: false,
     location: { protocol: 'http:', host: 'localhost', search: '' },
     WebSocket: Socket, Uint8Array, el, keyboardChanged() {}, say() {}, fit() {}, describe() {},
     setTimeout: (callback) => { const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout: (id) => timers.delete(id),
     term: { write: (data) => writes.push(data), reset: () => { resets++; } },
+    resetTerminal() { resets++; context.terminalOwner = null; context.screenReady = false; },
     applyAccess() {}, show: (view) => views.push(view), attention: { reset() {} },
   });
   vm.runInContext(source, context);

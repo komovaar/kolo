@@ -710,12 +710,12 @@ function canControl() {
 
 function applyAccess() {
   const allowed = canControl();
-  term.options.disableStdin = !allowed;
+  term.options.disableStdin = !allowed || !screenReady || !socket || socket.readyState !== WebSocket.OPEN;
   el('.side .new').hidden = !allowed;
   el('.home-new').hidden = !allowed;
   el('.watch .restart').hidden = !allowed;
   el('.session-stop').hidden = !allowed;
-  el('.watch .restart').disabled = !allowed || !socket || socket.readyState !== WebSocket.OPEN;
+  el('.watch .restart').disabled = !allowed || !screenReady || !socket || socket.readyState !== WebSocket.OPEN;
   if (!allowed) {
     renamingId = null;
     if (!el('.scrim').hidden) closeCreate();
@@ -751,7 +751,6 @@ function signOut() {
   signedIn = false;
   authLost = true;
   close();
-  term.reset();
   me = { read_only: true };
   hosts = [];
   lastAgents = [];
@@ -1321,42 +1320,44 @@ document.addEventListener('click', (ev) => {
 // this window's business alone.
 const baseFont = 13;
 
-const term = new Terminal({
-  // Keystrokes go to the agent as they are pressed. See onData below. Whoever
-  // types last is the typist the others see.
-  disableStdin: true,
-  cursorBlink: true,
-  // What the agent says is what the machine says, so it is said in the
-  // brand's mono. The stack behind it is what draws until the file arrives.
-  fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
-  fontSize: baseFont,
-  customGlyphs: true,
-  scrollback: 5000,
-  theme: { background: '#101314', foreground: '#E7E9E4',
-           cursor: '#2C6F62', selectionBackground: '#2C6F62' },
-});
-term.open(el('#term'));
-KoloTerminalQueries.hostReplies(term);
+function createTerminal() {
+  const next = new Terminal({
+    // Keystrokes go to the agent as they are pressed. Whoever types last is
+    // the typist the others see, once the initial screen has been restored.
+    disableStdin: true,
+    cursorBlink: true,
+    // What the agent says is what the machine says, so it is said in the
+    // brand's mono. The stack behind it is what draws until the file arrives.
+    fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: baseFont,
+    customGlyphs: true,
+    scrollback: 5000,
+    theme: { background: '#101314', foreground: '#E7E9E4',
+             cursor: '#2C6F62', selectionBackground: '#2C6F62' },
+  });
+  next.open(el('#term'));
+  KoloTerminalQueries.hostReplies(next);
 
-// The DOM renderer sets block glyphs in whatever font the browser picks, which
-// leaves seams between quadrants. The canvas renderer draws them itself, the way
-// a real terminal does. An enhancement, not a requirement.
-try {
-  term.loadAddon(new CanvasAddon.CanvasAddon());
-} catch (e) {
-  console.warn('canvas renderer unavailable, falling back to the DOM', e);
+  // The DOM renderer sets block glyphs in whatever font the browser picks,
+  // leaving seams between quadrants. The canvas renderer draws them itself.
+  try {
+    next.loadAddon(new CanvasAddon.CanvasAddon());
+  } catch (e) {
+    console.warn('canvas renderer unavailable, falling back to the DOM', e);
+  }
+  // xterm has encoded arrows and pastes as the running program requested.
+  next.onData((keys) => {
+    if (next !== term || !socket) return;
+    tell({ type: 'keys', keys });
+  });
+  return next;
 }
+let term = createTerminal();
+let terminalOwner = null;
+let screenReady = false;
 
 // Who typed at the agent being watched last.
 let typist = null;
-
-// Keystrokes go up as they are pressed. Nothing is interpreted here: what the
-// agent does with an Escape or an arrow is the agent's business, and the browser
-// terminal has already encoded it the way a real one would.
-term.onData((keys) => {
-  if (!socket) return;
-  tell({ type: 'keys', keys });
-});
 
 let socket = null;
 let watching = null;
@@ -1452,6 +1453,22 @@ function watch(name) {
   connect(name);
 }
 
+function resetTerminal() {
+  // reset() does not drain xterm's write buffer or its UTF-8/escape parser.
+  // Replacing the instance keeps in-flight bytes on the detached old screen.
+  const focused = watching && term.element.contains(document.activeElement);
+  watcher.unobserve(term.element.querySelector('.xterm-screen'));
+  term.dispose();
+  el('#term').replaceChildren();
+  term = createTerminal();
+  terminalOwner = null;
+  screenReady = false;
+  watcher.observe(term.element.querySelector('.xterm-screen'));
+  applyAccess();
+  fit();
+  if (focused) term.focus();
+}
+
 function close() {
   clearTimeout(reconnectTimer);
   reconnectTimer = null;
@@ -1459,29 +1476,40 @@ function close() {
   typist = null; keyboardChanged();
   el('.watch .restart').disabled = true;
   if (socket) { const was = socket; socket = null; was.close(); }
+  if (terminalOwner) resetTerminal();
 }
 
 function connect(name) {
   if (!signedIn || watching !== name) return;
+  if (terminalOwner) resetTerminal();
   el('.session-connection').textContent = 'Connecting…';
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${scheme}://${location.host}/v1/watch/${name}`);
   ws.binaryType = 'arraybuffer';
   socket = ws;
+  terminalOwner = ws;
+  const view = term;
+  let snapshotReceived = false;
 
   // Every handler checks it is still the current socket: a superseded one still
   // reports its own close, which would land after the replacement opened.
   ws.onopen = () => {
     if (ws !== socket) return;
-    el('.watch .restart').disabled = !canControl();
-    el('.session-connection').textContent = 'Live connection';
+    el('.session-connection').textContent = 'Restoring screen…';
     say('.watch .note', `watching ${name}`);
   };
 
   ws.onmessage = (ev) => {
     if (ws !== socket) return;
     if (typeof ev.data !== 'string') {
-      term.write(new Uint8Array(ev.data));
+      const first = !snapshotReceived;
+      snapshotReceived = true;
+      view.write(new Uint8Array(ev.data), first ? () => {
+        if (ws !== socket || view !== term || ws.readyState !== WebSocket.OPEN) return;
+        screenReady = true;
+        applyAccess();
+        el('.session-connection').textContent = 'Live connection';
+      } : undefined);
       return;
     }
     const msg = JSON.parse(ev.data);
@@ -1490,7 +1518,7 @@ function connect(name) {
       // before its first repaint. Only this window's share of the frame
       // decides how large it is drawn here.
       case 'size':
-        term.resize(msg.cols, msg.rows);
+        view.resize(msg.cols, msg.rows);
         fit();
         break;
       case 'state':
@@ -1526,6 +1554,8 @@ function connect(name) {
   // same way: reconnect, and the next repaint resyncs.
   ws.onclose = () => {
     if (ws !== socket) return;
+    screenReady = false;
+    applyAccess();
     typist = null; keyboardChanged();
     el('.watch .restart').disabled = true;
     el('.session-connection').textContent = 'Reconnecting…';
@@ -1570,6 +1600,10 @@ function tell(what) {
   }
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     say('.watch .note', 'not connected', true);
+    return false;
+  }
+  if (what.type === 'keys' && !screenReady) {
+    say('.watch .note', 'Waiting for the screen to finish restoring.');
     return false;
   }
   socket.send(JSON.stringify(what));
@@ -1687,7 +1721,6 @@ async function route() {
     if (watching !== name) watch(name);
   } else {
     close();
-    term.reset();
   }
   // After the list rather than beside it, so the first draw already knows the
   // labels its rows are named by.
