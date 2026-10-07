@@ -18,6 +18,23 @@ Kolo runs agents on a machine somebody lends to their team:
   Existing members keep control access unless explicitly marked read-only.
 - **Plain HTTP sends tokens in the clear.** Use `-tls-domain` off a trusted network.
 
+## Browser sessions
+
+Browser sign-in creates a separate, revocable session lasting up to 90 days.
+Signing out revokes that session and closes its terminal streams in every
+tab sharing the login. Other browser logins and member/host bearer credentials
+remain valid. Removing a member or changing their credential revokes their
+browser access too.
+
+Hashed browser sessions are saved in `<org file>.sessions` with owner-only
+permissions so logins survive a hub restart. Keep this file private and back
+it up alongside the org file. Run one hub per org file; the session store
+refuses concurrent owners. A failed session-file write refuses sign-in or
+reports an unsuccessful durable sign-out, while closing the current streams.
+
+Upgrading from cookies containing member tokens requires existing browsers
+to sign in again with their member token or rejoin through an invitation.
+
 ## Worth reporting
 
 Any of it without a valid credential, or with a revoked one. Forged or

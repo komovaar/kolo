@@ -700,6 +700,7 @@ function kindGlyph(command) {
 
 let hosts = [];
 let signedIn = false;
+let authLost = false;
 let me = { read_only: true };
 
 function canControl() {
@@ -723,13 +724,51 @@ function applyAccess() {
 // the side without waiting on a round trip that has nothing to do with it.
 let lastAgents = [];
 let refreshRun = 0;
+let authRun = 0;
 const attention = new KoloAttention(el('.attention-toggle'), agentInURL, (name) => {
   location.hash = `#/agent/${name}`;
 });
 addEventListener('pagehide', () => attention.reset());
-el('.me-menu form').addEventListener('submit', () => attention.reset());
+let authChannel = null;
+try { authChannel = new BroadcastChannel('kolo-auth'); } catch (_) {}
+if (authChannel) authChannel.onmessage = (event) => {
+  if (event.data === 'signout') signOut();
+};
+addEventListener('storage', (event) => {
+  if (event.key === 'kolo-signout' && event.newValue) signOut();
+});
+el('.me-menu form').addEventListener('submit', () => {
+  signOut();
+  if (authChannel) authChannel.postMessage('signout');
+  // Older browsers can still notify sibling tabs; storage may be blocked.
+  try { localStorage.setItem('kolo-signout', `${Date.now()}-${Math.random()}`); } catch (_) {}
+});
+
+function signOut() {
+  ++refreshRun;
+  ++authRun;
+  signedIn = false;
+  authLost = true;
+  close();
+  term.reset();
+  me = { read_only: true };
+  hosts = [];
+  lastAgents = [];
+  applyAccess();
+  attention.reset();
+  el('.groups').replaceChildren();
+  el('.host-cards').replaceChildren();
+  el('.log-rows').replaceChildren();
+  el('.session-context').textContent = '';
+  el('.me-menu').hidden = true;
+  el('.me .name').textContent = '';
+  el('.me .initial').textContent = '';
+  show('signin');
+  el('.signin .problem').hidden = !location.search.includes('refused');
+}
 
 async function refresh() {
+  if (authLost) return null;
   const run = ++refreshRun;
   let resp;
   try {
@@ -740,12 +779,8 @@ async function refresh() {
   }
   // A slower request must not overwrite the result of one made after it.
   if (run !== refreshRun) return null;
-  signedIn = resp.status !== 401;
-  if (!signedIn) {
-    applyAccess();
-    attention.reset();
-    show('signin');
-    el('.signin .problem').hidden = !location.search.includes('refused');
+  if (resp.status === 401) {
+    signOut();
     return null;
   }
   if (!resp.ok) {
@@ -761,6 +796,7 @@ async function refresh() {
     return null;
   }
   if (run !== refreshRun) return null;
+  signedIn = true;
   show('app');
   el('.me .status').textContent = data.you.read_only ? 'read-only · online' : 'online';
   el('.me .name').textContent = data.you.name;
@@ -1322,6 +1358,7 @@ term.onData((keys) => {
 
 let socket = null;
 let watching = null;
+let reconnectTimer = null;
 
 // room is what the frame has left to draw a terminal in.
 function room() {
@@ -1414,6 +1451,8 @@ function watch(name) {
 }
 
 function close() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
   watching = null;
   typist = null; keyboardChanged();
   el('.watch .restart').disabled = true;
@@ -1421,6 +1460,7 @@ function close() {
 }
 
 function connect(name) {
+  if (!signedIn || watching !== name) return;
   el('.session-connection').textContent = 'Connecting…';
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${scheme}://${location.host}/v1/watch/${name}`);
@@ -1488,7 +1528,11 @@ function connect(name) {
     el('.watch .restart').disabled = true;
     el('.session-connection').textContent = 'Reconnecting…';
     say('.watch .note', 'Screen disconnected. Input is unavailable while Kolo reconnects.');
-    setTimeout(() => { if (watching === name) connect(name); }, 1000);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (signedIn && watching === name && ws === socket) connect(name);
+    }, 1000);
+    refresh();
   };
   ws.onerror = () => ws.close();
 }
@@ -1546,9 +1590,13 @@ el('.session-stop').onclick = () => {
 // Newest first: the question the log is opened with is almost always what
 // just happened, and 100 entries is more than a screen.
 async function drawLog() {
+  const run = authRun;
   const resp = await fetch('/v1/log');
+  if (run !== authRun || !signedIn) return;
+  if (resp.status === 401) { signOut(); return; }
   if (!resp.ok) return;
   const entries = (await resp.json()).entries || [];
+  if (run !== authRun || !signedIn) return;
 
   const rows = el('.log-rows');
   rows.replaceChildren();
@@ -1624,19 +1672,21 @@ function labelOf(name) {
 async function route() {
   const name = agentInURL();
   const log = logInURL();
+  if (watching !== name) close();
   // The screen is put up before the list is fetched, so opening an agent does
   // not wait on a round trip that has nothing to do with it.
   el('.watch').hidden = !name;
   el('.log').hidden = !log;
   el('.home').hidden = !!name || log;
   drawSession();
+  const data = await refresh();
+  if (!data || name !== agentInURL() || log !== logInURL()) return;
   if (name) {
     if (watching !== name) watch(name);
   } else {
     close();
     term.reset();
   }
-  await refresh();
   // After the list rather than beside it, so the first draw already knows the
   // labels its rows are named by.
   if (log) drawLog();

@@ -65,9 +65,10 @@ type Server struct {
 	// Under orgFile.
 	unreadable string
 	// Open connections, so revocation reaches streams, not just next requests.
-	conns *conns
-	ln    net.Listener
-	srv   *http.Server
+	conns    *conns
+	browsers *browserSessions
+	ln       net.Listener
+	srv      *http.Server
 	// Set by Secure; both nil for plain http.
 	acme       *autocert.Manager
 	challenges net.Listener
@@ -94,6 +95,12 @@ func Listen(org *Org, addr string) (*Server, error) {
 		org: org, registry: NewRegistry(), stops: newStopRequests(), screens: newScreens(),
 		typists: newTypists(), conns: newConns(), ln: ln, ctx: ctx, cancel: cancel,
 		ping: pingEvery, pingBy: pingWithin,
+	}
+	s.browsers, err = openBrowserSessions(ctx, org.path)
+	if err != nil {
+		cancel()
+		ln.Close()
+		return nil, err
 	}
 
 	s.journal, err = openJournal(journalPath(org.path))
@@ -193,7 +200,9 @@ func (s *Server) Close() error {
 		ln.Close()
 	}
 	s.journal.Close()
-	return s.srv.Close()
+	err := s.srv.Close()
+	s.browsers.close()
+	return err
 }
 
 const (
@@ -202,13 +211,25 @@ const (
 )
 
 func (s *Server) authenticate(r *http.Request) (Member, bool) {
+	member, _, ok := s.authenticateViewer(r)
+	return member, ok
+}
+
+func (s *Server) authenticateViewer(r *http.Request) (Member, context.Context, bool) {
 	if token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
-		return s.verifyMember(token)
+		member, valid := s.verifyMember(token)
+		return member, s.ctx, valid
 	}
 	if c, err := r.Cookie(sessionCookie); err == nil {
-		return s.verifyMember(c.Value)
+		hash, ctx, valid := s.browsers.lookup(c.Value)
+		if valid {
+			s.orgMu.RLock()
+			member, ok := s.org.memberForHash(hash)
+			s.orgMu.RUnlock()
+			return member, ctx, ok
+		}
 	}
-	return Member{}, false
+	return Member{}, nil, false
 }
 
 func (s *Server) handlePage(w http.ResponseWriter, r *http.Request) {
@@ -228,11 +249,23 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?refused=1", http.StatusSeeOther)
 		return
 	}
-	s.signIn(w, r, token)
+	if !s.signIn(w, r, token) {
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func (s *Server) signIn(w http.ResponseWriter, r *http.Request, token string) {
+func (s *Server) signIn(w http.ResponseWriter, r *http.Request, memberToken string) bool {
+	previous := ""
+	if cookie, err := r.Cookie(sessionCookie); err == nil {
+		previous = cookie.Value
+	}
+	token, err := s.browsers.create(HashToken(memberToken), previous)
+	if err != nil {
+		log.Printf("hub: could not save browser session: %v", err)
+		http.Error(w, "could not sign in", http.StatusInternalServerError)
+		return false
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    token,
@@ -241,8 +274,9 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request, token string) {
 		// Mutating routes are POST or DELETE, and cross-site ones carry no cookie.
 		SameSite: http.SameSiteLaxMode,
 		Secure:   overTLS(r),
-		MaxAge:   int((90 * 24 * time.Hour).Seconds()),
+		MaxAge:   int(browserSessionLifetime.Seconds()),
 	})
+	return true
 }
 
 // The invite rides in the URL fragment, which never reaches the server.
@@ -288,11 +322,20 @@ func (s *Server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	s.orgMu.Unlock()
 	log.Printf("hub: %s joined %s as %s", member.Name, org.Name, member.ID)
 
-	s.signIn(w, r, token)
+	if !s.signIn(w, r, token) {
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(sessionCookie); err == nil {
+		if err := s.browsers.revoke(cookie.Value); err != nil {
+			log.Printf("hub: could not save browser sign-out: %v", err)
+			http.Error(w, "could not save sign-out; retry before restarting the hub", http.StatusInternalServerError)
+			return
+		}
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Path: "/", HttpOnly: true, MaxAge: -1,
 		SameSite: http.SameSiteLaxMode, Secure: overTLS(r),
@@ -607,7 +650,7 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleWatch(w http.ResponseWriter, r *http.Request) {
-	member, ok := s.authenticate(r)
+	member, authCtx, ok := s.authenticateViewer(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -626,7 +669,7 @@ func (s *Server) handleWatch(w http.ResponseWriter, r *http.Request) {
 	defer conn.CloseNow()
 	conn.SetReadLimit(controlLimit)
 
-	ctx, cancel := context.WithCancel(s.ctx)
+	ctx, cancel := context.WithCancel(authCtx)
 	defer cancel()
 	defer s.conns.add(held{id: member.ID, hash: member.TokenHash, cancel: cancel})()
 	go func() {
@@ -692,6 +735,9 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 	for {
 		msg, err := read[viewerMessage](ctx, conn, 0)
 		if err != nil {
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 		if msg.Type == "keys" && msg.Keys == "" {

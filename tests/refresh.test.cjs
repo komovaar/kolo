@@ -8,6 +8,7 @@ const vm = require('node:vm');
 // headers and bodies: an old body must not resurrect stale attention state.
 const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
 const refresh = html.match(/async function refresh\(\) \{[\s\S]*?\n\}/)[0];
+const signOut = html.match(/function signOut\(\) \{[\s\S]*?\n\}/)[0];
 const data = (name) => ({ you: { name: 'Dana' }, hosts: [], agents: [{ name }] });
 const response = (value) => ({ status: 200, ok: true, json: async () => value });
 
@@ -15,12 +16,13 @@ function page() {
   const updates = [], screens = [];
   let resets = 0;
   const context = vm.createContext({
-    refreshRun: 0, signedIn: false, renamingId: null, location: { search: '' },
-    el: () => ({ classList: { toggle() {} } }),
+    refreshRun: 0, authRun: 0, authLost: false, signedIn: false, renamingId: null, location: { search: '' },
+    el: () => ({ classList: { toggle() {} }, replaceChildren() {} }),
+    close() {}, term: { reset() {} },
     show: (name) => screens.push(name), drawGroups() {}, drawChoices() {}, drawHome() {}, drawSession() {}, applyAccess() {},
     attention: { update: (agents) => updates.push(agents[0].name), reset: () => { resets++; } },
   });
-  vm.runInContext(refresh, context);
+  vm.runInContext(signOut + '\n' + refresh, context);
   return { context, updates, screens, resets: () => resets };
 }
 

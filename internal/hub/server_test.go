@@ -1237,13 +1237,14 @@ func TestKolosOwnPageAndProgramsStillAct(t *testing.T) {
 	s, memberToken, hostToken := hubFixture(t)
 	ctx := testContext(t)
 	joinAsHost(t, ctx, s, hostToken)
+	cookie := sessionOf(post(t, s, "/login", url.Values{"token": {memberToken}}, nil))
 
 	req, err := http.NewRequest("POST", "http://"+s.Addr()+"/v1/agents",
 		bytes.NewBufferString(`{"name":"ours","host":"devbox","dir":"/work/api","command":"claude"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Cookie", sessionCookie+"="+memberToken)
+	req.AddCookie(cookie)
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
