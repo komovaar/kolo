@@ -3,7 +3,7 @@
 #
 # Deliberately smaller than the release workflow: one runner, no tests, no
 # macOS. ci.yml already proved this commit builds and passes on both, so this
-# job only packages what that run vouched for.
+# job scans with the packaging compiler before building that commit.
 #
 # The binaries land on one rolling prerelease tag, `nightly`, which is
 # replaced each time. Prerelease matters: GitHub's "latest release" skips
@@ -33,6 +33,9 @@ permissions:
 
 jobs:
   nightly:
+    # Use the compiler setup-go selected for scans and builds alike.
+    env:
+      GOTOOLCHAIN: local
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -41,6 +44,12 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
+
+      - name: toolchain
+        run: go version
+
+      - name: vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -show verbose ./...
 
       # A quiet day should cost nothing. The published nightly records the
       # commit it came from, so main sitting still means there is nothing to

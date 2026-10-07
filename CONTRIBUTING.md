@@ -17,6 +17,23 @@ Build, vet, `gofmt -l .` and the tests clean. CI runs those on Linux and macOS.
 A test for anything whose behaviour changed; `-race` is the run that counts.
 Docs fixed in the commit that made them wrong.
 
+CI and release builds use the exact Go version in `go.mod`. Use that version
+when checking release readiness; a newer local compiler can hide standard
+library vulnerabilities present in the release compiler. CI prints its version
+and sets `GOTOOLCHAIN=local` to prevent automatic toolchain changes.
+
+Run the same pinned vulnerability scanner locally:
+
+```sh
+go version
+GOTOOLCHAIN=local go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -show verbose ./...
+```
+
+Reachable vulnerabilities fail CI and block publishing. Verbose output also
+shows advisories in dependencies whose vulnerable code is not reached; review
+those as maintenance follow-ups. Keep the scanner version here and in CI in
+sync when upgrading it.
+
 ## Commits
 
 Small, and a plain sentence about what changed for somebody using kolo.

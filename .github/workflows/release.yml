@@ -24,6 +24,9 @@ permissions:
 
 jobs:
   release:
+    # Use the compiler setup-go selected for scans and builds alike.
+    env:
+      GOTOOLCHAIN: local
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -35,6 +38,12 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
+
+      - name: toolchain
+        run: go version
+
+      - name: vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -show verbose ./...
 
       - name: version
         id: v
