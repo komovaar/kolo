@@ -23,6 +23,7 @@ const (
 )
 
 const maxLabel = 64
+const maxError = 1024
 
 // AllowAny is the -allow entry that lends every command on the host's PATH.
 const AllowAny = "*"
@@ -71,6 +72,8 @@ type Agent struct {
 	ScreenState string    `json:"screen_state,omitempty"`
 	CreatedBy   Person    `json:"created_by"`
 	CreatedAt   time.Time `json:"created_at"`
+	// Dispatch claim; never serialized or supplied by a host.
+	retry uint64
 }
 
 type HostInfo struct {
@@ -100,9 +103,10 @@ type host struct {
 // Registry tracks connected hosts and their agents. A host that disconnects
 // takes its agents with it.
 type Registry struct {
-	mu    sync.Mutex
-	hosts map[string]*host
-	now   func() time.Time
+	mu        sync.Mutex
+	hosts     map[string]*host
+	now       func() time.Time
+	nextRetry uint64
 }
 
 func NewRegistry() *Registry {
@@ -135,8 +139,9 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 			continue
 		}
 		a.Host = id
+		a.retry = 0
 		a.Label = label(a.Label, maxLabel)
-		a.Error = label(a.Error, maxLabel)
+		a.Error = label(a.Error, maxError)
 		h.agents[a.Name] = &a
 	}
 	return nil
@@ -249,7 +254,7 @@ func (r *Registry) SetStatus(hostID, name, status, reason string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if a, h := r.find(name); h != nil && h.info.ID == hostID {
-		a.Status, a.Error = status, reason
+		a.Status, a.Error, a.retry = status, reason, 0
 		return true
 	}
 	return false

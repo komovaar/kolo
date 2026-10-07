@@ -211,3 +211,16 @@ func TestDoctorDoesNotFaultAnAgentItWasNeverGoingToRead(t *testing.T) {
 		t.Errorf("the report does not say why its screen is unread:\n%s", out)
 	}
 }
+
+func TestDoctorReportsFailedSessionsInsteadOfStaleActivity(t *testing.T) {
+	installed(t, "cat")
+	rec := agent("repair", "/work", "cat", "idle", time.Now())
+	rec.Spec.Status, rec.Spec.Error = hub.StatusFailed, "exit status 1"
+	out, ok := report(t, host.State{Allows: []string{"cat"}, Agents: []host.Record{rec}}, absent(t))
+	if ok || !strings.Contains(out, "failed: exit status 1") || !strings.Contains(out, "Retry in the browser") {
+		t.Fatalf("failed session report: ok=%v\n%s", ok, out)
+	}
+	if strings.Contains(out, "idle for") || strings.Contains(out, "does not read this kind") {
+		t.Fatalf("failure was confused with screen activity:\n%s", out)
+	}
+}

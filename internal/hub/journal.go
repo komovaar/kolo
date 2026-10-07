@@ -21,6 +21,7 @@ const (
 	WhatSaid        = "said"
 	WhatInterrupted = "interrupted"
 	WhatRestarted   = "restarted"
+	WhatRetried     = "retried"
 	WhatFresh       = "fresh"
 	WhatRelabeled   = "relabeled"
 	WhatStopped     = "stopped"

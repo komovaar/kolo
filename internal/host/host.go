@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -145,7 +146,29 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 			// The refusal that counts: this machine runs the process.
 			// hub.Registry.Add holds the hub's copy of the checks.
 			if err := agents.Start(c.Agent); err != nil {
-				agents.report(c.Agent.Name, hub.StatusFailed, err.Error())
+				// Launch failures are retained and reported by begin. A
+				// reservation refusal has no process record to report from.
+				if !slices.Contains(agents.Names(), c.Agent.Name) {
+					agents.report(c.Agent.Name, hub.StatusFailed, err.Error())
+				}
+			}
+		case "retry":
+			if err := agents.Retry(c.Name); err != nil {
+				// Permission/launch failures report themselves. A stale
+				// registry entry must not stay Starting after a refusal.
+				found := false
+				for _, spec := range agents.Specs() {
+					if spec.Name == c.Name {
+						found = true
+						if spec.Status != hub.StatusFailed {
+							agents.report(c.Name, spec.Status, spec.Error)
+						}
+						break
+					}
+				}
+				if !found {
+					agents.report(c.Name, hub.StatusFailed, err.Error())
+				}
 			}
 		case "stop":
 			done := agents.Stop(c.Name)

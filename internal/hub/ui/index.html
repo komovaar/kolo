@@ -310,6 +310,7 @@
                   padding: 18px 20px 0; }
   .session-info { flex: 1; min-width: 0; }
   .session-title { margin: 0 0 5px; font-size: 18px; overflow-wrap: anywhere; }
+  .session-error { margin: 8px 0 0; color: var(--kolo-state-failed); font: 13px/1.6 var(--mono); overflow-wrap: anywhere; }
   .session-context { margin: 0; color: var(--dim); font: 12px/1.6 var(--mono); overflow-wrap: anywhere; }
   .session-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .session-badges span { border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px;
@@ -471,6 +472,7 @@
         <div class="session-info">
           <h1 class="session-title">Session</h1>
           <p class="session-context"></p>
+          <p class="session-error" role="status" hidden></p>
           <div class="session-badges">
             <span class="session-state"></span>
             <span class="session-connection" role="status">Connecting…</span>
@@ -708,6 +710,8 @@ function canControl() {
   return signedIn && !me.read_only;
 }
 
+let retryPending = null;
+
 function applyAccess() {
   const allowed = canControl();
   term.options.disableStdin = !allowed || !screenReady || !socket || socket.readyState !== WebSocket.OPEN;
@@ -715,7 +719,11 @@ function applyAccess() {
   el('.home-new').hidden = !allowed;
   el('.watch .restart').hidden = !allowed;
   el('.session-stop').hidden = !allowed;
-  el('.watch .restart').disabled = !allowed || !screenReady || !socket || socket.readyState !== WebSocket.OPEN;
+  const selected = lastAgents.find((a) => a.name === agentInURL());
+  const failed = selected?.status === 'failed';
+  el('.watch .restart').textContent = failed ? 'Retry' : 'restart';
+  el('.watch .restart').disabled = !allowed || (retryPending && retryPending.name === selected?.name) ||
+    (failed ? !hosts.some((h) => h.id === selected.host) : !screenReady || !socket || socket.readyState !== WebSocket.OPEN);
   if (!allowed) {
     renamingId = null;
     if (!el('.scrim').hidden) closeCreate();
@@ -751,6 +759,7 @@ function signOut() {
   signedIn = false;
   authLost = true;
   close();
+  retryPending = null;
   me = { read_only: true };
   hosts = [];
   lastAgents = [];
@@ -760,6 +769,8 @@ function signOut() {
   el('.host-cards').replaceChildren();
   el('.log-rows').replaceChildren();
   el('.session-context').textContent = '';
+  el('.session-error').textContent = '';
+  el('.session-error').hidden = true;
   el('.me-menu').hidden = true;
   el('.me .name').textContent = '';
   el('.me .initial').textContent = '';
@@ -802,13 +813,14 @@ async function refresh() {
   el('.me .name').textContent = data.you.name;
   el('.me .initial').textContent = (data.you.name.trim().slice(0, 1) || '?').toUpperCase();
   me = data.you;
-  applyAccess();
   hosts = data.hosts;
   lastAgents = data.agents || [];
+  applyAccess();
   attention.update(lastAgents);
   if (!renamingId) drawGroups(lastAgents);
   drawHome();
   drawSession();
+  reconcileWatch();
   drawChoices();
   return data;
 }
@@ -891,6 +903,9 @@ function drawSession() {
     (agent?.status === 'running' && state.key === 'unknown' ? 'Activity is unknown; typing still works.' : '');
   el('.session-access').textContent = canControl() ? 'You can control this session' : 'Read-only access';
   el('.session-stop').disabled = !agent || !canControl();
+  el('.session-error').textContent = agent?.error || (agent?.status === 'failed' ? 'The program could not stay running.' : '');
+  el('.session-error').hidden = !el('.session-error').textContent;
+  applyAccess();
 }
 
 // Which agent's name is being edited, and what it currently reads, kept at
@@ -1447,6 +1462,31 @@ el('.zoom .out').onclick = () => setZoom(zoom / 1.25);
 el('.zoom .in').onclick = () => setZoom(zoom * 1.25);
 el('.zoom .at').onclick = () => setZoom(1);
 
+function canWatch(name) {
+  const agent = lastAgents.find((a) => a.name === name);
+  return signedIn && !!agent && hosts.some((h) => h.id === agent.host) &&
+    (agent.status === 'running' || agent.status === 'starting');
+}
+
+// Poll lifecycle status independently of the terminal. Failed or removed
+// sessions have no screen to reconnect to; a returning host can resume watching.
+function reconcileWatch() {
+  const name = agentInURL();
+  if (!signedIn || !name) return;
+  if (!canWatch(name)) {
+    close();
+    const agent = lastAgents.find((a) => a.name === name);
+    el('.session-connection').textContent = agent?.status === 'failed' ? 'Session failed' : 'Session unavailable';
+    say('.watch .note', agent?.status === 'failed'
+      ? (canControl() ? 'Fix the problem on the machine, then choose Retry.' : 'A member with control access can retry this session.')
+      : 'The machine is disconnected or this session has been removed.');
+    applyAccess();
+    return;
+  }
+  if (watching !== name) watch(name);
+  else if ((!socket || socket.readyState === WebSocket.CLOSED) && !reconnectTimer) connect(name);
+}
+
 function watch(name) {
   close();
   watching = name;
@@ -1480,7 +1520,7 @@ function close() {
 }
 
 function connect(name) {
-  if (!signedIn || watching !== name) return;
+  if (!signedIn || watching !== name || !canWatch(name)) return;
   if (terminalOwner) resetTerminal();
   el('.session-connection').textContent = 'Connecting…';
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -1610,8 +1650,43 @@ function tell(what) {
   return true;
 }
 
+async function retrySession(name) {
+  if (!canControl() || retryPending?.name === name) return;
+  const agent = lastAgents.find((a) => a.name === name);
+  if (!agent || agent.status !== 'failed') return;
+  const run = authRun;
+  const attempt = { name, run };
+  retryPending = attempt;
+  applyAccess();
+  try {
+    const resp = await fetch(`/v1/agents/${encodeURIComponent(name)}/retry`, { method: 'POST' });
+    if (run !== authRun || name !== agentInURL()) return;
+    if (resp.status === 401) { signOut(); return; }
+    if (!resp.ok) {
+      const problem = await resp.text();
+      if (run === authRun && name === agentInURL()) say('.watch .note', problem, true);
+      return;
+    }
+    agent.status = 'starting';
+    agent.error = '';
+    drawSession();
+    reconcileWatch();
+    await refresh();
+  } catch (_) {
+    if (run === authRun && name === agentInURL()) say('.watch .note', 'Could not reach the hub. Try again.', true);
+  } finally {
+    if (retryPending === attempt) retryPending = null;
+    applyAccess();
+  }
+}
+
 el('.watch .restart').onclick = () => {
   if (!canControl()) return;
+  const name = agentInURL();
+  if (lastAgents.find((a) => a.name === name)?.status === 'failed') {
+    retrySession(name);
+    return;
+  }
   if (!confirm('Restart this agent? Its current work will be interrupted. Kolo will resume its conversation when this agent supports it.')) return;
   tell({ type: 'restart' });
 };
@@ -1676,6 +1751,7 @@ function didWhat(what) {
     case 'said': return 'said';
     case 'interrupted': return 'interrupted';
     case 'restarted': return 'restarted';
+    case 'retried': return 'retried';
     case 'fresh': return 'started fresh';
     case 'relabeled': return 'renamed';
     case 'stopped': return 'stopped';
@@ -1717,11 +1793,8 @@ async function route() {
   drawSession();
   const data = await refresh();
   if (!data || name !== agentInURL() || log !== logInURL()) return;
-  if (name) {
-    if (watching !== name) watch(name);
-  } else {
-    close();
-  }
+  if (name) reconcileWatch();
+  else close();
   // After the list rather than beside it, so the first draw already knows the
   // labels its rows are named by.
   if (log) drawLog();

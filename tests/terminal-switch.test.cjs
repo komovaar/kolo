@@ -44,6 +44,7 @@ function page() {
     close() { this.readyState = 3; this.onclose?.(); }
   }
   const context = vm.createContext({
+    retryPending: null, agentInURL: () => null, canWatch: () => true,
     signedIn: true, authLost: false, authRun: 0, refreshRun: 0,
     me: { name: 'Artem', read_only: false }, hosts: [], lastAgents: [],
     socket: null, watching: null, terminalOwner: null, screenReady: false,

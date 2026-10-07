@@ -262,6 +262,15 @@ state between them count as one waiting episode.
 not stay up is marked failed rather than restarted forever. A restart somebody
 asked for does not count toward giving up.
 
+**Failed sessions can be retried.** The session page shows the failure reason
+and offers **Retry** to members with control access, even when no terminal
+connection exists. Fix the executable, working directory, or agent credentials
+on its machine, then retry the same session. Retry resets the automatic restart
+budget and keeps the command, directory, and conversation recovery rules.
+Failed records and their errors survive host reconnects and restarts; they
+remain failed until retried or explicitly stopped. Unavailable and failed
+screens stop reconnecting, while polling notices when a machine returns.
+
 **What is running is written down**, to the file `-state` names. Restarting the
 host, or the whole machine, brings the org's agents back in the order they were
 created.
@@ -287,8 +296,8 @@ JSON lines. Read it on the page, under the list icon in the sidebar, or with
 `GET /v1/log`.
 
 Recorded: created, said, interrupted, restarted, started fresh, renamed,
-stopped, failed, and the host going away. The last two are nobody's doing, so
-they are written down with no name against them.
+retried, stopped, failed, and the host going away. The last two are nobody's
+doing, so they are written down with no name against them.
 
 **Typed lines are rebuilt from keystrokes** and only written when you press
 Enter, so a line you abandon halfway is never recorded. Because it is a
@@ -345,7 +354,9 @@ notifications while the page is open. See [Attention alerts](#attention-alerts)
 for browser requirements and delivery limits.
 
 Interrupt, restart and start fresh travel on the watch websocket. The page
-offers restart; interrupt and start fresh are protocol-only controls:
+offers restart and uses `POST /v1/agents/{name}/retry` for failed sessions
+(202 when accepted, 409 unless failed, 404 if unavailable). Interrupt and
+start fresh are protocol-only controls:
 see [What kolo can press for you](#what-kolo-can-press-for-you).
 
 ## Repo layout

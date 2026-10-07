@@ -112,6 +112,7 @@ func Listen(org *Org, addr string) (*Server, error) {
 	mux.HandleFunc("GET /v1/host", s.handleHost)
 	mux.HandleFunc("GET /v1/agents", s.handleList)
 	mux.HandleFunc("POST /v1/agents", s.handleCreate)
+	mux.HandleFunc("POST /v1/agents/{name}/retry", s.handleRetry)
 	mux.HandleFunc("PATCH /v1/agents/{name}", s.handleRelabel)
 	mux.HandleFunc("DELETE /v1/agents/{name}", s.handleDelete)
 	mux.HandleFunc("GET /v1/log", s.handleLog)
@@ -418,7 +419,7 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 		}
 		switch report.Type {
 		case "status":
-			accepted := s.registry.SetStatus(h.ID, report.Name, report.Status, label(report.Error, maxLabel))
+			accepted := s.registry.SetStatus(h.ID, report.Name, report.Status, label(report.Error, maxError))
 			if accepted && report.Status == StatusFailed {
 				s.journal.add(Entry{Agent: report.Name, What: WhatFailed, Text: report.Error})
 			}

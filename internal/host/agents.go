@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -40,7 +39,7 @@ var restartDelay = time.Second
 
 const tick = 200 * time.Millisecond
 
-// Agents is every agent running on this machine.
+// Agents tracks running sessions and failed sessions awaiting recovery on this machine.
 type Agents struct {
 	cfg Config
 	// Where the running set is written across restarts; empty keeps it in memory.
@@ -63,17 +62,20 @@ type Agents struct {
 }
 
 type process struct {
-	spec     hub.Agent
-	status   string
-	agent    *agent.Agent
-	live     *session.Session
-	input    *relay.Relay
-	writes   *inputQueue
-	started  time.Time
-	stopping bool
-	stopped  chan struct{}
-	done     chan struct{}
-	fails    int
+	spec   hub.Agent
+	status string
+	error  string
+	// A launch or supervisor owns cleanup while this is true.
+	supervising bool
+	agent       *agent.Agent
+	live        *session.Session
+	input       *relay.Relay
+	writes      *inputQueue
+	started     time.Time
+	stopping    bool
+	stopped     chan struct{}
+	done        chan struct{}
+	fails       int
 	// fresh means the next launch must not resume.
 	fresh bool
 	// Launched resuming, so dying at once reads as the resume failing.
@@ -116,8 +118,9 @@ func (a *Agents) runs(command string) bool {
 	if name == "" || filepath.Base(name) != name {
 		return false
 	}
-	_, err := exec.LookPath(name)
-	return err == nil
+	// Launch resolves PATH. A missing executable is a recoverable launch
+	// failure, so retain its spec rather than rejecting the reservation.
+	return true
 }
 
 func resumesByName(command string) bool {
@@ -160,6 +163,12 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 		return fmt.Errorf("this machine does not run %s", spec.Command)
 	}
 
+	return a.retain(spec, fresh, session)
+}
+
+// retain also restores failed specs whose executable may still be missing.
+// Retry performs the permission checks again before launching them.
+func (a *Agents) retain(spec hub.Agent, fresh bool, session string) error {
 	a.mu.Lock()
 	if _, taken := a.running[spec.Name]; taken {
 		a.mu.Unlock()
@@ -180,7 +189,7 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 	// Reserved before the process exists, so two spawns can't both find the
 	// name free.
 	a.running[spec.Name] = &process{
-		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session,
+		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session, supervising: true,
 		stopped: make(chan struct{}), done: make(chan struct{}),
 	}
 	a.mu.Unlock()
@@ -189,12 +198,65 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 
 func (a *Agents) begin(name string) error {
 	if err := a.launch(name); err != nil {
-		a.forget(name)
+		a.failed(name, err.Error())
 		return err
 	}
 	a.save()
-	a.report(name, hub.StatusRunning, "")
 	return nil
+}
+
+// Retry gives a retained failed session a new restart budget.
+func (a *Agents) Retry(name string) error {
+	a.mu.Lock()
+	p, ok := a.running[name]
+	if !ok || p.stopping || p.status != hub.StatusFailed || p.supervising {
+		a.mu.Unlock()
+		return fmt.Errorf("%s is not a failed session here", name)
+	}
+	p.status, p.error, p.fails, p.supervising = hub.StatusStarting, "", 0, true
+	a.mu.Unlock()
+	// Recheck the machine's current permissions before attempting a launch.
+	if !slices.Contains(a.cfg.Dirs, p.spec.Dir) && !slices.Contains(a.cfg.Dirs, hub.DirAny) {
+		err := fmt.Errorf("this machine does not lend %s", p.spec.Dir)
+		a.failed(name, err.Error())
+		return err
+	}
+	if !a.runs(p.spec.Command) {
+		err := fmt.Errorf("this machine does not run %s", p.spec.Command)
+		a.failed(name, err.Error())
+		return err
+	}
+	return a.begin(name)
+}
+
+// failed releases live resources while retaining the spec and diagnostic.
+func (a *Agents) failed(name, reason string) {
+	a.mu.Lock()
+	p, ok := a.running[name]
+	if !ok {
+		a.mu.Unlock()
+		return
+	}
+	p.supervising = false
+	p.agent, p.live, p.input, p.writes = nil, nil, nil, nil
+	p.status, p.error = hub.StatusFailed, reason
+	stopped := p.stopping
+	if stopped {
+		delete(a.running, name)
+	}
+	a.mu.Unlock()
+	a.save()
+	if stopped {
+		close(p.done)
+	} else {
+		// A reconnect may expose the failed spec during save, letting Retry
+		// start it already. Never send an older failure after that launch.
+		a.mu.Lock()
+		if current := a.running[name]; current == p && !p.stopping && p.status == hub.StatusFailed && p.error == reason {
+			a.report(name, hub.StatusFailed, reason)
+		}
+		a.mu.Unlock()
+	}
 }
 
 func (a *Agents) launch(name string) error {
@@ -260,10 +322,12 @@ func (a *Agents) launch(name string) error {
 	})
 	p.agent, p.started, p.live, p.input = started, time.Now(), live, input
 	p.writes = writes
-	p.status = hub.StatusRunning
+	p.status, p.error = hub.StatusRunning, ""
 	p.resumed, p.fresh, p.bounced = resumed, false, false
 	p.state, p.since = detect.Unknown, time.Now()
 	a.mu.Unlock()
+
+	a.report(name, hub.StatusRunning, "")
 
 	// The PTY must be read or the agent blocks once its buffer fills.
 	go func() {
@@ -318,7 +382,7 @@ func (a *Agents) Fresh(name, from string) error { return a.bounce(name, from, tr
 func (a *Agents) bounce(name, from string, fresh bool) error {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.agent == nil || p.stopping {
+	if !ok || p.agent == nil || p.stopping || p.status != hub.StatusRunning {
 		a.mu.Unlock()
 		return fmt.Errorf("%s is not running here", name)
 	}
@@ -454,13 +518,11 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		p.fails++
 	}
 	if p.fails >= restartLimit {
-		delete(a.running, name)
 		a.mu.Unlock()
-		a.save()
-		a.report(name, hub.StatusFailed, reasonFor(err, "it will not stay running"))
+		a.failed(name, reasonFor(err, "it will not stay running"))
 		return
 	}
-	p.status = hub.StatusStarting
+	p.status, p.error = hub.StatusStarting, reason
 	a.mu.Unlock()
 
 	a.report(name, hub.StatusStarting, reason)
@@ -479,25 +541,9 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		return
 	}
 	if err := a.launch(name); err != nil {
-		// begin does this on an initial launch. A restart has already kept the
-		// record through the delay, so it must clean it up here too: otherwise
-		// a missing command or directory stays listed as starting forever.
-		a.mu.Lock()
-		p, still := a.running[name]
-		stopped := still && p.stopping
-		if still {
-			delete(a.running, name)
-		}
-		a.mu.Unlock()
-		a.save()
-		if !stopped {
-			a.report(name, hub.StatusFailed, reasonFor(err, "the agent could not be restarted"))
-		} else {
-			close(p.done)
-		}
+		a.failed(name, reasonFor(err, "the agent could not be restarted"))
 		return
 	}
-	a.report(name, hub.StatusRunning, "")
 }
 
 // Stop ends an agent for good. The returned channel closes once the process
@@ -520,15 +566,17 @@ func (a *Agents) Stop(name string) <-chan struct{} {
 	p.stopping = true
 	close(p.stopped)
 	running = p.agent
+	writes := p.writes
+	supervising := p.supervising
+	if !supervising {
+		delete(a.running, name)
+	}
 	a.mu.Unlock()
-
-	switch {
-	case running != nil:
-		p.writes.cancel()
+	if running != nil {
+		writes.cancel()
 		running.Close()
-	default:
-		// Nothing will call wait, so forget here.
-		a.forget(name)
+	}
+	if !supervising {
 		a.save()
 		close(p.done)
 	}
@@ -546,7 +594,7 @@ func (a *Agents) StopAll() {
 	}
 }
 
-// Specs is what this machine is running.
+// Specs is what this machine runs or retains for recovery.
 func (a *Agents) Specs() []hub.Agent {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -554,7 +602,7 @@ func (a *Agents) Specs() []hub.Agent {
 	out := make([]hub.Agent, 0, len(a.running))
 	for _, p := range a.running {
 		spec := p.spec
-		spec.Status = p.status
+		spec.Status, spec.Error = p.status, p.error
 		out = append(out, spec)
 	}
 	slices.SortFunc(out, func(x, y hub.Agent) int { return x.CreatedAt.Compare(y.CreatedAt) })
@@ -583,6 +631,7 @@ type State struct {
 type Record struct {
 	Spec    hub.Agent `json:"spec"`
 	Session string    `json:"session,omitempty"`
+	Fresh   bool      `json:"fresh,omitempty"`
 	// idle, busy, dialog or unknown.
 	State string    `json:"state,omitempty"`
 	Since time.Time `json:"since,omitzero"`
@@ -615,16 +664,27 @@ func (a *Agents) Restore() error {
 	}
 	reserved := make([]string, 0, len(state.Agents))
 	for _, rec := range state.Agents {
-		if err := a.reserve(rec.Spec, false, rec.Session); err != nil {
+		var err error
+		if rec.Spec.Status == hub.StatusFailed {
+			err = a.retain(rec.Spec, rec.Fresh, rec.Session)
+		} else {
+			err = a.reserve(rec.Spec, false, rec.Session)
+		}
+		if err != nil {
 			a.report(rec.Spec.Name, hub.StatusFailed, err.Error())
+			continue
+		}
+		if rec.Spec.Status == hub.StatusFailed {
+			a.mu.Lock()
+			p := a.running[rec.Spec.Name]
+			p.status, p.error, p.supervising = hub.StatusFailed, rec.Spec.Error, false
+			a.mu.Unlock()
 			continue
 		}
 		reserved = append(reserved, rec.Spec.Name)
 	}
 	for _, name := range reserved {
-		if err := a.begin(name); err != nil {
-			a.report(name, hub.StatusFailed, err.Error())
-		}
+		a.begin(name)
 	}
 	return nil
 }
@@ -714,19 +774,15 @@ func (a *Agents) records() []Record {
 
 	out := make([]Record, 0, len(a.running))
 	for _, p := range a.running {
+		spec := p.spec
+		spec.Status, spec.Error = p.status, p.error
 		out = append(out, Record{
-			Spec: p.spec, Session: p.session,
+			Spec: spec, Session: p.session, Fresh: p.fresh,
 			State: p.state.String(), Since: p.since,
 		})
 	}
 	slices.SortFunc(out, func(x, y Record) int { return x.Spec.CreatedAt.Compare(y.Spec.CreatedAt) })
 	return out
-}
-
-func (a *Agents) forget(name string) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	delete(a.running, name)
 }
 
 func (a *Agents) report(name, status, reason string) {

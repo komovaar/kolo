@@ -167,7 +167,7 @@ func TestStoppingCancelsAWaitingRestart(t *testing.T) {
 // A restart can fail before it makes a process—for example, when a checkout
 // containing an allowed command was removed. It must not leave a dead record
 // looking like an agent still starting.
-func TestAnAgentThatCannotRestartIsForgotten(t *testing.T) {
+func TestAnAgentThatCannotRestartIsRetained(t *testing.T) {
 	defer quickRestarts()()
 	dir := t.TempDir()
 	script := fakeAgent(t, dir, "sleep 30\n")
@@ -189,8 +189,15 @@ func TestAnAgentThatCannotRestartIsForgotten(t *testing.T) {
 	if got := nextReport(t, a); got.Status != hub.StatusFailed {
 		t.Fatalf("after failing to restart, reported %+v", got)
 	}
-	if names := a.Names(); len(names) != 0 {
-		t.Errorf("still listed after restart failed: %v", names)
+	if got := a.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed || got[0].Error == "" {
+		t.Fatalf("failed session was not retained: %+v", got)
+	}
+	fakeAgent(t, dir, "sleep 30\n")
+	if err := a.Retry("checkups"); err != nil {
+		t.Fatal(err)
+	}
+	if got := nextReport(t, a); got.Status != hub.StatusRunning {
+		t.Fatalf("retry after repair: %+v", got)
 	}
 }
 
@@ -211,8 +218,33 @@ func TestGivingUp(t *testing.T) {
 	if last.Status != hub.StatusFailed {
 		t.Fatalf("never gave up; last report %+v", last)
 	}
+	if got := a.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed || got[0].Error == "" {
+		t.Fatalf("failed session was not retained: %+v", got)
+	}
+	// A manual retry gets the complete automatic restart budget again.
+	if err := a.Retry("brief"); err != nil {
+		t.Fatal(err)
+	}
+	runs := 0
+	for range 2*restartLimit + 1 {
+		report := nextReport(t, a)
+		if report.Status == hub.StatusRunning {
+			runs++
+		}
+		if report.Status == hub.StatusFailed {
+			break
+		}
+	}
+	if runs != restartLimit {
+		t.Fatalf("retry launched %d times, want %d", runs, restartLimit)
+	}
+	select {
+	case <-a.Stop("brief"):
+	case <-time.After(time.Second):
+		t.Fatal("stopping a failed session did not complete")
+	}
 	if len(a.Names()) != 0 {
-		t.Errorf("still listed: %v", a.Names())
+		t.Fatal("stopped failed session was retained")
 	}
 }
 
@@ -749,18 +781,18 @@ func TestAHostThatLendsAnyCommandRunsWhatsOnItsPath(t *testing.T) {
 	}
 	nextReport(t, a)
 
-	for _, tc := range []struct {
-		name, agent, command string
-	}{
-		{"a path instead of a name", "scripts", "/bin/cat"},
-		{"a program that is not there", "ghost", "no-such-agent-anywhere"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := a.Start(spec(tc.agent, dir, tc.command))
-			if err == nil || !strings.Contains(err.Error(), "does not run") {
-				t.Errorf("accepted %q", tc.command)
-			}
-		})
+	t.Cleanup(a.StopAll)
+	if err := a.Start(spec("scripts", dir, "/bin/cat")); err == nil || !strings.Contains(err.Error(), "does not run") {
+		t.Fatalf("wildcard accepted an absolute path: %v", err)
+	}
+	if err := a.Start(spec("ghost", dir, "no-such-agent-anywhere")); err == nil {
+		t.Fatal("missing executable launched")
+	}
+	if got := nextReport(t, a); got.Status != hub.StatusFailed || got.Error == "" {
+		t.Fatalf("missing executable did not report a recoverable failure: %+v", got)
+	}
+	if got := a.Specs(); len(got) != 2 {
+		t.Fatalf("missing executable was not retained: %+v", got)
 	}
 }
 
