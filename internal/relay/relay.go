@@ -45,9 +45,8 @@ func (r *Relay) Type(keys string) error {
 	if keys == "" {
 		return nil
 	}
-	if len(keys) > maxKeys {
-		return fmt.Errorf("%w: %d bytes at once, and %d is the most that goes through in one message",
-			ErrTooMuch, len(keys), maxKeys)
+	if err := CheckKeys(keys); err != nil {
+		return err
 	}
 	return r.exclusive(func() error {
 		_, err := r.agent.Write([]byte(keys))
@@ -55,16 +54,34 @@ func (r *Relay) Type(keys string) error {
 	})
 }
 
+// CheckKeys also validates input before a host queues it.
+func CheckKeys(keys string) error {
+	if len(keys) > maxKeys {
+		return fmt.Errorf("%w: %d bytes at once, and %d is the most that goes through in one message",
+			ErrTooMuch, len(keys), maxKeys)
+	}
+	return nil
+}
+
 // Interrupt stops the agent, but only while it's busy: the same key means
 // something else at an input box or a dialog.
 func (r *Relay) Interrupt() error {
 	return r.exclusive(func() error {
-		if r.state() != detect.Busy {
-			return fmt.Errorf("relay: the agent is not working")
+		if err := r.CheckInterrupt(); err != nil {
+			return err
 		}
 		_, err := r.agent.Write(r.kind.InterruptKey())
 		return err
 	})
+}
+
+// CheckInterrupt validates before queuing; Interrupt checks again when the
+// queued command reaches the process.
+func (r *Relay) CheckInterrupt() error {
+	if r.state() != detect.Busy {
+		return fmt.Errorf("relay: the agent is not working")
+	}
+	return nil
 }
 
 // exclusive serialises writes to the agent. A second member waits for the

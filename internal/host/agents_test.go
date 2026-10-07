@@ -424,6 +424,57 @@ sleep 30
 	waitFor(t, func() bool { return a.Interrupt("checkups", "Artem") != nil })
 }
 
+func TestQueuedInterruptRechecksTheScreenBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	release := filepath.Join(dir, "read-input")
+	script := fakeAgent(t, dir, fmt.Sprintf(`stty raw -echo
+printf '✳ Levitating…\r\n❯\r\n  esc to interrupt\r\n'
+while [ ! -f %q ]; do sleep 0.01; done
+dd bs=1 count=65536 of=/dev/null 2>/dev/null
+sleep 30
+`, release))
+	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{script}}, "")
+	t.Cleanup(a.StopAll)
+	if err := a.Start(spec("checkups", dir, script)); err != nil {
+		t.Fatal(err)
+	}
+	live := screenOf(t, a, "checkups")
+	waitFor(t, func() bool { return live.State() == detect.Busy })
+	if err := a.Type("checkups", strings.Repeat("x", 64<<10)); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Interrupt("checkups", "Artem"); err != nil {
+		t.Fatal(err)
+	}
+	// The screen changed while the interrupt waited behind a blocked paste.
+	live.Write([]byte("\x1b[2J\x1b[H❯\r\n  ? for shortcuts\r\n"))
+	if got := live.State(); got != detect.Idle {
+		t.Fatalf("updated screen is %s", got)
+	}
+	_, updates, unsubscribe := live.Subscribe()
+	defer unsubscribe()
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.After(3 * time.Second)
+	for {
+		select {
+		case update := <-updates:
+			var notice event
+			if update.Control && json.Unmarshal(update.Data, &notice) == nil {
+				if notice.Type == "interrupted" {
+					t.Fatal("a queued interrupt pressed Escape at an idle input box")
+				}
+				if notice.Type == "refused" && strings.Contains(notice.Text, "not working") {
+					return
+				}
+			}
+		case <-deadline:
+			t.Fatal("queued interrupt was not refused after the screen changed")
+		}
+	}
+}
+
 func TestAnAgentKeepsTheFlagsItWasLentWith(t *testing.T) {
 	defer quickRestarts()()
 	dir := t.TempDir()

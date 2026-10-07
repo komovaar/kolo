@@ -181,6 +181,14 @@ A paste arrives as one message rather than a key at a time, and goes through
 whole up to 64 KB. Past that the host refuses it and says so on the screen,
 because a paste that quietly went nowhere would look like one that worked.
 
+Each agent has its own ordered input queue, bounded to 64 commands and
+256 KiB including the write in progress. A process that stops reading input
+cannot stall controls for another agent. When its queue fills, further input
+is refused on the screen; retry it after the process catches up or restart it.
+Stop and restart cancel blocked writes and discard that process's pending
+input. Pending input is never replayed into a restarted process. Queued
+interrupts recheck the current screen before pressing the interrupt key.
+
 ### What kolo can press for you
 
 | action | offered by | allowed when |

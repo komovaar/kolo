@@ -68,6 +68,7 @@ type process struct {
 	agent    *agent.Agent
 	live     *session.Session
 	input    *relay.Relay
+	writes   *inputQueue
 	started  time.Time
 	stopping bool
 	stopped  chan struct{}
@@ -238,29 +239,42 @@ func (a *Agents) launch(name string) error {
 		return fmt.Errorf("%s is no longer wanted", name)
 	}
 	live := session.New(cols, rows, kind.Markers)
-	input := relay.New(started, live.Screen, kind)
 	screen, closeScreen := context.WithCancel(context.Background())
+	writes := newInputQueue(screen, func(err error) {
+		live.Announce(event{Type: "refused", Text: err.Error()})
+	})
+	input := relay.New(inputSender{ctx: writes.ctx, agent: started}, live.Screen, kind)
 	p.agent, p.started, p.live, p.input = started, time.Now(), live, input
+	p.writes = writes
 	p.status = hub.StatusRunning
 	p.resumed, p.fresh, p.bounced = resumed, false, false
 	p.state, p.since = detect.Unknown, time.Now()
 	a.mu.Unlock()
 
 	// The PTY must be read or the agent blocks once its buffer fills.
-	go io.Copy(live, started)
+	go func() {
+		defer started.CloseTerminal()
+		io.Copy(live, started)
+	}()
 	go a.stream(screen, name, live)
 	go a.watch(screen, name, kind, live)
-	go a.wait(name, started, closeScreen)
+	go a.wait(name, started, closeScreen, writes)
 	return nil
 }
 
-// Type gives the agent a member's keystrokes.
+// Type queues a member's keystrokes without waiting for the process to read.
 func (a *Agents) Type(name, keys string) error {
 	v, err := a.reach(name)
 	if err != nil {
 		return err
 	}
-	return v.input.Type(keys)
+	if err := relay.CheckKeys(keys); err != nil {
+		return err
+	}
+	if keys == "" {
+		return nil
+	}
+	return v.writes.enqueue(len(keys), func() error { return v.input.Type(keys) })
 }
 
 func (a *Agents) Interrupt(name, from string) error {
@@ -268,11 +282,16 @@ func (a *Agents) Interrupt(name, from string) error {
 	if err != nil {
 		return err
 	}
-	if err := v.input.Interrupt(); err != nil {
+	if err := v.input.CheckInterrupt(); err != nil {
 		return err
 	}
-	v.announce(event{Type: "interrupted", From: from})
-	return nil
+	return v.writes.enqueue(1, func() error {
+		if err := v.input.Interrupt(); err != nil {
+			return err
+		}
+		v.announce(event{Type: "interrupted", From: from})
+		return nil
+	})
 }
 
 // Restart kills the process and lets supervision start it again, resuming its
@@ -304,22 +323,24 @@ func (a *Agents) bounce(name, from string, fresh bool) error {
 		what = "fresh"
 	}
 	v.announce(event{Type: what, From: from})
+	v.writes.cancel()
 	running.Close()
 	return nil
 }
 
 type view struct {
-	live  *session.Session
-	input *relay.Relay
+	live   *session.Session
+	input  *relay.Relay
+	writes *inputQueue
 }
 
-func (p *process) view() view { return view{live: p.live, input: p.input} }
+func (p *process) view() view { return view{live: p.live, input: p.input, writes: p.writes} }
 
 func (a *Agents) reach(name string) (view, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	p, ok := a.running[name]
-	if !ok || p.input == nil {
+	if !ok || p.input == nil || p.stopping || p.status != hub.StatusRunning {
 		return view{}, fmt.Errorf("%s is not running here", name)
 	}
 	return p.view(), nil
@@ -385,10 +406,11 @@ type event struct {
 	State string `json:"state,omitempty"`
 }
 
-func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.CancelFunc) {
+func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.CancelFunc, writes *inputQueue) {
 	err := started.Wait()
 	// This process's screen ends with it, so watchers repaint from the new one.
 	closeScreen()
+	<-writes.done
 
 	a.mu.Lock()
 	p, ok := a.running[name]
@@ -488,6 +510,7 @@ func (a *Agents) Stop(name string) <-chan struct{} {
 
 	switch {
 	case running != nil:
+		p.writes.cancel()
 		running.Close()
 	default:
 		// Nothing will call wait, so forget here.

@@ -1,8 +1,12 @@
 package agent
 
 import (
+	"context"
+	"errors"
+	"io"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -27,6 +31,50 @@ func TestChildEnvScrubs(t *testing.T) {
 		if slices.Contains(got, unwanted) {
 			t.Errorf("childEnv kept %q", unwanted)
 		}
+	}
+}
+
+func TestCancelledWriteLeavesANonReadingAgentAlive(t *testing.T) {
+	a, err := Start([]string{"sh", "-c", "stty raw -echo; printf ready; sleep 30"}, "", 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { a.Close(); a.Wait() })
+	if err := a.pty.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	ready := make([]byte, len("ready"))
+	if _, err := io.ReadFull(a, ready); err != nil || string(ready) != "ready" {
+		t.Fatalf("non-reading process not ready: %q, %v", ready, err)
+	}
+	a.pty.SetReadDeadline(time.Time{})
+	// Resize must preserve the master's nonblocking I/O too.
+	if err := a.Resize(100, 30); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := a.WriteContext(ctx, []byte(strings.Repeat("x", 256<<10)))
+		result <- err
+	}()
+	select {
+	case err := <-result:
+		t.Fatalf("large write did not wait for a reader: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled write: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("cancellation could not wake a blocked PTY write")
+	}
+	if err := a.cmd.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("input cancellation killed the process: %v", err)
 	}
 }
 
