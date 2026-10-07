@@ -301,8 +301,21 @@ and disables new sessions too.
 
 The id is kept in the state file, so it survives the machine restarting.
 
-**A failed resume starts clean and says so.** Losing context quietly is worse
-than losing it visibly.
+**An early resume exit triggers a visible fallback.** If a resume or continue
+attempt exits within ten seconds, Kolo treats it as unsuccessful and starts a
+fresh conversation automatically. This is a heuristic: the exit does not prove
+that the previous history is missing or damaged. The session page keeps a
+conversation-reset warning even after the replacement is running, across page
+reloads, host reconnects, and machine restarts. When known, the warning includes
+the previous conversation identifier so you can investigate it on the machine
+using the agent's own recovery tools. Restart alone resumes the replacement.
+
+Members with control access can choose **Acknowledge reset**. This dismisses
+that event for everyone only after the host has saved the acknowledgement;
+read-only members can see the warning. A later reset creates another warning.
+Reset history stays in the session's state record until the session is stopped.
+Pinned replacement identifiers are saved before launch. Hosts without a state
+file keep this information for the current host run only.
 
 **Start fresh** drops the conversation on purpose, and is logged like anything
 else.
@@ -314,8 +327,12 @@ JSON lines. Read it on the page, under the list icon in the sidebar, or with
 `GET /v1/log`.
 
 Recorded: created, said, interrupted, restarted, started fresh, renamed,
-retried, stopped, failed, and the host going away. The last two are nobody's
-doing, so they are written down with no name against them.
+retried, stopped, failed, automatic conversation resets, their acknowledgement,
+and the host going away. Failures, automatic resets, and host disconnections
+have no member attribution. Reset events carry their original timestamp and
+previous conversation identifier when known. The host replays its saved reset
+history after reconnects; retained events appear once in the log, including
+when the hub restarts.
 
 **Typed lines are rebuilt from keystrokes** and only written when you press
 Enter, so a line you abandon halfway is never recorded. Because it is a
@@ -373,8 +390,11 @@ for browser requirements and delivery limits.
 
 Interrupt, restart and start fresh travel on the watch websocket. The page
 offers restart and uses `POST /v1/agents/{name}/retry` for failed sessions
-(202 when accepted, 409 unless failed, 404 if unavailable). Interrupt and
-start fresh are protocol-only controls:
+(202 when accepted, 409 unless failed, 404 if unavailable).
+`POST /v1/agents/{name}/context/ack` with `{"id":"<reset-id>"}` acknowledges a
+conversation reset (204 after the host confirms persistence). Both require
+control access. Reset identifiers are returned in the agent's `context_resets`
+list. Interrupt and start fresh are protocol-only controls:
 see [What kolo can press for you](#what-kolo-can-press-for-you).
 
 ## Repo layout

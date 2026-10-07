@@ -17,16 +17,18 @@ import (
 
 // What one entry says happened.
 const (
-	WhatCreated     = "created"
-	WhatSaid        = "said"
-	WhatInterrupted = "interrupted"
-	WhatRestarted   = "restarted"
-	WhatRetried     = "retried"
-	WhatFresh       = "fresh"
-	WhatRelabeled   = "relabeled"
-	WhatStopped     = "stopped"
-	WhatFailed      = "failed"
-	WhatGone        = "gone"
+	WhatCreated             = "created"
+	WhatSaid                = "said"
+	WhatInterrupted         = "interrupted"
+	WhatRestarted           = "restarted"
+	WhatRetried             = "retried"
+	WhatFresh               = "fresh"
+	WhatRelabeled           = "relabeled"
+	WhatStopped             = "stopped"
+	WhatFailed              = "failed"
+	WhatGone                = "gone"
+	WhatContextReset        = "context_reset"
+	WhatContextAcknowledged = "context_acknowledged"
 )
 
 const (
@@ -38,6 +40,7 @@ const (
 // Entry is one thing that happened to one agent. Who is absent when nobody
 // did it.
 type Entry struct {
+	ResetID   string    `json:"reset_id,omitempty"`
 	At        time.Time `json:"at"`
 	Agent     string    `json:"agent"`
 	What      string    `json:"what"`
@@ -135,11 +138,36 @@ func (j *journal) add(e Entry) {
 	j.addLocked(e)
 }
 
+// Replaying host history repairs missed events without duplicating retained log
+// entries, including after a hub restart. Older events obey journal retention.
+func (j *journal) contextReset(e Entry) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if e.ResetID == "" || e.At.IsZero() || e.At.Before(j.now().Add(-keepFor)) {
+		return
+	}
+	oldest := j.now()
+	for _, old := range j.entries {
+		if old.ResetID == e.ResetID {
+			return
+		}
+		if old.At.Before(oldest) {
+			oldest = old.At
+		}
+	}
+	if len(j.entries) >= keepEntries && !e.At.After(oldest) {
+		return
+	}
+	j.addLocked(e)
+}
+
 // Callers must hold j.mu.
 func (j *journal) addLocked(e Entry) {
-	e.At = j.now()
+	if e.What != WhatContextReset {
+		e.At = j.now()
+	}
 	switch e.What {
-	case WhatSaid:
+	case WhatSaid, WhatContextReset:
 		e.Text = label(e.Text, maxSaid)
 	default:
 		e.Text = label(e.Text, maxLabel)

@@ -55,6 +55,8 @@ test('authentication loss closes the terminal, clears private state, and stays s
   assert.equal(p.context.hosts.length, 0);
   assert.equal(p.context.lastAgents.length, 0);
   assert.equal(p.resets(), 1);
+  assert.equal(p.el('.context-warning').hidden, true);
+  assert.equal(p.el('.context-warning-text').textContent, '');
   for (const selector of ['.groups', '.host-cards', '.log-rows']) {
     assert.deepEqual(p.el(selector).children, []);
   }

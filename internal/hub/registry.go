@@ -60,13 +60,14 @@ func (h *host) resumesByName(command string) bool {
 // and protocol message, so it does not change once picked. Label is a member's
 // own word for it and the hub's alone to know.
 type Agent struct {
-	Name    string `json:"name"`
-	Label   string `json:"label,omitempty"`
-	Host    string `json:"host"`
-	Dir     string `json:"dir"`
-	Command string `json:"command"`
-	Status  string `json:"status"`
-	Error   string `json:"error,omitempty"`
+	Name          string         `json:"name"`
+	Label         string         `json:"label,omitempty"`
+	Host          string         `json:"host"`
+	Dir           string         `json:"dir"`
+	Command       string         `json:"command"`
+	Status        string         `json:"status"`
+	Error         string         `json:"error,omitempty"`
+	ContextResets []ContextReset `json:"context_resets,omitempty"`
 	// ScreenState is filled by the hub when listing agents. It is not process
 	// lifecycle state and is omitted when a host sends or saves an Agent spec.
 	ScreenState string    `json:"screen_state,omitempty"`

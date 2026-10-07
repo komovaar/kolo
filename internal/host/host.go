@@ -170,7 +170,19 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 					agents.report(c.Name, hub.StatusFailed, err.Error())
 				}
 			}
+		case "context-ack":
+			err := agents.acknowledgeContext(c.Name, c.Reset)
+			r := agents.contextSnapshot(c.Name)
+			r.Type, r.Request = "context-ack", c.Request
+			if err != nil {
+				r.Error = err.Error()
+			}
+			b, _ := json.Marshal(r)
+			if err := send(ctx, conn, b); err != nil {
+				return err
+			}
 		case "stop":
+			final := agents.finalContext(c.Name)
 			done := agents.Stop(c.Name)
 			go func(name string, request uint64) {
 				select {
@@ -178,8 +190,9 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				case <-ctx.Done():
 					return
 				}
+				snapshot := final()
 				select {
-				case agents.reports <- stoppedReport{Type: "stopped", Name: name, Request: request}:
+				case agents.reports <- stoppedReport{Type: "stopped", Name: name, Request: request, CreatedAt: snapshot.CreatedAt, ContextResets: snapshot.ContextResets}:
 				case <-ctx.Done():
 				}
 			}(c.Name, c.Request)
@@ -204,10 +217,24 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 }
 
 func report(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
+	// Recovery events are state, not droppable status news. Resync periodically
+	// as well as in hello, including resets produced while the hub was offline.
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case <-ticker.C:
+			for _, a := range agents.Specs() {
+				if len(a.ContextResets) == 0 {
+					continue
+				}
+				b, _ := json.Marshal(contextReport{Type: "context", Name: a.Name, CreatedAt: a.CreatedAt, ContextResets: a.ContextResets})
+				if err := send(ctx, conn, b); err != nil {
+					return err
+				}
+			}
 		case r := <-agents.reports:
 			b, err := json.Marshal(r)
 			if err != nil {
@@ -233,6 +260,7 @@ type welcome struct {
 }
 
 type command struct {
+	Reset   string    `json:"reset,omitempty"`
 	Type    string    `json:"type"`
 	Name    string    `json:"name"`
 	Request uint64    `json:"request"`
@@ -242,9 +270,11 @@ type command struct {
 }
 
 type stoppedReport struct {
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Request uint64 `json:"request"`
+	CreatedAt     time.Time          `json:"created_at"`
+	ContextResets []hub.ContextReset `json:"context_resets,omitempty"`
+	Type          string             `json:"type"`
+	Name          string             `json:"name"`
+	Request       uint64             `json:"request"`
 }
 
 // https is never silently connected to in the clear.

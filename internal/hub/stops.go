@@ -42,11 +42,15 @@ func (s *stopRequests) finish(name string, p *pendingStop) {
 }
 
 func (s *stopRequests) ack(host, name string, id uint64) {
+	s.resolve(host, name, id, true)
+}
+
+func (s *stopRequests) resolve(host, name string, id uint64, confirmed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p := s.pending[name]; p != nil && p.host == host && p.id == id && !p.done {
 		p.done = true
-		p.result <- true
+		p.result <- confirmed
 	}
 }
 

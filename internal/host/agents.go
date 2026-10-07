@@ -302,18 +302,22 @@ func (a *Agents) launch(name string) error {
 	case p.fresh && len(kind.Pin) > 0:
 		id := newSessionID()
 		if args, ok := kind.PinArgs(id); ok {
-			p.session = id
+			// On a crash after launch, restore must try this exact new id,
+			// rather than silently minting another fresh conversation.
+			p.session, p.fresh = id, false
 			argv = append(argv, args...)
 		}
 	case !p.fresh:
 		if r, ok := kind.ResumeArgs(was); ok {
 			argv, resumed = append(argv, r...), true
 		} else if len(kind.Continue) > 0 && a.soleIn(spec.Dir, name) {
-			argv = append(argv, kind.Continue...)
+			argv, resumed = append(argv, kind.Continue...), true
 		}
 	}
 	a.mu.Unlock()
 
+	// Persist a newly pinned replacement before it can exit or the host can crash.
+	a.save()
 	started, err := agent.Start(argv, spec.Dir, cols, rows)
 	if err != nil {
 		return err
@@ -472,19 +476,19 @@ func (a *Agents) watch(ctx context.Context, name string, kind adapter.Adapter, l
 
 		if now := live.State(); now != was {
 			was = now
-			a.reading(name, now)
+			a.reading(name, live, now)
 			live.Announce(event{Type: "state", State: now.String()})
 		}
 		if id := kind.SessionFrom(live.Text()); id != "" {
-			a.remember(name, id)
+			a.remember(name, live, id)
 		}
 	}
 }
 
-func (a *Agents) reading(name string, now detect.State) {
+func (a *Agents) reading(name string, live *session.Session, now detect.State) {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.state == now {
+	if !ok || p.live != live || p.status != hub.StatusRunning || p.state == now {
 		a.mu.Unlock()
 		return
 	}
@@ -493,10 +497,10 @@ func (a *Agents) reading(name string, now detect.State) {
 	a.save()
 }
 
-func (a *Agents) remember(name, id string) {
+func (a *Agents) remember(name string, live *session.Session, id string) {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.session == id {
+	if !ok || p.live != live || p.status != hub.StatusRunning || p.session == id {
 		a.mu.Unlock()
 		return
 	}
@@ -540,6 +544,9 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		p.fails = 0
 	case p.resumed:
 		// Dying at once reads as a refused resume; the refused id goes too.
+		p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), hub.ContextReset{
+			ID: newSessionID(), At: time.Now(), PreviousSession: p.session,
+		})
 		p.fresh, p.session = true, ""
 		reason = "could not resume the conversation; starting fresh"
 	default:
@@ -553,6 +560,7 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 	p.status, p.error = hub.StatusStarting, reason
 	a.mu.Unlock()
 
+	a.save()
 	a.report(name, hub.StatusStarting, reason)
 	timer := time.NewTimer(restartDelay)
 	select {
@@ -572,6 +580,7 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		a.failed(name, reasonFor(err, "the agent could not be restarted"))
 		return
 	}
+	a.save()
 }
 
 // Stop ends an agent for good. The returned channel closes once the process
@@ -620,6 +629,10 @@ func (a *Agents) StopAll() {
 	for _, name := range a.Names() {
 		a.Stop(name)
 	}
+	// A writer that passed its closing check before shutdown must finish
+	// before callers close or remove the state directory. Later saves skip it.
+	a.saveMu.Lock()
+	a.saveMu.Unlock()
 }
 
 // Specs is what this machine runs or retains for recovery.
@@ -717,6 +730,11 @@ func (a *Agents) records() []Record {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	return a.recordsLocked()
+}
+
+// Caller holds a.mu. Slice fields are immutable snapshots.
+func (a *Agents) recordsLocked() []Record {
 	out := make([]Record, 0, len(a.running))
 	for _, p := range a.running {
 		spec := p.spec

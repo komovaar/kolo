@@ -310,6 +310,8 @@
                   padding: 18px 20px 0; }
   .session-info { flex: 1; min-width: 0; }
   .session-title { margin: 0 0 5px; font-size: 18px; overflow-wrap: anywhere; }
+  .context-warning { margin: 12px 0 0; padding: 12px; border: 1px solid var(--kolo-state-failed); border-radius: 6px; font: 13px/1.6 var(--mono); overflow-wrap: anywhere; }
+  .context-warning p { margin: 0 0 8px; }
   .session-error { margin: 8px 0 0; color: var(--kolo-state-failed); font: 13px/1.6 var(--mono); overflow-wrap: anywhere; }
   .session-context { margin: 0; color: var(--dim); font: 12px/1.6 var(--mono); overflow-wrap: anywhere; }
   .session-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -473,6 +475,10 @@
           <h1 class="session-title">Session</h1>
           <p class="session-context"></p>
           <p class="session-error" role="status" hidden></p>
+          <div class="context-warning" role="status" hidden>
+            <p class="context-warning-text"></p>
+            <button class="context-ack">Acknowledge reset</button>
+          </div>
           <div class="session-badges">
             <span class="session-state"></span>
             <span class="session-connection" role="status">Connecting…</span>
@@ -711,6 +717,7 @@ function canControl() {
 }
 
 let retryPending = null;
+let contextAckPending = null;
 
 function applyAccess() {
   const allowed = canControl();
@@ -760,6 +767,9 @@ function signOut() {
   authLost = true;
   close();
   retryPending = null;
+  contextAckPending = null;
+  el('.context-warning').hidden = true;
+  el('.context-warning-text').textContent = '';
   me = { read_only: true };
   hosts = [];
   lastAgents = [];
@@ -905,6 +915,14 @@ function drawSession() {
   el('.session-stop').disabled = !agent || !canControl();
   el('.session-error').textContent = agent?.error || (agent?.status === 'failed' ? 'The program could not stay running.' : '');
   el('.session-error').hidden = !el('.session-error').textContent;
+  const reset = agent?.context_resets?.find((r) => !r.acknowledged);
+  el('.context-warning').hidden = !reset;
+  el('.context-warning-text').textContent = reset
+    ? 'Conversation reset: a resume attempt ended immediately, so Kolo fell back to a fresh conversation.' +
+      (reset.previous_session ? ` Previous conversation: ${reset.previous_session}.` : '') +
+      ' Restarting does not recover the previous conversation automatically.' : '';
+  el('.context-ack').hidden = !canControl();
+  el('.context-ack').disabled = !!contextAckPending;
   applyAccess();
 }
 
@@ -1650,6 +1668,39 @@ function tell(what) {
   return true;
 }
 
+async function acknowledgeContext() {
+  if (!canControl() || contextAckPending) return;
+  const name = agentInURL();
+  const agent = lastAgents.find((a) => a.name === name);
+  const reset = agent?.context_resets?.find((r) => !r.acknowledged);
+  if (!reset) return;
+  const attempt = { name, id: reset.id, run: authRun };
+  contextAckPending = attempt;
+  drawSession();
+  try {
+    const resp = await fetch(`/v1/agents/${encodeURIComponent(name)}/context/ack`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reset.id }),
+    });
+    if (attempt.run !== authRun || name !== agentInURL()) return;
+    if (resp.status === 401) { signOut(); return; }
+    if (!resp.ok) {
+      const problem = await resp.text();
+      if (attempt.run === authRun && name === agentInURL()) say('.watch .note', problem, true);
+      return;
+    }
+    // The endpoint waits for durable host confirmation. Polling supplies the
+    // updated record; a newer reset cannot be hidden by this request.
+    await refresh();
+  } catch (_) {
+    if (attempt.run === authRun && name === agentInURL()) say('.watch .note', 'Could not acknowledge the reset. Try again.', true);
+  } finally {
+    if (contextAckPending === attempt) contextAckPending = null;
+    if (attempt.run === authRun && name === agentInURL()) drawSession();
+  }
+}
+
+el('.context-ack').onclick = acknowledgeContext;
+
 async function retrySession(name) {
   if (!canControl() || retryPending?.name === name) return;
   const agent = lastAgents.find((a) => a.name === name);
@@ -1753,6 +1804,8 @@ function didWhat(what) {
     case 'restarted': return 'restarted';
     case 'retried': return 'retried';
     case 'fresh': return 'started fresh';
+    case 'context_reset': return 'reset the conversation';
+    case 'context_acknowledged': return 'acknowledged a conversation reset';
     case 'relabeled': return 'renamed';
     case 'stopped': return 'stopped';
     case 'failed': return 'failed';

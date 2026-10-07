@@ -52,13 +52,14 @@ const (
 // Server is the hub: one org, its hosts, and the agents running on them.
 type Server struct {
 	// Replaced wholesale on claim or reload; read under the lock.
-	orgMu    sync.RWMutex
-	org      *Org
-	registry *Registry
-	stops    *stopRequests
-	screens  *screens
-	typists  *typists
-	journal  *journal
+	orgMu       sync.RWMutex
+	org         *Org
+	registry    *Registry
+	stops       *stopRequests
+	contextAcks *stopRequests
+	screens     *screens
+	typists     *typists
+	journal     *journal
 	// Held across any read-modify-write of the org file.
 	orgFile sync.Mutex
 	// Last read error for the org file, so a lasting one is logged once.
@@ -92,7 +93,7 @@ func Listen(org *Org, addr string) (*Server, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Server{
-		org: org, registry: NewRegistry(), stops: newStopRequests(), screens: newScreens(),
+		org: org, registry: NewRegistry(), stops: newStopRequests(), contextAcks: newStopRequests(), screens: newScreens(),
 		typists: newTypists(), conns: newConns(), ln: ln, ctx: ctx, cancel: cancel,
 		ping: pingEvery, pingBy: pingWithin,
 	}
@@ -113,6 +114,7 @@ func Listen(org *Org, addr string) (*Server, error) {
 	mux.HandleFunc("GET /v1/agents", s.handleList)
 	mux.HandleFunc("POST /v1/agents", s.handleCreate)
 	mux.HandleFunc("POST /v1/agents/{name}/retry", s.handleRetry)
+	mux.HandleFunc("POST /v1/agents/{name}/context/ack", s.handleContextAck)
 	mux.HandleFunc("PATCH /v1/agents/{name}", s.handleRelabel)
 	mux.HandleFunc("DELETE /v1/agents/{name}", s.handleDelete)
 	mux.HandleFunc("GET /v1/log", s.handleLog)
@@ -398,6 +400,11 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.registry.SetHostError(h.ID, hello.Error)
+	for _, a := range s.registry.Agents() {
+		if a.Host == h.ID {
+			s.recordContextResets(a.Name, a.ContextResets)
+		}
+	}
 	log.Printf("hub: %s joined %s, running %s", h.ID, s.orgName(), build(hello.Version))
 	defer func() {
 		for _, name := range s.registry.Leave(h.ID) {
@@ -407,6 +414,7 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 	}()
 	// Fail outstanding stops before the name can be claimed by a reconnect.
 	defer s.stops.dropHost(h.ID)
+	defer s.contextAcks.dropHost(h.ID)
 
 	if err := write(ctx, conn, hostWelcome{Type: "welcome", Org: s.orgName(), Host: h.ID}); err != nil {
 		return
@@ -423,9 +431,23 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 			if accepted && report.Status == StatusFailed {
 				s.journal.add(Entry{Agent: report.Name, What: WhatFailed, Text: report.Error})
 			}
+		case "context":
+			if s.registry.setContextResets(h.ID, report.Name, report.CreatedAt, report.ContextResets) {
+				s.recordContextResets(report.Name, report.ContextResets)
+			}
+		case "context-ack":
+			if report.Error == "" && s.registry.setContextResets(h.ID, report.Name, report.CreatedAt, report.ContextResets) {
+				s.recordContextResets(report.Name, report.ContextResets)
+				s.contextAcks.resolve(h.ID, report.Name, report.Request, true)
+			} else {
+				s.contextAcks.resolve(h.ID, report.Name, report.Request, false)
+			}
 		case "host":
 			s.registry.SetHostError(h.ID, report.Error)
 		case "stopped":
+			if s.registry.setContextResets(h.ID, report.Name, report.CreatedAt, report.ContextResets) {
+				s.recordContextResets(report.Name, report.ContextResets)
+			}
 			s.stops.ack(h.ID, report.Name, report.Request)
 		}
 	}
@@ -877,11 +899,13 @@ type hostWelcome struct {
 }
 
 type agentReport struct {
-	Type    string `json:"type"`
-	Name    string `json:"name"`
-	Request uint64 `json:"request,omitempty"`
-	Status  string `json:"status"`
-	Error   string `json:"error"`
+	CreatedAt     time.Time      `json:"created_at"`
+	ContextResets []ContextReset `json:"context_resets,omitempty"`
+	Type          string         `json:"type"`
+	Name          string         `json:"name"`
+	Request       uint64         `json:"request,omitempty"`
+	Status        string         `json:"status"`
+	Error         string         `json:"error"`
 }
 
 type spawn struct {

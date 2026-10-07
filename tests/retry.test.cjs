@@ -19,7 +19,7 @@ function page() {
   };
   const context = vm.createContext({
     selected: 'repair', agentInURL: () => context.selected,
-    signedIn: true, me: { read_only: false }, authRun: 0, retryPending: null, renamingId: null,
+    signedIn: true, me: { read_only: false }, authRun: 0, contextAckPending: null, retryPending: null, renamingId: null,
     lastAgents: [{ name: 'repair', host: 'machine', status: 'failed', error: 'exit status 1', command: 'cat', dir: '/work' }],
     hosts: [{ id: 'machine' }], term: { options: {} }, screenReady: false,
     watching: 'repair', terminalOwner: null, socket: null, reconnectTimer: 1, typist: null,
