@@ -974,6 +974,20 @@ async function commitRename() {
 // text on every row.
 const collapsed = {};
 function drawGroups(agents) {
+  const container = el('.groups');
+  const focused = container.contains(document.activeElement);
+  const key = focused ? document.activeElement.dataset.focusKey : null;
+  const scrollTop = container.scrollTop;
+  renderGroups(agents);
+  container.scrollTop = scrollTop;
+  if (focused && key) {
+    const target = [...container.querySelectorAll('[data-focus-key]')]
+      .find((node) => node.dataset.focusKey === key && !node.disabled && node.getClientRects().length);
+    (target || el('.brand-home')).focus({ preventScroll: true });
+  }
+}
+
+function renderGroups(agents) {
   const open = agentInURL();
   const container = el('.groups');
   container.replaceChildren();
@@ -1010,6 +1024,7 @@ function drawGroups(agents) {
 
     const head = document.createElement('div');
     head.className = 'group-head';
+    head.dataset.focusKey = JSON.stringify(['host', host]);
     head.setAttribute('role', 'button');
     head.tabIndex = 0;
     head.innerHTML = `
@@ -1021,6 +1036,7 @@ function drawGroups(agents) {
         <svg width="12" height="12" viewBox="0 0 13 13"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>`;
     head.querySelector('.label').textContent = host;
+    head.querySelector('.add').dataset.focusKey = JSON.stringify(['add', host]);
     head.querySelector('.add').title = `New session on ${host}`;
     head.querySelector('.add').setAttribute('aria-label', `New session on ${host}`);
     head.querySelector('.add').hidden = !canControl();
@@ -1061,6 +1077,7 @@ function drawGroups(agents) {
       const row = document.createElement('div');
       row.setAttribute('role', 'button');
       row.tabIndex = 0;
+      row.dataset.focusKey = JSON.stringify(['agent', a.host, a.name, a.created_at]);
       row.className = 'agent' + (a.name === open ? ' on' : '');
       row.innerHTML = `
         <span class="row"></span>
@@ -1118,6 +1135,7 @@ function drawGroups(agents) {
       drop.hidden = !canControl();
       drop.disabled = !hostInfo;
       drop.className = 'drop';
+      drop.dataset.focusKey = JSON.stringify(['stop', a.host, a.name, a.created_at]);
       drop.title = `Stop session ${a.label || a.name}`;
       drop.setAttribute('aria-label', drop.title);
       drop.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>';
