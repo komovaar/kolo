@@ -45,6 +45,7 @@ async function openSession(viewport, agents = fixture.agents) {
   await page.routeWebSocket('**/v1/watch/**', (ws) => {
     ws.send(JSON.stringify({ type: 'size', cols: 120, rows: 40 }));
     ws.send(Buffer.from('\x1b[2J\x1b[Htop left\x1b[1;112Htop right' +
+      Array.from({ length: 36 }, (_, i) => `\x1b[${i + 3};1H${'Readable terminal text: commands, output, and conversation. '.repeat(2)}`).join('') +
       '\x1b[40;1Hbottom left\x1b[40;108Hbottom right'));
   });
   await page.goto(`${url}/#/agent/layout`);
@@ -68,17 +69,21 @@ async function assertFits(page) {
     const grid = document.querySelector('.xterm-screen').getBoundingClientRect();
     return { frame: { width: frame.width, height: frame.height, bottom: frame.bottom },
       grid: { width: grid.width, height: grid.height }, viewportHeight: innerHeight,
-      cols: term.cols, rows: term.rows };
+      cols: term.cols, rows: term.rows,
+      transform: getComputedStyle(term.element).transform,
+      fontSize: term.options.fontSize };
   });
   assert.ok(metrics.frame.bottom <= metrics.viewportHeight + 1, 'terminal is below the viewport');
-  assert.ok(metrics.grid.width / metrics.frame.width > 0.98 ||
-    metrics.grid.height / metrics.frame.height > 0.98, 'fit leaves unused space in both directions');
+  assert.ok(metrics.frame.width - metrics.grid.width < 120 ||
+    metrics.frame.height - metrics.grid.height < 40, 'fit leaves more than one cell of unused space in both directions');
+  assert.equal(metrics.transform, 'none', 'canvas text must render without CSS resampling');
+  assert.ok(metrics.fontSize > 0);
   assert.equal(metrics.cols, 120);
   assert.equal(metrics.rows, 40);
 }
 
 for (const viewport of [
-  { width: 1440, height: 900 }, { width: 1024, height: 768 },
+  { width: 2048, height: 1040 }, { width: 1440, height: 900 }, { width: 1024, height: 768 },
   { width: 390, height: 844 }, { width: 320, height: 568 },
   { width: 390, height: 400 }, { width: 844, height: 390 },
 ]) {
@@ -119,6 +124,7 @@ test('phone navigation closes on selection, and zoomed terminals can pan and ret
     await page.waitForFunction(() => document.querySelector('#term').scrollWidth > document.querySelector('#term').clientWidth);
     await page.locator('#term').evaluate((e) => { e.scrollLeft = e.scrollWidth; });
     assert.ok(await page.locator('#term').evaluate((e) => e.scrollLeft > 0));
+    assert.equal(await page.locator('.xterm').evaluate((e) => getComputedStyle(e).transform), 'none');
     await page.locator('.zoom .at').click();
     await assertFits(page);
     await page.setViewportSize({ width: 844, height: 390 });

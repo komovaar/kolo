@@ -314,7 +314,7 @@
      zoomed in past the room there is, it scrolls to the rest. */
   #term { flex: 1; min-width: 0; min-height: 0; overflow: hidden; position: relative; }
   .terminal-stage { position: relative; }
-  #term .xterm { position: absolute; margin: 0; padding: 0; transform-origin: top left; }
+  #term .xterm { position: absolute; margin: 0; padding: 0; }
   /* Scrolling is for a screen somebody has zoomed past the room they have. Left
      on, a screen that fits shows a scrollbar for the pixel it rounds to, and
      the scrollbar takes the width that made it fit. */
@@ -1498,38 +1498,44 @@ function room() {
 let zoom = 1;
 const zoomRange = { least: 0.5, most: 4 };
 
-// Keep the renderer at a stable font size. Scale its measured grid inside a
-// separately sized stage so rounded cells and transforms cannot shift content
-// outside the frame or feed stale font measurements back into the next fit.
+// Render glyphs at their final size. Scaling a painted canvas resamples text
+// and makes it blurry, especially at fractional scales on desktop displays.
+let fitting = false;
 function fit() {
+  if (fitting) return;
   const drawn = term.element, grid = drawn && drawn.querySelector('.xterm-screen');
   const box = room();
   if (!grid || !grid.offsetWidth || !grid.offsetHeight || !box.w || !box.h) return;
-  const width = grid.offsetWidth, height = grid.offsetHeight;
-  const scale = Math.min(box.w / width, box.h / height) * zoom;
-  const stage = drawn.parentElement;
-  const stageWidth = Math.max(box.w, width * scale);
-  const stageHeight = Math.max(box.h, height * scale);
-  stage.style.width = `${stageWidth}px`;
-  stage.style.height = `${stageHeight}px`;
-  drawn.style.width = `${width}px`;
-  drawn.style.height = `${height}px`;
-  drawn.style.left = `${Math.max(0, (box.w - width * scale) / 2)}px`;
-  drawn.style.top = `${Math.max(0, (box.h - height * scale) / 2)}px`;
-  drawn.style.transform = `scale(${scale})`;
-  const frame = el('#term');
-  frame.classList.toggle('roam', zoom > 1);
-  if (zoom <= 1) { frame.scrollLeft = 0; frame.scrollTop = 0; }
-  sayZoom();
+  fitting = true;
+  try {
+    // xterm updates its cell measurements when fontSize changes. Search the
+    // actual grid dimensions rather than estimating from a previous font.
+    let low = 1, high = 64;
+    for (let i = 0; i < 10; i++) {
+      const candidate = (low + high) / 2;
+      term.options.fontSize = candidate;
+      if (grid.offsetWidth <= box.w && grid.offsetHeight <= box.h) low = candidate;
+      else high = candidate;
+    }
+    term.options.fontSize = low * zoom;
+    const width = grid.offsetWidth, height = grid.offsetHeight;
+    const stage = drawn.parentElement;
+    stage.style.width = `${Math.max(box.w, width)}px`;
+    stage.style.height = `${Math.max(box.h, height)}px`;
+    drawn.style.width = `${width}px`;
+    drawn.style.height = `${height}px`;
+    drawn.style.left = '0px';
+    drawn.style.top = '0px';
+    const frame = el('#term');
+    frame.classList.toggle('roam', zoom > 1);
+    if (zoom <= 1) { frame.scrollLeft = 0; frame.scrollTop = 0; }
+    sayZoom();
+  } finally { fitting = false; }
 }
 
-// Both boxes fit reads: the room the frame has, which moves for reasons this
-// page does not hear about (a note appearing, a view opening, the face
-// arriving), and the grid xterm has drawn, which is how a pass sees the last
-// one land.
+// Only observe the available space; changing the font also resizes the grid.
 const watcher = new ResizeObserver(() => fit());
 watcher.observe(el('#term'));
-watcher.observe(term.element.querySelector('.xterm-screen'));
 
 addEventListener('resize', fit);
 document.fonts.ready.then(fit);
@@ -1584,13 +1590,11 @@ function resetTerminal() {
   // reset() does not drain xterm's write buffer or its UTF-8/escape parser.
   // Replacing the instance keeps in-flight bytes on the detached old screen.
   const focused = watching && term.element.contains(document.activeElement);
-  watcher.unobserve(term.element.querySelector('.xterm-screen'));
   term.dispose();
   el('#term').replaceChildren();
   term = createTerminal();
   terminalOwner = null;
   screenReady = false;
-  watcher.observe(term.element.querySelector('.xterm-screen'));
   applyAccess();
   fit();
   if (focused) term.focus();
