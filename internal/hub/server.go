@@ -504,7 +504,8 @@ func (s *Server) handleLog(w http.ResponseWriter, r *http.Request) {
 		limit = min(max(n, 0), keepEntries)
 	}
 	writeJSON(w, http.StatusOK, logResponse{
-		Entries: s.journal.tail(r.URL.Query().Get("agent"), limit),
+		Entries:    s.journal.tail(r.URL.Query().Get("agent"), limit),
+		Persistent: s.journal.persistent(),
 	})
 }
 
@@ -964,7 +965,8 @@ type listResponse struct {
 const defaultEntries = 100
 
 type logResponse struct {
-	Entries []Entry `json:"entries"`
+	Persistent bool    `json:"persistent"`
+	Entries    []Entry `json:"entries"`
 }
 
 // Timeout 0 waits on ctx. An unreadable frame yields the zero value, so new

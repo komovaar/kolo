@@ -336,3 +336,10 @@ func strip(keys string) string {
 	}
 	return strings.ToValidUTF8(b.String(), "")
 }
+
+// persistent reports whether new entries still have an on-disk destination.
+func (j *journal) persistent() bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.file != nil
+}

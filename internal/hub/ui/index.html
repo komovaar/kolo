@@ -511,6 +511,8 @@
         <h2>Log</h2>
         <p>What people did here. Nothing an agent printed is kept.</p>
       </div>
+      <p class="log-message" role="status">Loading activity…</p>
+      <button class="go log-retry" type="button" hidden>Retry loading activity</button>
       <div class="log-rows"></div>
     </section>
   </main>
@@ -778,6 +780,9 @@ function signOut() {
   el('.groups').replaceChildren();
   el('.host-cards').replaceChildren();
   el('.log-rows').replaceChildren();
+  el('.log-message').textContent = '';
+  el('.log-message').hidden = true;
+  el('.log-retry').hidden = true;
   el('.session-context').textContent = '';
   el('.session-error').textContent = '';
   el('.session-error').hidden = true;
@@ -1786,26 +1791,45 @@ el('.session-stop').onclick = () => {
 
 // Newest first: the question the log is opened with is almost always what
 // just happened, and 100 entries is more than a screen.
+let logRun = 0;
 async function drawLog() {
   const run = authRun;
-  const resp = await fetch('/v1/log');
-  if (run !== authRun || !signedIn) return;
-  if (resp.status === 401) { signOut(); return; }
-  if (!resp.ok) return;
-  const entries = (await resp.json()).entries || [];
-  if (run !== authRun || !signedIn) return;
+  const request = ++logRun;
+  const current = () => run === authRun && signedIn && request === logRun;
+  try {
+    const resp = await fetch('/v1/log');
+    if (!current()) return;
+    if (resp.status === 401) { signOut(); return; }
+    if (!resp.ok) throw new Error('Activity request failed');
+    const data = await resp.json();
+    if (!current()) return;
+    if (!Array.isArray(data.entries)) throw new Error('Unreadable activity response');
+    const entries = data.entries;
+    const message = el('.log-message');
+    message.textContent = data.persistent === false
+      ? 'New activity is only kept in memory and may be lost when the hub restarts.' : '';
+    message.hidden = !message.textContent;
+    el('.log-retry').hidden = true;
 
-  const rows = el('.log-rows');
-  rows.replaceChildren();
-  if (entries.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'log-empty';
-    empty.textContent = 'Nothing yet. What people do here is written down as they do it.';
-    rows.append(empty);
-    return;
+    const rows = el('.log-rows');
+    rows.replaceChildren();
+    if (entries.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'log-empty';
+      empty.textContent = 'Nothing yet. What people do here is written down as they do it.';
+      rows.append(empty);
+      return;
+    }
+    for (let i = entries.length - 1; i >= 0; i--) rows.append(entryRow(entries[i]));
+  } catch (_) {
+    if (!current()) return;
+    el('.log-message').textContent = 'Could not load activity. Previously loaded entries may be out of date. Try loading it again.';
+    el('.log-message').hidden = false;
+    el('.log-retry').hidden = false;
   }
-  for (let i = entries.length - 1; i >= 0; i--) rows.append(entryRow(entries[i]));
 }
+
+el('.log-retry').onclick = drawLog;
 
 // Every part of an entry is somebody's text, so every part of it is set as
 // text. Nothing here builds markup out of what a member typed.

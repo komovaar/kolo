@@ -143,7 +143,7 @@ func TestJournalStopsWritingAfterAnAppendFailure(t *testing.T) {
 	}
 
 	j.add(Entry{Agent: "checkups", What: WhatStopped, Who: dana()})
-	if j.file != nil {
+	if j.persistent() {
 		t.Fatal("kept a journal file after its append failed")
 	}
 	if got := j.tail("", 10); len(got) != 1 {
@@ -368,5 +368,32 @@ func TestJournalsAreIsolatedByOrg(t *testing.T) {
 	}
 	if journalPath("") != "" {
 		t.Fatal("in-memory org acquired a path")
+	}
+}
+
+func TestLogReportsPersistence(t *testing.T) {
+	s, token, _ := hubFixture(t)
+	s.journal.Close()
+	s.journal, _ = journalFixture(t)
+	resp := call(t, s, "GET", "/v1/log", token, "")
+	defer resp.Body.Close()
+	var got logResponse
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Persistent {
+		t.Fatal("disk-backed log reported as in-memory")
+	}
+	s.journal.mu.Lock()
+	s.journal.file.Close()
+	s.journal.file = nil
+	s.journal.mu.Unlock()
+	resp = call(t, s, "GET", "/v1/log", token, "")
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Persistent {
+		t.Fatal("unavailable disk recording reported as persistent")
 	}
 }

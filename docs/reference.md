@@ -349,6 +349,11 @@ back exactly. A line longer than 500 bytes is marked as truncated. If more than
 one member contributed to a line, the entry is left unattributed rather than
 crediting the person who happened to press Enter.
 
+**The browser reports log availability.** Failed refreshes retain previously
+loaded entries and show that they may be out of date. When the hub cannot open
+or continue writing its journal, the log warns that activity is only kept in
+memory and will be lost on a hub restart.
+
 **Nothing an agent prints is kept.** Only what people did.
 
 The log records who used the shared controls. Read-only members can read it
