@@ -144,19 +144,29 @@ test('phone navigation closes on selection, and zoom reflows the PTY and returns
   } finally { await page.close(); }
 });
 
-test('supported agents display bundled vendor icons in the sidebar and creation picker', async () => {
+test('agent marks share a monochrome vector style without icon backgrounds', async () => {
   const { page, errors } = await openSession({ width: 1440, height: 900 });
   try {
-    await page.locator('.agent .kind-chip img').waitFor();
-    assert.ok(await page.locator('.agent .kind-chip img').evaluate((image) => image.complete && image.naturalWidth > 0));
+    await page.locator('.agent .kind-chip svg').waitFor();
     await page.locator('.side .new').click();
     for (const program of ['codex', 'claude', 'opencode']) {
-      const image = page.locator(`.kind-picker img[src="/assets/agents/${program}.png"]`);
-      await image.waitFor();
-      await page.waitForFunction((program) => {
-        const image = document.querySelector(`.kind-picker img[src="/assets/agents/${program}.png"]`);
-        return image.complete && image.naturalWidth > 0;
-      }, program);
+      const icon = page.locator(`.kind-picker svg[data-agent="${program}"]`);
+      await icon.waitFor();
+      const style = await icon.evaluate((svg) => ({
+        width: svg.getBoundingClientRect().width, height: svg.getBoundingClientRect().height,
+        background: getComputedStyle(svg.parentElement).backgroundColor,
+        paths: [...svg.querySelectorAll('path')].map((path) => path.getAttribute('fill')),
+      }));
+      assert.equal(style.width, 20);
+      assert.equal(style.height, 20);
+      assert.equal(style.background, 'rgba(0, 0, 0, 0)');
+      assert.ok(style.paths.length > 0);
+      assert.ok(style.paths.every((fill) => fill === 'currentColor'));
+      await icon.locator('..').locator('..').click();
+      assert.equal(await icon.locator('..').evaluate((chip) => getComputedStyle(chip).backgroundColor), 'rgba(0, 0, 0, 0)');
+    }
+    if (process.env.KOLO_SCREENSHOT_DIR) {
+      await page.screenshot({ path: path.join(process.env.KOLO_SCREENSHOT_DIR, 'agent-icons.png') });
     }
     assert.deepEqual(errors, []);
   } finally { await page.close(); }

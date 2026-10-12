@@ -1,18 +1,19 @@
-# Agent icons
+# Agent marks
 
-These vendor-provided images identify the programs running in Kolo. They are
-bundled locally so opening a workspace makes no request to a vendor or CDN.
-The artwork is unchanged and the trademarks belong to their respective owners;
-the images are not Kolo branding or a claim of affiliation.
+Agent logos are rendered as monochrome SVG paths in `index.html`, all at 20px
+with transparent backgrounds and inherited UI color. No vendor requests are
+made when loading Kolo. Trademarks remain the property of their owners.
 
-Retrieved on 2026-10-12:
+Vector sources retrieved on 2026-10-12:
 
-- `codex.png`: OpenAI's Codex extension icon from its official Marketplace
-  listing, https://marketplace.visualstudio.com/items?itemName=openai.chatgpt
-  Asset: https://openai.gallerycdn.vsassets.io/extensions/openai/chatgpt/26.51007.21434/1791508178385/Microsoft.VisualStudio.Services.Icons.Default
-- `claude.png`: Claude's official website icon, https://claude.com/icon.png
-- `opencode.png`: OpenCode's official website icon,
-  https://opencode.ai/favicon-96x96-v3.png
+- Codex uses the OpenAI knot from Lobe Icons:
+  https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/openai.svg
+- OpenCode uses its mark from Lobe Icons:
+  https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/opencode.svg
+- Claude uses the Claude burst from Simple Icons:
+  https://cdn.simpleicons.org/claude (CC0).
 
-Other recognized agent marks in `index.html` are the existing Simple Icons
-traces; unknown commands retain generic glyphs.
+The Lobe Icons MIT license is preserved in `LOBE-LICENSE.txt`. Colors and
+container sizing are normalized for Kolo; path geometry is preserved.
+Other recognized marks use existing Simple Icons traces; unknown commands
+retain generic vector glyphs with the same size and color treatment.
