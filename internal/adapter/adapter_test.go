@@ -26,11 +26,14 @@ func TestAKindIsTheBinaryNotTheCommandLine(t *testing.T) {
 }
 
 func TestCodexIsABuiltInKind(t *testing.T) {
+	if _, ok := For("codex").ResumeArgs(""); ok {
+		t.Fatal("Codex must not resume an unowned conversation")
+	}
 	kind := For("/usr/local/bin/codex --model gpt-6")
 	if kind.Markers.Blank() {
 		t.Fatal("Codex screens have no markers")
 	}
-	if got, ok := kind.ResumeArgs(""); !ok || !slices.Equal(got, []string{"resume", "--last"}) {
+	if got, ok := kind.ResumeArgs("owned-id"); !ok || !slices.Equal(got, []string{"resume", "owned-id"}) {
 		t.Errorf("Codex resumes with %v, %v", got, ok)
 	}
 	for _, tt := range []struct {

@@ -90,9 +90,9 @@ agent's own screen:
 2. **How to resume its conversation.** Without this, every restart starts over.
 
 Kolo ships descriptions for `claude`, `codex`, and `opencode`.
-Codex restarts with `codex resume --last`, which selects the most recent
-conversation in that working directory. If another Codex session uses the same
-directory, it may become the one Kolo resumes.
+Codex restarts using the conversation ID printed on its Kolo-owned screen.
+Kolo never uses `resume --last` to select an unrelated local conversation.
+If the ID is unavailable, Kolo starts fresh and shows a conversation-reset warning.
 
 ### Describing another kind
 

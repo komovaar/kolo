@@ -159,9 +159,10 @@ var kinds = map[string]Adapter{
 			DialogFooter:   "Press enter to continue",
 			DialogSelected: "›",
 		},
-		// Codex scopes --last to the current working directory. Kolo permits
-		// only one Codex agent per directory because this cannot name a session.
-		Resume:    []string{"resume", "--last"},
+		// Resume only a conversation ID emitted by this Kolo-owned screen.
+		// --last can select an unrelated local conversation in the same folder.
+		Resume:    []string{"resume", SessionPlaceholder},
+		Session:   `To continue this session, run codex resume ([0-9a-fA-F-]{36})`,
 		Interrupt: "esc",
 	},
 	"opencode": {

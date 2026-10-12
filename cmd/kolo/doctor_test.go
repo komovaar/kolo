@@ -78,7 +78,7 @@ func TestDoctorSaysWhatEachAgentKindCosts(t *testing.T) {
 	}
 	for _, want := range []string{
 		"claude", "--resume {session}",
-		"codex", "resume --last",
+		"codex", "resume {session}",
 		"sh", "watch, type and stop",
 		// A word at a time: where the lines fall depends on the agent names.
 		"browser", kinds,

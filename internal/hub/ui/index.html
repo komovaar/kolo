@@ -964,7 +964,7 @@ function drawSession() {
   const reset = agent?.context_resets?.find((r) => !r.acknowledged);
   el('.context-warning').hidden = !reset;
   el('.context-warning-text').textContent = reset
-    ? 'Conversation reset: a resume attempt ended immediately, so Kolo fell back to a fresh conversation.' +
+    ? 'Conversation reset: Kolo could not safely resume the previous conversation and started fresh.' +
       (reset.previous_session ? ` Previous conversation: ${reset.previous_session}.` : '') +
       ' Restarting does not recover the previous conversation automatically.' : '';
   el('.context-ack').hidden = !canControl();

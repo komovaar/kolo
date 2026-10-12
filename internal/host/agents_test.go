@@ -528,7 +528,7 @@ sleep 30
 	bounce(t, a, "checkups", a.Restart, fmt.Sprintf("args [--model opus --resume %s]", sessionOf(t, a, "checkups")))
 }
 
-func TestCodexRestartUsesTheLastSessionInItsDirectory(t *testing.T) {
+func TestCodexRestartUsesOnlyItsRecordedSession(t *testing.T) {
 	defer quickRestarts()()
 	dir := t.TempDir()
 	script := fakeAgentNamed(t, dir, "codex", `printf 'args [%s]\r\n? for shortcuts\r\n' "$*"
@@ -546,7 +546,16 @@ sleep 30
 		return strings.Contains(screenOf(t, a, "checkups").Text(), "args [--model gpt-6]")
 	})
 
-	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6 resume --last]")
+	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6]")
+	a.mu.Lock()
+	resets := len(a.running["checkups"].spec.ContextResets)
+	a.mu.Unlock()
+	if resets == 0 {
+		t.Fatal("missing conversation ID was not disclosed")
+	}
+	screenOf(t, a, "checkups").Write([]byte("\r\nTo continue this session, run codex resume 12345678-1234-1234-1234-123456789abc\r\n"))
+	waitFor(t, func() bool { return sessionOf(t, a, "checkups") == "12345678-1234-1234-1234-123456789abc" })
+	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6 resume 12345678-1234-1234-1234-123456789abc]")
 	bounce(t, a, "checkups", a.Fresh, "args [--model gpt-6]")
 }
 

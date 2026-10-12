@@ -312,6 +312,10 @@ func (a *Agents) launch(name string) error {
 			argv, resumed = append(argv, r...), true
 		} else if len(kind.Continue) > 0 && a.soleIn(spec.Dir, name) {
 			argv, resumed = append(argv, kind.Continue...), true
+		} else if slices.Contains(kind.Resume, adapter.SessionPlaceholder) {
+			p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), hub.ContextReset{
+				ID: newSessionID(), At: time.Now(), PreviousSession: was,
+			})
 		}
 	}
 	a.mu.Unlock()
@@ -364,7 +368,23 @@ func (a *Agents) launch(name string) error {
 	// The PTY must be read or the agent blocks once its buffer fills.
 	go func() {
 		defer started.CloseTerminal()
-		io.Copy(live, started)
+		if kind.Session == "" {
+			io.Copy(live, started)
+			return
+		}
+		buf := make([]byte, 32<<10)
+		for {
+			n, err := started.Read(buf)
+			if n > 0 {
+				live.Write(buf[:n])
+				if id := kind.SessionFrom(live.Text()); id != "" {
+					a.remember(name, live, id)
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
 	}()
 	go a.stream(screen, name, live)
 	go a.watch(screen, name, kind, live)
