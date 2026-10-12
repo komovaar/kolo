@@ -196,6 +196,10 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				case <-ctx.Done():
 				}
 			}(c.Name, c.Request)
+		case "resize":
+			if err := agents.Resize(c.Name, c.Cols, c.Rows); err != nil {
+				agents.refuse(c.Name, err.Error())
+			}
 		case "keys":
 			if err := agents.Type(c.Name, c.Keys); err != nil {
 				agents.refuse(c.Name, err.Error())
@@ -260,6 +264,8 @@ type welcome struct {
 }
 
 type command struct {
+	Cols    int       `json:"cols"`
+	Rows    int       `json:"rows"`
 	Reset   string    `json:"reset,omitempty"`
 	Type    string    `json:"type"`
 	Name    string    `json:"name"`

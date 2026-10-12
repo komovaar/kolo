@@ -66,8 +66,8 @@ func TestReadOnlyWebSocketRejectsEveryControlAndKeepsStreaming(t *testing.T) {
 				setReadOnly(t, s, token, true)
 			}
 			before := len(s.journal.tail("", 100))
-			for _, action := range []string{"keys", "interrupt", "restart", "fresh"} {
-				if err := write(ctx, viewer, viewerMessage{Type: action, Keys: "not allowed\r"}); err != nil {
+			for _, action := range []string{"keys", "interrupt", "restart", "fresh", "resize"} {
+				if err := write(ctx, viewer, viewerMessage{Type: action, Keys: "not allowed\r", Cols: 180, Rows: 48}); err != nil {
 					t.Fatal(err)
 				}
 				for {

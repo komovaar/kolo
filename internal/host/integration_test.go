@@ -24,6 +24,7 @@ func TestHubHostAndBrowserJourney(t *testing.T) {
 printf '? for shortcuts\r\n'
 while IFS= read -r line; do
   printf 'heard %s\r\n? for shortcuts\r\n' "$line"
+  if [ "$line" = size ]; then stty size; fi
 done
 `)
 
@@ -92,6 +93,32 @@ done
 		t.Fatal(err)
 	}
 	waitForOutput(t, ctx, viewer, "heard hello")
+	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"resize","cols":180,"rows":48}`)); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, func() bool { c, r := screenOf(t, agents, "checkups").Size(); return c == 180 && r == 48 })
+	// Input is queued after resize; stty verifies the real PTY, not just the
+	// browser or replay screen. The size announcement travels via the hub.
+	for {
+		kind, data, err := viewer.Read(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind != websocket.MessageText {
+			continue
+		}
+		var size struct {
+			Type       string
+			Cols, Rows int
+		}
+		if json.Unmarshal(data, &size) == nil && size.Type == "size" && size.Cols == 180 && size.Rows == 48 {
+			break
+		}
+	}
+	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"keys","keys":"size\r"}`)); err != nil {
+		t.Fatal(err)
+	}
+	waitForOutput(t, ctx, viewer, "48 180")
 
 	stopped := memberRequest(t, server, memberToken, http.MethodDelete, "/v1/agents/checkups", "")
 	defer stopped.Body.Close()

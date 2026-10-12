@@ -7,8 +7,7 @@ import (
 	"github.com/whosgotch/kolo/internal/session"
 )
 
-// screens holds one live terminal per agent. A screen stays the size the host
-// opened it at; browsers scale it to their own window.
+// screens holds one live terminal per agent, including its current PTY size.
 type screens struct {
 	mu sync.Mutex
 	m  map[string]*session.Session

@@ -877,3 +877,12 @@ sleep 30
 	}
 	nextReport(t, a)
 }
+
+func TestResizeRejectsInvalidDimensions(t *testing.T) {
+	a, _ := agentsFixture(t)
+	for _, size := range [][2]int{{0, 40}, {-1, 40}, {501, 40}, {80, 201}, {80, 1}} {
+		if err := a.Resize("missing", size[0], size[1]); err == nil || !strings.Contains(err.Error(), "invalid terminal") {
+			t.Fatalf("size %v: %v", size, err)
+		}
+	}
+}

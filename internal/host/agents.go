@@ -372,6 +372,25 @@ func (a *Agents) launch(name string) error {
 	return nil
 }
 
+// Resize changes both the replay screen and the PTY, which signals the agent
+// to redraw using the browser's available columns and rows.
+func (a *Agents) Resize(name string, cols, rows int) error {
+	if cols < 2 || rows < 2 || cols > 500 || rows > 200 {
+		return fmt.Errorf("invalid terminal dimensions")
+	}
+	v, err := a.reach(name)
+	if err != nil {
+		return err
+	}
+	return v.writes.enqueue(0, func() error {
+		if currentCols, currentRows := v.live.Size(); currentCols == cols && currentRows == rows {
+			return nil
+		}
+		v.live.Resize(cols, rows)
+		return v.agent.Resize(cols, rows)
+	})
+}
+
 // Type queues a member's keystrokes without waiting for the process to read.
 func (a *Agents) Type(name, keys string) error {
 	v, err := a.reach(name)
@@ -439,12 +458,15 @@ func (a *Agents) bounce(name, from string, fresh bool) error {
 }
 
 type view struct {
+	agent  *agent.Agent
 	live   *session.Session
 	input  *relay.Relay
 	writes *inputQueue
 }
 
-func (p *process) view() view { return view{live: p.live, input: p.input, writes: p.writes} }
+func (p *process) view() view {
+	return view{agent: p.agent, live: p.live, input: p.input, writes: p.writes}
+}
 
 func (a *Agents) reach(name string) (view, error) {
 	a.mu.Lock()
@@ -802,8 +824,9 @@ func (a *Agents) push(ctx context.Context, name string, live *session.Session) e
 	conn.SetReadLimit(controlLimit)
 
 	// Markers travel with the screen, so the hub needs no adapter table.
+	currentCols, currentRows := live.Size()
 	hello, _ := json.Marshal(map[string]any{
-		"type": "screen", "cols": cols, "rows": rows, "markers": live.Markers(),
+		"type": "screen", "cols": currentCols, "rows": currentRows, "markers": live.Markers(),
 	})
 	if err := send(ctx, conn, hello); err != nil {
 		return err

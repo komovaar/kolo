@@ -692,7 +692,19 @@ func (s *Server) handleScreen(w http.ResponseWriter, r *http.Request) {
 		if kind == websocket.MessageBinary {
 			live.Write(data)
 		} else {
-			live.Announce(json.RawMessage(data))
+			var control struct {
+				Type string `json:"type"`
+				Cols int    `json:"cols"`
+				Rows int    `json:"rows"`
+			}
+			if json.Unmarshal(data, &control) == nil && control.Type == "size" {
+				if control.Cols < 1 || control.Rows < 1 || control.Cols > maxScreenCols || control.Rows > maxScreenRows {
+					return
+				}
+				live.Resize(control.Cols, control.Rows)
+			} else {
+				live.Announce(json.RawMessage(data))
+			}
 		}
 	}
 }
@@ -791,7 +803,10 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 		if msg.Type == "keys" && msg.Keys == "" {
 			continue
 		}
-		if msg.Type != "keys" && msg.Type != "interrupt" && msg.Type != "restart" && msg.Type != "fresh" {
+		if msg.Type != "keys" && msg.Type != "interrupt" && msg.Type != "restart" && msg.Type != "fresh" && msg.Type != "resize" {
+			continue
+		}
+		if msg.Type == "resize" && (msg.Cols < 2 || msg.Rows < 2 || msg.Cols > maxScreenCols || msg.Rows > maxScreenRows) {
 			continue
 		}
 		// Recheck each command: a connection may outlive a change to its access.
@@ -816,12 +831,14 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 			s.refuseViewer(name, "the agent is no longer available")
 			continue
 		}
-		if err := send(toAgent{Type: msg.Type, Name: name, From: member.Name, Keys: msg.Keys}); err != nil {
+		if err := send(toAgent{Type: msg.Type, Name: name, From: member.Name, Keys: msg.Keys, Cols: msg.Cols, Rows: msg.Rows}); err != nil {
 			s.refuseViewer(name, "the host went away before the command could be delivered")
 			continue
 		}
 
 		switch msg.Type {
+		case "resize":
+			// Geometry changes are not keyboard or activity-log events.
 		case "keys":
 			if was, changed := s.typists.set(name, member.Person()); changed {
 				s.sayKeyboard(name, member.Person(), was)
@@ -899,11 +916,15 @@ type hostHello struct {
 }
 
 type viewerMessage struct {
+	Cols int    `json:"cols"`
+	Rows int    `json:"rows"`
 	Type string `json:"type"`
 	Keys string `json:"keys"`
 }
 
 type toAgent struct {
+	Cols int    `json:"cols,omitempty"`
+	Rows int    `json:"rows,omitempty"`
 	Type string `json:"type"`
 	Name string `json:"name"`
 	From string `json:"from"`
