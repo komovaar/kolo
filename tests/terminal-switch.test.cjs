@@ -19,7 +19,7 @@ function page() {
   let nextTimer = 0;
   const el = (selector) => {
     if (!nodes.has(selector)) nodes.set(selector, {
-      children: [], classList: { toggle() {} }, replaceChildren() { this.children = []; },
+      children: [], classList: { toggle() {} }, replaceChildren() { this.children = []; }, append(child) { this.children.push(child); },
     });
     return nodes.get(selector);
   };
@@ -50,7 +50,7 @@ function page() {
     socket: null, watching: null, terminalOwner: null, screenReady: false,
     reconnectTimer: null, typist: null, renamingId: null,
     location: { protocol: 'http:', host: 'localhost', search: '' },
-    document: { activeElement: null },
+    document: { activeElement: null, createElement: () => ({ children: [] }) },
     Terminal: HeadlessTerminal, CanvasAddon: { CanvasAddon: class {} },
     KoloTerminalQueries, baseFont: 13, WebSocket: Socket, Uint8Array, console, el,
     watcher: { observe: (node) => observed.add(node), unobserve: (node) => observed.delete(node) },

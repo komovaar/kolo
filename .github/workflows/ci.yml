@@ -52,6 +52,13 @@ jobs:
       - name: browser logic
         run: node --test tests/*.test.cjs
 
+      - name: browser layout
+        if: runner.os == 'Linux'
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:browser
+
       # gofmt exits zero whatever it finds, so the files it names are the test.
       - name: gofmt
         run: |

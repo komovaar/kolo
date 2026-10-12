@@ -372,6 +372,14 @@ gets large text and a laptop gets the same screen smaller, and neither is felt
 by the other. The zoom control on the screen goes off fit for one person
 without touching anybody else's window.
 
+On phones and narrow windows, **Sessions** opens the navigation drawer instead
+of reserving terminal space for a sidebar. Selecting a session closes it. The
+terminal stays within the available viewport, including when the phone rotates
+or the keyboard reduces the visible area. Zoom controls remain visible on touch
+screens: **+** enlarges the text and allows panning, and **fit** restores the
+whole shared grid. A wide grid necessarily has small text when fitted to a
+phone; zooming changes only that viewer's display, not the host's grid.
+
 No window is a vote. Smallest wins, the way tmux settles it, put one phone on
 the invite link in charge of the agent's whole interface, for the people
 sitting at the machine included; largest wins only moves who pays for it.
