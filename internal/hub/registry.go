@@ -101,17 +101,18 @@ type host struct {
 	agents map[string]*Agent
 }
 
-// Registry tracks connected hosts and their agents. A host that disconnects
-// takes its agents with it.
+// Registry retains disconnected sessions until their host reports its current
+// sessions on reconnect. Only connected hosts have command senders.
 type Registry struct {
 	mu        sync.Mutex
 	hosts     map[string]*host
+	offline   map[string]*host
 	now       func() time.Time
 	nextRetry uint64
 }
 
 func NewRegistry() *Registry {
-	return &Registry{hosts: map[string]*host{}, now: time.Now}
+	return &Registry{hosts: map[string]*host{}, offline: map[string]*host{}, now: time.Now}
 }
 
 // Join records a host and the agents it reports already running. A second
@@ -128,6 +129,7 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 		send:   send,
 		agents: map[string]*Agent{},
 	}
+	delete(r.offline, id)
 	r.hosts[id] = h
 
 	for _, a := range running {
@@ -148,7 +150,7 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 	return nil
 }
 
-// Leave drops a host and reports the agents that went out of reach with it.
+// Leave retains the last known sessions and reports those now out of reach.
 func (r *Registry) Leave(id string) []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -158,6 +160,8 @@ func (r *Registry) Leave(id string) []string {
 		return nil
 	}
 	delete(r.hosts, id)
+	h.send = nil
+	r.offline[id] = h
 	return slices.Sorted(maps.Keys(h.agents))
 }
 
@@ -181,13 +185,13 @@ func (r *Registry) SetHostError(id, reason string) {
 	}
 }
 
-// Agents lists every reachable agent, oldest first.
+// Agents lists connected and last-known disconnected sessions, oldest first.
 func (r *Registry) Agents() []Agent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	var out []Agent
-	for _, h := range r.hosts {
+	for _, h := range r.allHosts() {
 		for _, a := range h.agents {
 			out = append(out, *a)
 		}
@@ -254,7 +258,7 @@ func (r *Registry) Add(a Agent) (Sender, error) {
 func (r *Registry) SetStatus(hostID, name, status, reason string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if a, h := r.find(name); h != nil && h.info.ID == hostID {
+	if a, h := r.find(name); h != nil && h.send != nil && h.info.ID == hostID {
 		a.Status, a.Error, a.retry = status, reason, 0
 		return true
 	}
@@ -281,7 +285,7 @@ func (r *Registry) setLabel(name, value string, save func(Agent) error) (Agent, 
 func (r *Registry) Sender(name string) (Sender, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, h := r.find(name); h != nil {
+	if _, h := r.find(name); h != nil && h.send != nil {
 		return h.send, true
 	}
 	return nil, false
@@ -293,7 +297,7 @@ func (r *Registry) SenderFor(expected Agent) (Sender, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(expected.Name)
-	if h == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
+	if h == nil || h.send == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
 		return nil, false
 	}
 	return h.send, true
@@ -303,7 +307,7 @@ func (r *Registry) RemoveIf(expected Agent) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(expected.Name)
-	if h == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
+	if h == nil || h.send == nil || h.info.ID != expected.Host || !a.CreatedAt.Equal(expected.CreatedAt) {
 		return false
 	}
 	delete(h.agents, a.Name)
@@ -325,12 +329,19 @@ func (r *Registry) Remove(name string) (Sender, bool) {
 
 // Callers must hold r.mu.
 func (r *Registry) find(name string) (*Agent, *host) {
-	for _, h := range r.hosts {
+	for _, h := range r.allHosts() {
 		if a, ok := h.agents[name]; ok {
 			return a, h
 		}
 	}
 	return nil, nil
+}
+
+// Callers must hold r.mu.
+func (r *Registry) allHosts() map[string]*host {
+	all := maps.Clone(r.offline)
+	maps.Copy(all, r.hosts)
+	return all
 }
 
 // ValidName reports whether s is a usable agent name in URLs and log lines.

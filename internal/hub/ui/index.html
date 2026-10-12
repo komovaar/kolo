@@ -912,7 +912,7 @@ function drawSession() {
   el('.session-head .session-state').title = agent?.error ||
     (agent?.status === 'running' && state.key === 'unknown' ? 'Activity is unknown; typing still works.' : '');
   el('.session-access').textContent = canControl() ? 'You can control this session' : 'Read-only access';
-  el('.session-stop').disabled = !agent || !canControl();
+  el('.session-stop').disabled = !agent || !canControl() || !hosts.some((h) => h.id === agent.host);
   el('.session-error').textContent = agent?.error || (agent?.status === 'failed' ? 'The program could not stay running.' : '');
   el('.session-error').hidden = !el('.session-error').textContent;
   const reset = agent?.context_resets?.find((r) => !r.acknowledged);
@@ -922,7 +922,7 @@ function drawSession() {
       (reset.previous_session ? ` Previous conversation: ${reset.previous_session}.` : '') +
       ' Restarting does not recover the previous conversation automatically.' : '';
   el('.context-ack').hidden = !canControl();
-  el('.context-ack').disabled = !!contextAckPending;
+  el('.context-ack').disabled = !!contextAckPending || !agent || !hosts.some((h) => h.id === agent.host);
   applyAccess();
 }
 
@@ -1024,6 +1024,7 @@ function drawGroups(agents) {
     head.querySelector('.add').title = `New session on ${host}`;
     head.querySelector('.add').setAttribute('aria-label', `New session on ${host}`);
     head.querySelector('.add').hidden = !canControl();
+    head.querySelector('.add').disabled = !hostInfo;
     if (hostInfo && hostInfo.error) {
       head.title = hostInfo.error;
       head.querySelector('.chip').classList.add('problem');
@@ -1115,6 +1116,7 @@ function drawGroups(agents) {
       const drop = document.createElement('button');
       drop.type = 'button';
       drop.hidden = !canControl();
+      drop.disabled = !hostInfo;
       drop.className = 'drop';
       drop.title = `Stop session ${a.label || a.name}`;
       drop.setAttribute('aria-label', drop.title);

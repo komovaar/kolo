@@ -156,7 +156,10 @@ exec cat
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatal(resp.Status)
 	}
-	waitFor(t, func() bool { agents, _ := list(); return len(agents) == 1 && agents[0].Status == hub.StatusFailed })
+	waitFor(t, func() bool {
+		agents, hosts := list()
+		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == hub.StatusFailed
+	})
 	before, _ := list()
 	if before[0].Error != "exit status 1" {
 		t.Fatalf("failure diagnostic: %+v", before)
@@ -164,7 +167,10 @@ exec cat
 	cancel()
 	waitFor(t, func() bool { _, hosts := list(); return len(hosts) == 0 })
 	startHost()
-	waitFor(t, func() bool { agents, _ := list(); return len(agents) == 1 && agents[0].Status == hub.StatusFailed })
+	waitFor(t, func() bool {
+		agents, hosts := list()
+		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == hub.StatusFailed
+	})
 	after, _ := list()
 	if after[0].Error != before[0].Error || !after[0].CreatedAt.Equal(before[0].CreatedAt) {
 		t.Fatalf("host reconnect changed the failed session: %+v", after)

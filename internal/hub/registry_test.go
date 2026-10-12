@@ -63,15 +63,15 @@ func TestAddRefuses(t *testing.T) {
 	}
 }
 
-func TestLeavingTakesTheAgentsWithIt(t *testing.T) {
+func TestLeavingRetainsUnavailableAgents(t *testing.T) {
 	r := registryFixture(t)
 	if _, err := r.Add(agentFixture("checkups", "/work/api")); err != nil {
 		t.Fatal(err)
 	}
 
 	r.Leave("devbox")
-	if got := r.Agents(); len(got) != 0 {
-		t.Errorf("a disconnected host left %+v behind", got)
+	if got := r.Agents(); len(got) != 1 {
+		t.Errorf("disconnected sessions = %+v", got)
 	}
 	if got := r.Hosts(); len(got) != 0 {
 		t.Errorf("hosts still lists %+v", got)
@@ -112,6 +112,10 @@ func TestStopCannotAddressAnAgentThatReusedTheName(t *testing.T) {
 	}
 	old, _ := r.Agent("checkups")
 	r.Leave("devbox")
+	// An authoritative empty reconnect releases the old name.
+	if err := r.Join("devbox", nil, nil, nil, nil, nil, func(any) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := r.Add(Agent{Name: "checkups", Host: "laptop", Dir: "/work/web", Command: "claude"}); err != nil {
 		t.Fatal(err)
 	}
@@ -291,5 +295,27 @@ func TestAgentsThatNameTheirConversationsShareADirectory(t *testing.T) {
 	}
 	if _, err := r2.Add(b); err == nil || !strings.Contains(err.Error(), "one claude to a directory") {
 		t.Errorf("two unvouched claudes shared a directory: %v", err)
+	}
+}
+
+func TestDisconnectedSessionsCannotBeControlledAndReconcile(t *testing.T) {
+	r := registryFixture(t)
+	r.Add(agentFixture("checkups", "/work/api"))
+	old, _ := r.Agent("checkups")
+	r.Leave("devbox")
+	if _, ok := r.Sender("checkups"); ok {
+		t.Fatal("offline sender available")
+	}
+	if _, ok := r.SenderFor(old); ok {
+		t.Fatal("offline stop available")
+	}
+	if _, err := r.Add(agentFixture("checkups", "/work/api")); err == nil {
+		t.Fatal("offline host accepted creation")
+	}
+	if err := r.Join("devbox", nil, nil, nil, nil, nil, func(any) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Agents()) != 0 {
+		t.Fatal("reconnect retained a session absent from host")
 	}
 }

@@ -38,9 +38,12 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 	waitFor(t, func() bool {
 		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
 		defer resp.Body.Close()
-		var list struct{ Agents []hub.Agent }
+		var list struct {
+			Agents []hub.Agent
+			Hosts  []hub.HostInfo
+		}
 		json.NewDecoder(resp.Body).Decode(&list)
-		return len(list.Agents) == 1 && len(list.Agents[0].ContextResets) == 1
+		return len(list.Hosts) == 1 && len(list.Agents) == 1 && len(list.Agents[0].ContextResets) == 1
 	})
 	// Reconnect with identical host history, then allow periodic reports too.
 	cancel()
@@ -52,9 +55,12 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 	waitFor(t, func() bool {
 		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
 		defer resp.Body.Close()
-		var list struct{ Agents []hub.Agent }
+		var list struct {
+			Agents []hub.Agent
+			Hosts  []hub.HostInfo
+		}
 		json.NewDecoder(resp.Body).Decode(&list)
-		return len(list.Agents) == 1
+		return len(list.Hosts) == 1 && len(list.Agents) == 1
 	})
 	resp := memberRequest(t, server, memberToken, "POST", "/v1/agents/work/context/ack", `{"id":"event"}`)
 	resp.Body.Close()

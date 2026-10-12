@@ -77,6 +77,7 @@ func TestRetryRollbackDoesNotChangeReplacementOrHostReport(t *testing.T) {
 		}
 		if replacement {
 			r.Leave("old")
+			r.Join("old", nil, nil, nil, nil, nil, func(any) error { return nil })
 			r.Join("new", nil, nil, nil, nil, []Agent{{Name: "failed", Status: StatusStarting}}, func(any) error { return nil })
 		} else {
 			r.SetStatus("old", "failed", StatusRunning, "")

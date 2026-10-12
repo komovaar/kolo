@@ -8,7 +8,7 @@ func (r *Registry) beginRetry(name string) (Agent, Sender, int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(name)
-	if h == nil {
+	if h == nil || h.send == nil {
 		return Agent{}, nil, http.StatusNotFound
 	}
 	if a.Status != StatusFailed {

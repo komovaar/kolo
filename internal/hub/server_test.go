@@ -465,7 +465,7 @@ func TestASecondHostIsRefused(t *testing.T) {
 	}
 }
 
-func TestAHostLeavingTakesItsAgents(t *testing.T) {
+func TestAHostLeavingRetainsItsSessions(t *testing.T) {
 	s, memberToken, hostToken := hubFixture(t)
 	ctx := testContext(t)
 	conn := joinAsHost(t, ctx, s, hostToken)
@@ -476,8 +476,8 @@ func TestAHostLeavingTakesItsAgents(t *testing.T) {
 	readFrame(t, ctx, conn, &cmd)
 
 	conn.CloseNow()
-	waitFor(t, func() bool { return len(s.Registry().Agents()) == 0 })
-	if got := list(t, s, memberToken); len(got.Hosts) != 0 {
+	waitFor(t, func() bool { return len(s.Registry().Hosts()) == 0 })
+	if got := list(t, s, memberToken); len(got.Hosts) != 0 || len(got.Agents) != 1 {
 		t.Errorf("hosts = %+v", got.Hosts)
 	}
 }
@@ -493,7 +493,7 @@ func TestReconnectingRestoresTheList(t *testing.T) {
 	readFrame(t, ctx, conn, &cmd)
 
 	conn.CloseNow()
-	waitFor(t, func() bool { return len(s.Registry().Agents()) == 0 })
+	waitFor(t, func() bool { return len(s.Registry().Hosts()) == 0 })
 
 	back, _, err := websocket.Dial(ctx, "ws://"+s.Addr()+"/v1/host", &websocket.DialOptions{
 		HTTPHeader: http.Header{"Authorization": {"Bearer " + hostToken}},

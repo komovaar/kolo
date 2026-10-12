@@ -441,3 +441,7 @@ owe compatibility on.
 `internal/hub/ui/assets`, but `node brand/build.mjs` regenerates them from
 `brand/ring.ts` and `brand/tokens.css`. That needs Node and a Chrome. Edit the
 sources under `brand/`, never the generated files.
+
+Disconnected sessions remain visible as **Machine disconnected** while the hub runs.
+Their controls are unavailable. Reconnecting replaces the last-known list with
+the sessions the host actually reports; this offline list is not persisted across hub restarts.
