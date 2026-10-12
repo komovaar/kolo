@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { markSvg, asciiRing, accentRuns } from './ring.ts';
+import './favicon.mjs';
 
 const VOID = '#101314', CHALK = '#E7E9E4', BRASS = '#D9A441', BRASS_INK = '#9C6C15';
 const assets = fileURLToPath(new URL('../internal/hub/ui/assets/', import.meta.url));
