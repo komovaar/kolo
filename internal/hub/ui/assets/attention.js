@@ -73,7 +73,15 @@ globalThis.KoloAttention = class {
     this.closeNotices();
     this.episodes.clear();
     this.ready = false;
+    this.waiting = 0;
     document.title = this.title;
+  }
+
+  renderTitle(agents) {
+    const name = this.selected();
+    const agent = agents.find((a) => a.name === name);
+    const title = name ? `${agent?.label || agent?.name || name} · ${this.title}` : this.title;
+    document.title = this.waiting ? `(${this.waiting} waiting) ${title}` : title;
   }
 
   update(agents) {
@@ -125,7 +133,8 @@ globalThis.KoloAttention = class {
         this.renderButton();
       }
     }
-    document.title = waiting ? `(${waiting} waiting) ${this.title}` : this.title;
+    this.waiting = waiting;
+    this.renderTitle(agents);
     this.ready = true;
   }
 };

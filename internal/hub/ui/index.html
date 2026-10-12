@@ -1955,6 +1955,7 @@ matchMedia('(max-width: 760px), (max-width: 1000px) and (max-height: 500px)').ad
 
 async function route() {
   setNavigation(false);
+  attention.renderTitle(lastAgents);
   const name = agentInURL();
   const log = logInURL();
   if (watching !== name) close();

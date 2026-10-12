@@ -214,3 +214,23 @@ test('permission and asynchronous display errors leave a usable page', async () 
   assert.equal(q.notices[0].closed, true);
   assert.equal(q.button.textContent, 'desktop alerts unavailable');
 });
+
+
+test('tab title follows selected names and labels while preserving waiting counts', () => {
+  const p = page();
+  p.select('api');
+  p.attention.update([agent('busy')]);
+  assert.equal(p.document.title, 'API · kolo');
+  p.attention.update([agent('dialog', { label: 'Renamed API' })]);
+  assert.equal(p.document.title, '(1 waiting) Renamed API · kolo');
+  p.select('new-session');
+  p.attention.renderTitle([]);
+  assert.equal(p.document.title, '(1 waiting) new-session · kolo');
+  p.select(null);
+  p.attention.update([]);
+  assert.equal(p.document.title, 'kolo');
+  p.select('api');
+  p.attention.update([agent('busy')]);
+  p.attention.reset();
+  assert.equal(p.document.title, 'kolo');
+});
