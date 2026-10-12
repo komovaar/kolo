@@ -44,6 +44,19 @@ There are two halves:
 `kolo up` runs both halves in one process, which is the usual way to start.
 `kolo serve` and `kolo host` split them across machines.
 
+The new-session dialog accepts a folder path with suggestions from the host's
+shared directories. By default, only the directory where you launch Kolo is
+shared. To offer several projects, repeat `-dir`:
+
+```sh
+kolo up -dir /path/to/project-a -dir /path/to/project-b
+```
+
+To allow any directory on the host, explicitly use `kolo up -dir '*'` (or the
+same flag on `kolo host`). The hub and host still enforce the host's directory
+settings when starting a session. Leaving the session name blank generates a
+name from the folder, program, and a random suffix; it can be renamed later.
+
 **The host dials out.** It opens a control websocket and one screen websocket
 per running agent, and never accepts an inbound connection. A separate host
 needs no open port, firewall rule, or tunnel. The hub does accept connections;

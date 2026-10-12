@@ -114,6 +114,9 @@ func displayDirs(dirs list) list {
 
 func resolveDirs(dirs list) error {
 	for i, d := range dirs {
+		if d == hub.DirAny {
+			continue
+		}
 		abs, err := filepath.Abs(d)
 		if err != nil {
 			return fmt.Errorf("-dir %s: %w", d, err)

@@ -20,7 +20,7 @@ function page(hosts) {
     return nodes.get(selector);
   };
   const context = vm.createContext({
-    hosts, el, choicesSnapshot: '', createHostPref: null, createPending: false,
+    hosts, el, choicesSnapshot: '', directoryHost: null, createHostPref: null, createPending: false,
     document: { createElement: () => ({}) },
     drawKindPicker: (commands) => picks.push(commands),
     say: (selector, message) => { el(selector).textContent = message; },
@@ -104,4 +104,31 @@ test('creation does not open private sessions after sign-out', async () => {
   const p = creationPage(async () => { p.context.authRun++; return { ok: true }; }, async () => ({ agents: [p.request] }));
   await p.context.createSession(p.event);
   assert.equal(p.context.location.hash, undefined);
+});
+
+
+test('directory paths can be edited and polling preserves the draft', () => {
+  const p = page([host('one'), host('two', { dirs: ['/other'] })]);
+  p.context.drawChoices();
+  assert.equal(p.el('input[name=dir]').value, '/work');
+  assert.equal(p.el('input[name=dir]').disabled, false);
+  p.el('input[name=dir]').value = '/custom/project';
+  p.context.drawChoices();
+  assert.equal(p.el('input[name=dir]').value, '/custom/project');
+  p.el('#new-host').value = 'two';
+  p.context.drawChoices();
+  assert.equal(p.el('input[name=dir]').value, '/other');
+});
+
+test('automatic names are valid and unique even for non-Latin folder names', () => {
+  const context = vm.createContext({ crypto: require('node:crypto').webcrypto, programOf: () => 'codex' });
+  vm.runInContext(html.match(/function automaticSessionName\([^)]*\) \{[\s\S]*?\n\}/)[0], context);
+  const names = new Set();
+  for (let i = 0; i < 100; i++) {
+    const name = context.automaticSessionName('codex', '/work/Проєкт with a long folder name');
+    assert.match(name, /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/);
+    assert.ok(name.length <= 32);
+    names.add(name);
+  }
+  assert.equal(names.size, 100);
 });

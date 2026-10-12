@@ -92,17 +92,17 @@
 
   /* ---- the frame: agents down the side, one agent filling the rest -------- */
 
-  .app { display: grid; grid-template-columns: 252px minmax(0, 1fr); height: 100%; }
+  .app { display: grid; grid-template-columns: 216px minmax(0, 1fr); height: 100%; }
   .mobile-nav, .nav-shade { display: none; }
 
   .side { display: flex; flex-direction: column; min-height: 0; background: var(--bg);
           border-right: 1px solid var(--line); }
-  .brand { display: flex; align-items: center; padding: 16px 14px 10px; }
-  .brand-home { width: 32px; height: 32px; margin: -3px 0 -3px -5px; }
+  .brand { display: flex; align-items: center; padding: 12px 10px 8px; }
+  .brand-home { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; }
   /* The mark is the one thing here that isn't a control: no tile behind it
      on hover, just the mark lifting to full strength. */
   .brand-home:hover { background: none; }
-  .brand .mark { width: 26px; height: 26px; color: var(--text); fill: var(--text);
+  .brand .mark { width: 22px; height: 22px; color: var(--text); fill: var(--text);
                  opacity: 0.85; transition: opacity 120ms ease; }
   .brand-home:hover .mark { opacity: 1; }
   .dialog-head .mark { width: 14px; height: 14px; color: var(--text); fill: var(--text); }
@@ -130,7 +130,7 @@
   .group-head .spacer { flex: 1; min-width: 4px; }
   .group-head .icon-btn { opacity: 0.8; }
   .group-head:hover .icon-btn { opacity: 1; }
-  .group-body { display: flex; flex-direction: column; gap: 1px; padding-left: 10px; }
+  .group-body { display: flex; flex-direction: column; gap: 1px; padding-left: 2px; }
   .group-body.collapsed { display: none; }
 
   .no-hosts { padding: 18px 14px; text-align: center; }
@@ -143,7 +143,7 @@
      where only part of each row opens it is a list that feels broken. */
   .agent { position: relative; display: flex; flex-direction: column; gap: 3px; width: 100%;
            text-align: left; background: none; border: none; border-radius: var(--r);
-           padding: 7px 10px; color: var(--text); cursor: pointer; }
+           padding: 6px 8px; color: var(--text); cursor: pointer; }
   .agent:hover { background: var(--raised); }
   .agent.on { background: var(--raised-hover); }
   /* A tint alone reads as "hovered" as easily as "open", so the accent bar is
@@ -163,12 +163,17 @@
                     padding: 1px 5px; margin: -1px 0; }
   .agent .rename:focus { outline: none; }
   /* Vendor artwork identifies supported agents; generic commands use glyphs. */
-  .kind-chip { flex: none; width: 22px; height: 22px;
+  .kind-chip { flex: none; width: 20px; height: 20px;
                display: flex; align-items: center; justify-content: center; color: var(--dim); }
   .kind-chip svg { display: block; width: 20px; height: 20px; }
-  .agent .dir { display: block; padding-left: 14px; color: var(--faint); font: 12px var(--mono);
+  .agent .kind-chip { order: -1; }
+  .agent .kind-chip svg { width: 16px; height: 16px; }
+  .agent .row > .dot, .agent .row > .spinner { order: 1; }
+  .agent .drop { order: 2; }
+  .agent .dir { display: block; padding-left: 27px; color: var(--faint); font: 12px var(--mono);
                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .agent .session-state { padding-left: 14px; font: 12px var(--ui); color: var(--dim); }
+  .agent .session-state { padding-left: 27px; font: 12px var(--ui); color: var(--dim); }
+  .agent .session-state[data-state="idle"] { display: none; }
   .session-state[data-state="dialog"], .session-state[data-state="busy"],
   .session-state[data-state="failed"] { color: var(--kolo-brass); }
 
@@ -272,7 +277,7 @@
   .dialog input:focus, .dialog select:focus { outline: none;
               border-color: color-mix(in srgb, var(--structure) 55%, var(--line)); }
   .dialog input:focus-visible, .dialog select:focus-visible {
-    outline: 2px solid var(--kolo-brass); outline-offset: 2px;
+    outline: 2px solid var(--structure); outline-offset: 2px;
   }
 
   /* A native select can't show a mark next to a name, so the agent field is
@@ -580,13 +585,15 @@
           <div class="field">
             <label for="new-dir">directory</label>
             <select id="new-dir" name="dir"></select>
-            <input name="dir" aria-label="Directory" placeholder="e.g. /home/me/project" hidden disabled required>
+            <input name="dir" aria-label="Directory" list="shared-directories" placeholder="e.g. /home/me/project" hidden disabled required aria-describedby="directory-help">
+            <datalist id="shared-directories"></datalist>
+            <p class="field-help" id="directory-help"></p>
           </div>
         </div>
         <div class="field">
           <label for="new-name">Session name</label>
-          <input id="new-name" name="name" placeholder="e.g. fix-login" maxlength="32" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" aria-describedby="name-help" required>
-          <p class="field-help" id="name-help">1–32 lowercase letters, numbers, or dashes. Start and end with a letter or number.</p>
+          <input id="new-name" name="name" placeholder="Automatic — or enter a name" maxlength="32" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" aria-describedby="name-help">
+          <p class="field-help" id="name-help">Leave blank for an automatic name. You can rename the session later.</p>
         </div>
       </div>
       <p class="note dialog-note" role="status"></p>
@@ -1209,6 +1216,7 @@ function renderGroups(agents) {
 // be refused a moment later, unless the host lent any command or any
 // directory, in which case that field opens up into free text.
 let choicesSnapshot = '';
+let directoryHost = null;
 let createPending = false;
 function drawChoices() {
   if (createPending) return;
@@ -1232,10 +1240,23 @@ function drawChoices() {
   const host = hosts.find((h) => h.id === hostSel.value) || hosts[0];
   el('.machine-help').textContent = host ? `Run on ${host.id}. Programs and directories are shared by this machine.`
     : 'Connect a machine before starting a session.';
-  const lendingEverywhere = !!host && (host.dirs || []).includes('*');
-  dirSel.hidden = dirSel.disabled = lendingEverywhere;
-  dirInput.hidden = dirInput.disabled = !lendingEverywhere;
-  if (!lendingEverywhere) fill(dirSel, host ? host.dirs : []);
+  const sharedDirs = (host?.dirs || []).filter((dir) => dir !== '*');
+  const previousDir = dirInput.value;
+  dirSel.hidden = dirSel.disabled = true;
+  dirInput.hidden = dirInput.disabled = false;
+  fill(dirSel, sharedDirs);
+  const suggestions = el('#shared-directories');
+  suggestions.replaceChildren();
+  for (const dir of sharedDirs) {
+    const option = document.createElement('option');
+    option.value = dir;
+    suggestions.append(option);
+  }
+  if (!previousDir || directoryHost !== host?.id) dirInput.value = sharedDirs[0] || '';
+  directoryHost = host?.id || null;
+  el('#directory-help').textContent = (host?.dirs || []).includes('*')
+    ? 'Enter a folder path on this machine.'
+    : `Shared folders: ${sharedDirs.join(', ') || 'none'}. To share another, restart the host with -dir /path/to/folder (repeat for each folder).`;
 
   const lendingAny = !!host && (host.allow || []).includes('*');
   picker.hidden = lendingAny;
@@ -1323,7 +1344,8 @@ function openCreate(hostPref) {
   drawChoices();
   el('.scrim').hidden = false;
   el('.app').inert = true;
-  el('#new-name').focus();
+  const firstProgram = el('.kind-picker [aria-pressed="true"]');
+  (firstProgram || el('#new-command')).focus();
 }
 function closeCreate() {
   el('.scrim').hidden = true;
@@ -1351,6 +1373,14 @@ el('.scrim').onkeydown = (ev) => {
   else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
 };
 
+function automaticSessionName(command, dir) {
+  const project = (dir || '').split(/[\\/]/).filter(Boolean).pop() || 'session';
+  const base = `${project}-${programOf(command) || 'agent'}`.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 23).replace(/-+$/g, '') || 'session';
+  const suffix = Array.from(crypto.getRandomValues(new Uint8Array(4)), (n) => n.toString(16).padStart(2, '0')).join('');
+  return `${base}-${suffix}`;
+}
+
 async function createSession(ev) {
   ev.preventDefault();
   if (!canControl()) return;
@@ -1362,7 +1392,7 @@ async function createSession(ev) {
   const lendingAny = !el('input[name=command]').hidden;
   const command = lendingAny ? form.get('command') : pickedCommand;
   const request = {
-    name: form.get('name'), host: form.get('host'),
+    name: form.get('name')?.trim() || automaticSessionName(command, form.get('dir')), host: form.get('host'),
     dir: form.get('dir'), command,
   };
   const run = authRun;

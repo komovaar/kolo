@@ -216,3 +216,29 @@ test('read-only viewers fit and pan the shared grid without sending resize reque
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });
+
+test('creation accepts a typed folder and generates a name when left blank', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  let request;
+  try {
+    const icon = await page.locator('.agent .kind-chip').boundingBox();
+    const name = await page.locator('.agent .name').boundingBox();
+    assert.ok(icon.x < name.x, 'agent icon should lead the name');
+    await page.route('**/v1/agents', (route) => {
+      if (route.request().method() === 'POST') {
+        request = route.request().postDataJSON();
+        return route.fulfill({ status: 403, body: 'This folder must be shared by the host.' });
+      }
+      return route.fulfill({ json: fixture });
+    });
+    await page.locator('.side .new').click();
+    await page.locator('input[name=dir]').fill('/work/another-project');
+    await page.locator('#new-name').focus();
+    assert.equal(await page.locator('#new-name').evaluate((e) => getComputedStyle(e).outlineColor), 'rgb(44, 111, 98)');
+    await page.getByRole('button', { name: 'Start session', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.dialog-note').textContent.includes('must be shared'));
+    assert.equal(request.dir, '/work/another-project');
+    assert.match(request.name, /^another-project-codex-[a-f0-9]{8}$/);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
