@@ -1287,7 +1287,7 @@ el('.scrim').onkeydown = (ev) => {
   else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
 };
 
-el('form.create').onsubmit = async (ev) => {
+async function createSession(ev) {
   ev.preventDefault();
   if (!canControl()) return;
   const submit = ev.target.querySelector('button[type=submit]');
@@ -1297,30 +1297,45 @@ el('form.create').onsubmit = async (ev) => {
   const form = new FormData(ev.target);
   const lendingAny = !el('input[name=command]').hidden;
   const command = lendingAny ? form.get('command') : pickedCommand;
-  const body = JSON.stringify({
+  const request = {
     name: form.get('name'), host: form.get('host'),
     dir: form.get('dir'), command,
-  });
+  };
+  const run = authRun;
+  const body = JSON.stringify(request);
   try {
     const resp = await fetch('/v1/agents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
     });
+    if (run !== authRun || !signedIn) return;
     if (!resp.ok) {
       say('.dialog-note', (await resp.text()).trim() || `create failed (${resp.status})`, true);
       return;
     }
     const made = await resp.json();
+    if (run !== authRun || !signedIn) return;
     closeCreate();
     await refresh();
-    location.hash = `#/agent/${made.name}`;
+    if (run === authRun && signedIn) location.hash = `#/agent/${made.name}`;
   } catch (_) {
-    say('.dialog-note', 'Could not reach the hub. Nothing was created.', true);
+    if (run !== authRun || !signedIn) return;
+    const data = await refresh();
+    if (run !== authRun || !signedIn) return;
+    const found = data?.agents?.find((a) => a.name === request.name && a.host === request.host &&
+      a.dir === request.dir && a.command === request.command);
+    if (found) {
+      closeCreate();
+      location.hash = `#/agent/${found.name}`;
+    } else {
+      say('.dialog-note', 'Could not confirm whether the session was created. Check the session list before trying again.', true);
+    }
   } finally {
     createPending = false;
     submit.disabled = false;
     drawChoices();
   }
-};
+}
+el('form.create').onsubmit = createSession;
 
 async function stop(name) {
   if (!canControl()) return;

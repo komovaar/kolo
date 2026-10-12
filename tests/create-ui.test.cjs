@@ -68,3 +68,40 @@ test('polling cannot re-enable submission while creation is in flight', () => {
   assert.equal(p.el('form.create button[type=submit]').disabled, true);
   assert.equal(p.el('#new-host').value, 'devbox');
 });
+
+const createSource = html.match(/async function createSession\(ev\) \{[\s\S]*?\n\}/)[0];
+function creationPage(fetch, refresh) {
+  const submit = { disabled: false }, notes = [];
+  const request = { name: 'work', host: 'devbox', dir: '/work', command: 'sh' };
+  const context = vm.createContext({
+    canControl: () => true, signedIn: true, authRun: 0, createPending: false,
+    pickedCommand: 'sh', fetch, refresh, location: {},
+    FormData: class { get(key) { return request[key]; } },
+    el: () => ({ hidden: true }), say: (_, text) => notes.push(text),
+    closeCreate() { context.closed = true; }, drawChoices() {},
+  });
+  vm.runInContext(createSource, context);
+  return { context, notes, request, submit, event: { preventDefault() {}, target: { querySelector: () => submit } } };
+}
+
+test('a lost create response opens the matching session found by reconciliation', async () => {
+  const p = creationPage(async () => { throw Error('lost response'); }, async () => ({ agents: [p.request] }));
+  await p.context.createSession(p.event);
+  assert.equal(p.context.location.hash, '#/agent/work');
+  assert.equal(p.context.closed, true);
+  assert.equal(p.submit.disabled, false);
+});
+
+test('unreadable successful response reports uncertainty when reconciliation cannot confirm it', async () => {
+  const p = creationPage(async () => ({ ok: true, json: async () => { throw Error('broken body'); } }), async () => null);
+  await p.context.createSession(p.event);
+  assert.match(p.notes[0], /Could not confirm/);
+  assert.doesNotMatch(p.notes[0], /Nothing was created/);
+  assert.equal(p.context.location.hash, undefined);
+});
+
+test('creation does not open private sessions after sign-out', async () => {
+  const p = creationPage(async () => { p.context.authRun++; return { ok: true }; }, async () => ({ agents: [p.request] }));
+  await p.context.createSession(p.event);
+  assert.equal(p.context.location.hash, undefined);
+});
