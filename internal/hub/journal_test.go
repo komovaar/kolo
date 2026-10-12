@@ -336,3 +336,37 @@ func TestJournalRecordsAHostLeaving(t *testing.T) {
 		t.Errorf("attributed to %+v, want nobody", got[1].Who)
 	}
 }
+
+func TestJournalsAreIsolatedByOrg(t *testing.T) {
+	dir := t.TempDir()
+	firstPath := journalPath(filepath.Join(dir, "one.json"))
+	secondPath := journalPath(filepath.Join(dir, "two.json"))
+	first, err := openJournal(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := openJournal(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	first.add(Entry{Agent: "private", What: WhatSaid, Text: "one only"})
+	second.add(Entry{Agent: "other", What: WhatSaid, Text: "two only"})
+	first.mu.Lock()
+	first.compactLocked()
+	first.mu.Unlock()
+	second.Close()
+	restored, err := openJournal(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer restored.Close()
+	got := restored.tail("", 10)
+	if len(got) != 1 || got[0].Text != "two only" {
+		t.Fatalf("org histories mixed: %+v", got)
+	}
+	if journalPath("") != "" {
+		t.Fatal("in-memory org acquired a path")
+	}
+}

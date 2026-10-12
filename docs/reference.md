@@ -331,7 +331,7 @@ else.
 ## The log
 
 Every action a member takes is recorded on the hub, beside the org file, as
-JSON lines. Read it on the page, under the list icon in the sidebar, or with
+JSON lines in `<org-file>.journal.jsonl`. Read it on the page, under the list icon in the sidebar, or with
 `GET /v1/log`.
 
 Recorded: created, said, interrupted, restarted, started fresh, renamed,
@@ -445,3 +445,12 @@ sources under `brand/`, never the generated files.
 Disconnected sessions remain visible as **Machine disconnected** while the hub runs.
 Their controls are unavailable. Reconnecting replaces the last-known list with
 the sessions the host actually reports; this offline list is not persisted across hub restarts.
+
+Older versions used `journal.jsonl` beside the org file. That file is left
+untouched on upgrade because it may contain activity from several organizations.
+The hub prints a migration notice when it finds legacy history without a new
+journal. Stop the hub, verify which organization owns the history, and move it
+to `<org-file>.journal.jsonl` before restarting to retain it in the UI. If a new
+journal already exists, back up both files and review their contents before
+merging; do not overwrite either history. Back up the org-specific journal
+alongside the org file.

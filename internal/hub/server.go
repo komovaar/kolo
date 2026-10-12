@@ -11,6 +11,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -113,7 +115,16 @@ func Listen(org *Org, addr string) (*Server, error) {
 		return nil, err
 	}
 
-	s.journal, err = openJournal(journalPath(org.path))
+	journalFile := journalPath(org.path)
+	if org.path != "" {
+		legacy := filepath.Join(filepath.Dir(org.path), "journal.jsonl")
+		if _, err := os.Stat(journalFile); errors.Is(err, os.ErrNotExist) {
+			if _, err := os.Stat(legacy); err == nil {
+				log.Printf("hub: legacy journal %s left untouched; verify which org owns it before moving it to %s with the hub stopped", legacy, journalFile)
+			}
+		}
+	}
+	s.journal, err = openJournal(journalFile)
 	if err != nil {
 		log.Printf("hub: %v. This run is not being written down", err)
 	}

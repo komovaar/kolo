@@ -70,7 +70,7 @@ func journalPath(org string) string {
 	if org == "" {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(org), "journal.jsonl")
+	return org + ".journal.jsonl"
 }
 
 // The journal returned is usable whether or not the error is nil, so a hub
