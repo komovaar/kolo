@@ -35,23 +35,32 @@ after(async () => {
   await new Promise((resolve) => server?.close(resolve));
 });
 
-async function openSession(viewport, agents = fixture.agents) {
+async function openSession(viewport, agents = fixture.agents, readOnly = false) {
   const mobile = viewport.width <= 760 || viewport.height <= 500;
   const page = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile,
     deviceScaleFactor: mobile ? 2 : 1 });
-  if (agents !== fixture.agents) await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, agents } }));
-  const errors = [];
+  if (agents !== fixture.agents || readOnly) await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, agents, you: { ...fixture.you, read_only: readOnly } } }));
+  const errors = [], resizeRequests = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.routeWebSocket('**/v1/watch/**', (ws) => {
-    ws.send(JSON.stringify({ type: 'size', cols: 120, rows: 40 }));
-    ws.send(Buffer.from('\x1b[2J\x1b[Htop left\x1b[1;112Htop right' +
-      Array.from({ length: 36 }, (_, i) => `\x1b[${i + 3};1H${'Readable terminal text: commands, output, and conversation. '.repeat(2)}`).join('') +
-      '\x1b[40;1Hbottom left\x1b[40;108Hbottom right'));
+    function paint(cols, rows) {
+      ws.send(JSON.stringify({ type: 'size', cols, rows }));
+      ws.send(Buffer.from('\x1b[2J\x1b[Htop left' +
+        `\x1b[1;${cols - 8}Htop right` +
+        Array.from({ length: Math.max(0, rows - 4) }, (_, i) =>
+          `\x1b[${i + 3};1H${'Readable terminal text: commands, output, and conversation. '.repeat(10).slice(0, cols - 1)}`).join('') +
+        `\x1b[${rows};1Hbottom left\x1b[${rows};${cols - 11}Hbottom right`));
+    }
+    ws.onMessage((data) => {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'resize') { resizeRequests.push(msg); paint(msg.cols, msg.rows); }
+    });
+    paint(120, 40);
   });
   await page.goto(`${url}/#/agent/layout`);
   await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
   await page.evaluate(() => document.fonts.ready);
-  return { page, errors };
+  return { page, errors, resizeRequests };
 }
 
 async function assertFits(page) {
@@ -62,7 +71,9 @@ async function assertFits(page) {
     const grid = document.querySelector('.xterm-screen').getBoundingClientRect();
     return frame.height > 60 && frame.bottom <= innerHeight + 1 && grid.width > 0 && grid.height > 0 &&
       grid.left >= frame.left - 1 && grid.top >= frame.top - 1 &&
-      grid.right <= frame.right + 1 && grid.bottom <= frame.bottom + 1;
+      grid.right <= frame.right + 1 && grid.bottom <= frame.bottom + 1 &&
+      frame.width - grid.width < grid.width / term.cols + 1 &&
+      frame.height - grid.height < grid.height / term.rows + 1;
   });
   const metrics = await page.evaluate(() => {
     const frame = document.querySelector('#term').getBoundingClientRect();
@@ -74,12 +85,13 @@ async function assertFits(page) {
       fontSize: term.options.fontSize };
   });
   assert.ok(metrics.frame.bottom <= metrics.viewportHeight + 1, 'terminal is below the viewport');
-  assert.ok(metrics.frame.width - metrics.grid.width < 120 ||
-    metrics.frame.height - metrics.grid.height < 40, 'fit leaves more than one cell of unused space in both directions');
+  assert.ok(metrics.frame.width - metrics.grid.width < metrics.grid.width / metrics.cols + 1 &&
+    metrics.frame.height - metrics.grid.height < metrics.grid.height / metrics.rows + 1, 'fit leaves more than one cell of unused space in both directions');
   assert.equal(metrics.transform, 'none', 'canvas text must render without CSS resampling');
   assert.ok(metrics.fontSize > 0);
-  assert.equal(metrics.cols, 120);
-  assert.equal(metrics.rows, 40);
+  assert.ok(metrics.cols >= 2);
+  assert.ok(metrics.rows >= 2);
+  assert.equal(metrics.fontSize, 14);
 }
 
 for (const viewport of [
@@ -87,7 +99,7 @@ for (const viewport of [
   { width: 390, height: 844 }, { width: 320, height: 568 },
   { width: 390, height: 400 }, { width: 844, height: 390 },
 ]) {
-  test(`shared grid stays entirely visible at ${viewport.width}×${viewport.height}`, async () => {
+  test(`PTY grid fills the available space at ${viewport.width}×${viewport.height}`, async () => {
     const { page, errors } = await openSession(viewport);
     try {
       await assertFits(page);
@@ -110,7 +122,7 @@ for (const viewport of [
   });
 }
 
-test('phone navigation closes on selection, and zoomed terminals can pan and return to fit', async () => {
+test('phone navigation closes on selection, and zoom reflows the PTY and returns to fit', async () => {
   const { page, errors } = await openSession({ width: 390, height: 844 });
   try {
     await assertFits(page);
@@ -120,10 +132,9 @@ test('phone navigation closes on selection, and zoomed terminals can pan and ret
     await page.locator('.agent .name').click();
     assert.equal(await page.locator('.side').isVisible(), false);
     assert.equal(await page.locator('main').evaluate((e) => e.inert), false);
-    for (let i = 0; i < 3; i++) await page.locator('.zoom .in').click();
-    await page.waitForFunction(() => document.querySelector('#term').scrollWidth > document.querySelector('#term').clientWidth);
-    await page.locator('#term').evaluate((e) => { e.scrollLeft = e.scrollWidth; });
-    assert.ok(await page.locator('#term').evaluate((e) => e.scrollLeft > 0));
+    const originalCols = await page.evaluate(() => term.cols);
+    await page.locator('.zoom .in').click();
+    await page.waitForFunction((cols) => term.cols < cols, originalCols);
     assert.equal(await page.locator('.xterm').evaluate((e) => getComputedStyle(e).transform), 'none');
     await page.locator('.zoom .at').click();
     await assertFits(page);
@@ -160,6 +171,38 @@ test('long paths and recovery warnings leave terminal space above a phone keyboa
     await assertFits(page);
     const header = await page.locator('.session-head').boundingBox();
     assert.ok(header.height < 120, 'recovery warning consumed the viewport');
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+
+test('desktop resizing increases the agent grid without shrinking or scaling text', async () => {
+  const { page, resizeRequests } = await openSession({ width: 1024, height: 768 });
+  try {
+    await assertFits(page);
+    const before = await page.evaluate(() => ({ cols: term.cols, rows: term.rows }));
+    await page.setViewportSize({ width: 2048, height: 1040 });
+    await assertFits(page);
+    const after = await page.evaluate(() => ({ cols: term.cols, rows: term.rows }));
+    assert.ok(after.cols > before.cols);
+    assert.ok(after.rows > before.rows);
+    // Size replies must not provoke a negotiation loop.
+    assert.ok(resizeRequests.length < 10);
+  } finally { await page.close(); }
+});
+
+test('read-only viewers fit and pan the shared grid without sending resize requests', async () => {
+  const { page, errors, resizeRequests } = await openSession({ width: 390, height: 844 }, fixture.agents, true);
+  try {
+    await page.waitForFunction(() => {
+      const frame = document.querySelector('#term').getBoundingClientRect();
+      const grid = document.querySelector('.xterm-screen').getBoundingClientRect();
+      return grid.right <= frame.right + 1 && grid.bottom <= frame.bottom + 1;
+    });
+    for (let i = 0; i < 3; i++) await page.locator('.zoom .in').click();
+    await page.waitForFunction(() => document.querySelector('#term').scrollWidth > document.querySelector('#term').clientWidth);
+    assert.deepEqual(await page.evaluate(() => [term.cols, term.rows]), [120, 40]);
+    assert.deepEqual(resizeRequests, []);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });

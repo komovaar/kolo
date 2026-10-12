@@ -1435,7 +1435,7 @@ document.addEventListener('click', (ev) => {
 });
 
 // A stable rendering size; fit scales the measured grid for each viewer.
-const baseFont = 13;
+const baseFont = 14;
 
 function createTerminal() {
   const next = new Terminal({
@@ -1501,6 +1501,7 @@ const zoomRange = { least: 0.5, most: 4 };
 // Render glyphs at their final size. Scaling a painted canvas resamples text
 // and makes it blurry, especially at fractional scales on desktop displays.
 let fitting = false;
+let requestedSize = null;
 function fit() {
   if (fitting) return;
   const drawn = term.element, grid = drawn && drawn.querySelector('.xterm-screen');
@@ -1508,16 +1509,30 @@ function fit() {
   if (!grid || !grid.offsetWidth || !grid.offsetHeight || !box.w || !box.h) return;
   fitting = true;
   try {
-    // xterm updates its cell measurements when fontSize changes. Search the
-    // actual grid dimensions rather than estimating from a previous font.
-    let low = 1, high = 64;
-    for (let i = 0; i < 10; i++) {
-      const candidate = (low + high) / 2;
-      term.options.fontSize = candidate;
-      if (grid.offsetWidth <= box.w && grid.offsetHeight <= box.h) low = candidate;
-      else high = candidate;
+    if (canControl()) {
+      term.options.fontSize = baseFont * zoom;
+      const cellWidth = grid.offsetWidth / term.cols;
+      const cellHeight = grid.offsetHeight / term.rows;
+      const cols = Math.max(2, Math.min(500, Math.floor(box.w / cellWidth)));
+      const rows = Math.max(2, Math.min(200, Math.floor(box.h / cellHeight)));
+      const size = `${cols}x${rows}`;
+      if (screenReady && socket && socket.readyState === WebSocket.OPEN && requestedSize !== size) {
+        requestedSize = size;
+        socket.send(JSON.stringify({ type: 'resize', cols, rows }));
+      }
+      // Wait for the host's size announcement before changing our buffer.
+      // This keeps incoming output and all viewers on the same grid.
+    } else {
+      // Read-only viewers fit the shared grid without resizing the agent.
+      let low = 1, high = 64;
+      for (let i = 0; i < 10; i++) {
+        const candidate = (low + high) / 2;
+        term.options.fontSize = candidate;
+        if (grid.offsetWidth <= box.w && grid.offsetHeight <= box.h) low = candidate;
+        else high = candidate;
+      }
+      term.options.fontSize = low * zoom;
     }
-    term.options.fontSize = low * zoom;
     const width = grid.offsetWidth, height = grid.offsetHeight;
     const stage = drawn.parentElement;
     stage.style.width = `${Math.max(box.w, width)}px`;
@@ -1527,7 +1542,7 @@ function fit() {
     drawn.style.left = '0px';
     drawn.style.top = '0px';
     const frame = el('#term');
-    frame.classList.toggle('roam', zoom > 1);
+    frame.classList.toggle('roam', zoom > 1 || width > box.w || height > box.h);
     if (zoom <= 1) { frame.scrollLeft = 0; frame.scrollTop = 0; }
     sayZoom();
   } finally { fitting = false; }
@@ -1595,6 +1610,7 @@ function resetTerminal() {
   term = createTerminal();
   terminalOwner = null;
   screenReady = false;
+  requestedSize = null;
   applyAccess();
   fit();
   if (focused) term.focus();
@@ -1639,15 +1655,14 @@ function connect(name) {
         if (ws !== socket || view !== term || ws.readyState !== WebSocket.OPEN) return;
         screenReady = true;
         applyAccess();
+        fit();
         el('.session-connection').textContent = 'Live connection';
       } : undefined);
       return;
     }
     const msg = JSON.parse(ev.data);
     switch (msg.type) {
-      // The grid the agent is drawing on, which is the host's and arrives
-      // before its first repaint. Only this window's share of the frame
-      // decides how large it is drawn here.
+      // Apply the host's authoritative PTY dimensions before its repaint.
       case 'size':
         view.resize(msg.cols, msg.rows);
         fit();

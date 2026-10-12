@@ -213,8 +213,7 @@ independently of viewers. Browser terminals do not send automatic query
 answers or log them as somebody's typing. Supported queries include cursor
 and device status, terminal identity, mode status, character-grid size,
 scroll margins, drawing attributes, and palette/theme colours. Queries for
-browser pixel dimensions are unanswered: each viewer scales the shared grid
-to its own window.
+browser pixel dimensions are unanswered: viewers can have different displays.
 
 ### What kolo can press for you
 
@@ -365,24 +364,18 @@ The agent is one process on one PTY, and a PTY has one size. An agent draws a
 full screen, boxes and all, sized to the width it was told, so there is no
 version of this where it draws differently for different people.
 
-That size is the host's, settled when the agent starts, and nothing in a
-browser moves it. What each window does with the grid is its own: the whole
-screen is drawn at whatever size that window has room for, so a large monitor
-gets large text and a laptop gets the same screen smaller, and neither is felt
-by the other. The zoom control on the screen goes off fit for one person
-without touching anybody else's window.
+A controlling browser uses a readable font size and sends its available columns
+and rows to the host. The host resizes the PTY, so the agent redraws naturally
+for that window. Opening a session, resizing the window, rotating a phone, and
+changing zoom can change the shared grid. With multiple controlling windows,
+the most recent size request sets the grid for everyone. Read-only viewers
+fit that shared grid locally and cannot resize the agent.
 
-On phones and narrow windows, **Sessions** opens the navigation drawer instead
-of reserving terminal space for a sidebar. Selecting a session closes it. The
-terminal stays within the available viewport, including when the phone rotates
-or the keyboard reduces the visible area. Zoom controls remain visible on touch
-screens: **+** enlarges the text and allows panning, and **fit** restores the
-whole shared grid. A wide grid necessarily has small text when fitted to a
-phone; zooming changes only that viewer's display, not the host's grid.
-
-No window is a vote. Smallest wins, the way tmux settles it, put one phone on
-the invite link in charge of the agent's whole interface, for the people
-sitting at the machine included; largest wins only moves who pays for it.
+On phones and narrow windows, **Sessions** opens a navigation drawer. Selecting
+a session closes it. The terminal uses the available viewport, including when
+the keyboard reduces the visible area. **+** enlarges text; for a controller,
+the agent reflows into fewer columns and rows. **fit** restores the default font
+size. Read-only viewers can zoom and pan without changing the host's grid.
 
 ## Where files live
 
