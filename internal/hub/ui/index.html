@@ -601,11 +601,6 @@
 <div class="scrim" hidden>
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="create-title" tabindex="-1">
     <div class="dialog-head">
-      <svg class="mark" width="14" height="14" viewBox="0 0 18 18" role="img" aria-label="Kolo">
-        <path fill-rule="evenodd" fill="currentColor"
-          d="M0.72,9 a8.28,8.28 0 1,0 16.56,0 a8.28,8.28 0 1,0 -16.56,0 Z
-             M4.1886,7.9326 a5.8788,5.8788 0 1,0 11.7576,0 a5.8788,5.8788 0 1,0 -11.7576,0 Z"/>
-      </svg>
       <h2 id="create-title">New session</h2>
       <button type="button" class="icon-btn close" title="Close" aria-label="Close new session dialog">
         <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -635,16 +630,15 @@
           </div>
         </div>
         <div class="field">
-          <label for="new-name">Session name</label>
+          <label for="new-name">Session name <span class="field-optional">(optional)</span></label>
           <input id="new-name" name="name" placeholder="Automatic — or enter a name" maxlength="32" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" aria-describedby="name-help">
-          <p class="field-help" id="name-help">Leave blank for an automatic name. You can rename the session later.</p>
+          <p class="field-help" id="name-help">Lowercase letters, numbers, and hyphens.</p>
         </div>
       </div>
       <p class="note dialog-note" role="status"></p>
       <div class="dialog-foot">
         <button type="button" class="go cancel">Cancel</button>
         <button type="submit" class="go primary">
-          <svg width="13" height="13" viewBox="0 0 14 14"><path d="M2.5 7.5 5.5 10.5 11.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
           <span class="create-label">Start session</span>
         </button>
       </div>
@@ -1325,7 +1319,7 @@ function drawChoices() {
   el('.field-row').classList.toggle('single', hosts.length <= 1);
 
   const host = hosts.find((h) => h.id === hostSel.value) || hosts[0];
-  el('.machine-help').textContent = host ? `Run on ${host.id}. Programs and directories are shared by this machine.`
+  el('.machine-help').textContent = host ? `Run on ${host.id}.`
     : 'Connect a machine before starting a session.';
   const sharedDirs = (host?.dirs || []).filter((dir) => dir !== '*');
   const previousDir = dirInput.value;
@@ -1343,7 +1337,7 @@ function drawChoices() {
   directoryHost = host?.id || null;
   el('#directory-help').textContent = (host?.dirs || []).includes('*')
     ? 'Enter a folder path on this machine.'
-    : `Shared folders: ${sharedDirs.join(', ') || 'none'}. Ask the machine owner to share another folder.`;
+    : `Allowed folders: ${sharedDirs.join(', ') || 'none'}.`;
 
   const lendingAny = !!host && (host.allow || []).includes('*');
   picker.hidden = lendingAny;
@@ -1385,7 +1379,7 @@ function drawKindPicker(commands) {
     choice.type = 'button';
     choice.setAttribute('aria-pressed', String(command === pickedCommand));
     choice.className = 'kind-choice' + (command === pickedCommand ? ' on' : '');
-    choice.innerHTML = `<span class="kind-chip" aria-hidden="true"></span><span class="kind-label"></span><span class="kind-type"></span>`;
+    choice.innerHTML = `<span class="kind-chip" aria-hidden="true"></span><span class="kind-label"></span><span class="kind-type"></span><svg class="kind-selected" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 8 3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     choice.querySelector('.kind-chip').append(kindIcon(command));
     choice.querySelector('.kind-label').textContent = command;
     choice.querySelector('.kind-type').textContent = programKind(command);
@@ -1397,8 +1391,7 @@ function drawKindPicker(commands) {
     picker.append(choice);
   }
   el('#command-help').textContent = !commands.length ? 'No programs are shared by this machine.'
-    : programKind(pickedCommand) === 'Shell' ? 'Shell session: run commands directly. No AI agent is attached.'
-    : 'Start this program in the directory below. Everyone with access can follow the session.';
+    : programKind(pickedCommand) === 'Shell' ? 'Commands run directly on this machine.' : '';
 }
 
 // options may be absent rather than empty: a host that lends nothing sends null

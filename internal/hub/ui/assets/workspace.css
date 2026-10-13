@@ -241,3 +241,42 @@
   .zoom button { min-width: 36px; min-height: 40px; }
   .watch-bar .restart { min-height: 40px; padding: 2px 4px; }
 }
+
+/* Transient controls share one overlay surface, inset, and selection treatment. */
+.scrim .dialog, .switch-dialog { background: var(--kolo-bg-overlay); border-color: var(--kolo-border-strong); border-radius: var(--kolo-radius-overlay); }
+.dialog-head { min-height: 48px; padding: var(--kolo-space-2) var(--kolo-space-4); gap: var(--kolo-space-2); border-color: var(--line); }
+.dialog-head h2 { font: 500 var(--kolo-type-heading)/20px var(--ui); }
+.dialog-body { padding: var(--kolo-space-4); gap: var(--kolo-space-4); }
+.dialog-foot { padding: var(--kolo-space-3) var(--kolo-space-4); background: var(--kolo-bg-overlay); }
+.dialog-foot .go { font-size: var(--kolo-type-small); }
+.field { gap: var(--kolo-space-2); }
+.field label { font-weight: 500; font-size: var(--kolo-type-small); }
+.field-help, .machine-help { font-size: var(--kolo-type-small); line-height: 18px; color: var(--dim); }
+.dialog input, .dialog select { min-height: 34px; padding: 6px var(--kolo-space-2); border-radius: var(--kolo-radius-small); background: var(--kolo-bg-input); font: var(--kolo-type-body)/20px var(--ui); }
+.dialog input[name=dir], .dialog input[name=command], .dialog input[name=name] { font: var(--kolo-type-small)/20px var(--kolo-mono); letter-spacing: 0; }
+.dialog input:focus, .dialog select:focus { border-color: var(--kolo-focus-ring); }
+.dialog-note { padding: 0 var(--kolo-space-4) var(--kolo-space-3); font-size: var(--kolo-type-small); line-height: 18px; }
+.kind-picker { background: var(--kolo-bg-input); padding: var(--kolo-space-1); gap: 2px; border-radius: var(--kolo-radius-small); }
+.kind-choice { min-height: 36px; padding: 6px var(--kolo-space-2); border-radius: var(--kolo-radius-small); font-size: var(--kolo-type-body); gap: var(--kolo-space-2); }
+.kind-choice.on { background: var(--kolo-selection); color: var(--text); }
+.kind-choice.on .kind-label { font-weight: 500; }
+.kind-type { color: var(--faint); font-size: var(--kolo-type-small); }
+.kind-selected { margin-left: var(--kolo-space-1); color: var(--kolo-accent); opacity: 0; }
+.kind-choice.on .kind-selected { opacity: 1; }
+.switch-head { min-height: 44px; padding: 6px var(--kolo-space-4); }
+.switch-head h2 { font-weight: 500; }
+.switch-search { min-height: 44px; padding: var(--kolo-space-3) var(--kolo-space-4); gap: var(--kolo-space-4); }
+.switch-query { font-size: var(--kolo-type-body); }
+.switch-option { border-radius: var(--kolo-radius-small); }
+.switch-name { font-weight: 450; line-height: 20px; }
+.switch-meta { font-size: var(--kolo-type-small); line-height: 18px; color: var(--faint); margin-top: 2px; }
+.switch-option[aria-selected=true] .switch-name { font-weight: 500; }
+.switch-foot { min-height: 36px; padding: var(--kolo-space-2) var(--kolo-space-4); font-size: var(--kolo-type-small); }
+.share-panel { top: calc(100% + 4px); padding: var(--kolo-space-4); background: var(--kolo-bg-overlay); border-color: var(--kolo-border-strong); border-radius: var(--kolo-radius); }
+.share-panel label { font-size: var(--kolo-type-body); line-height: 20px; }
+.share-link-row input { min-height: 32px; padding: 6px var(--kolo-space-2); font-size: var(--kolo-type-small); border-radius: var(--kolo-radius-small); background: var(--kolo-bg-input); }
+.share-copy { font-size: var(--kolo-type-small); }
+.share-panel p { line-height: 18px; }
+@media (pointer: coarse) { .kind-choice { min-height: 44px; } }
+.field-optional { color: var(--faint); font-weight: 400; margin-left: var(--kolo-space-1); }
+.field-help:empty { display: none; }
