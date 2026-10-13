@@ -1153,12 +1153,20 @@ function renderGroups(agents) {
         const spinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         spinner.setAttribute('class', 'spinner');
         spinner.setAttribute('width', '13'); spinner.setAttribute('height', '13'); spinner.setAttribute('viewBox', '0 0 13 13');
+        spinner.setAttribute('role', 'img');
+        spinner.setAttribute('aria-label', state.label);
+        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
         spinner.innerHTML = `<circle class="track" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6"/>
           <circle class="arc" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6" stroke-linecap="round"/>`;
+        title.textContent = state.label;
+        spinner.prepend(title);
         rowInner.append(spinner);
       } else {
         const dot = document.createElement('span');
-        dot.className = `dot ${a.status === 'failed' ? 'failed' : screenState}`;
+        dot.className = `dot ${state.key}`;
+        dot.title = state.label;
+        dot.setAttribute('role', 'img');
+        dot.setAttribute('aria-label', state.label);
         rowInner.append(dot);
       }
       if (a.name === renamingId) {
@@ -1703,6 +1711,8 @@ function connect(name) {
         say('.watch .note', describe(msg.state));
         const agent = lastAgents.find((a) => a.name === name);
         if (agent) agent.screen_state = msg.state;
+        attention.update(lastAgents);
+        if (!renamingId) drawGroups(lastAgents);
         drawSession();
         break;
       case 'interrupted':

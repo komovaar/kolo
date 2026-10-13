@@ -41,8 +41,10 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
     deviceScaleFactor: mobile ? 2 : 1 });
   if (agents !== fixture.agents || readOnly) await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, agents, you: { ...fixture.you, read_only: readOnly } } }));
   const errors = [], resizeRequests = [];
+  let sendState;
   page.on('pageerror', (error) => errors.push(error.message));
   await page.routeWebSocket('**/v1/watch/**', (ws) => {
+    sendState = (state) => ws.send(JSON.stringify({ type: 'state', state }));
     function paint(cols, rows) {
       ws.send(JSON.stringify({ type: 'size', cols, rows }));
       ws.send(Buffer.from('\x1b[2J\x1b[Htop left' +
@@ -60,7 +62,7 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
   await page.goto(`${url}/#/agent/layout`);
   await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
   await page.evaluate(() => document.fonts.ready);
-  return { page, errors, resizeRequests };
+  return { page, errors, resizeRequests, sendState: (state) => sendState(state) };
 }
 
 async function assertFits(page) {
@@ -93,6 +95,37 @@ async function assertFits(page) {
   assert.ok(metrics.rows >= 2);
   assert.equal(metrics.fontSize, 14);
 }
+
+test('live activity immediately updates the sidebar indicator and its label', async () => {
+  const { page, errors, sendState } = await openSession({ width: 1440, height: 900 });
+  try {
+    for (const [state, label, selector] of [
+      ['busy', 'Working', '.spinner'],
+      ['dialog', 'Waiting for input', '.dot.dialog'],
+      ['idle', 'Ready', '.dot.idle'],
+      ['unknown', 'Running · activity unknown', '.dot.unknown'],
+    ]) {
+      sendState(state);
+      await page.waitForFunction(({ selector, label }) =>
+        document.querySelector(`.agent ${selector}`)?.getAttribute('aria-label') === label,
+      { selector, label }, { timeout: 1000 });
+      assert.equal(await page.locator('.session-head .session-state').textContent(), label);
+    }
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('disconnected machines do not display a stale waiting indicator', async () => {
+  const { page } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: {
+      ...fixture, hosts: [], agents: [{ ...fixture.agents[0], screen_state: 'dialog' }],
+    } }));
+    await page.evaluate(() => refresh());
+    assert.equal(await page.locator('.agent .dot').getAttribute('aria-label'), 'Machine disconnected');
+    assert.equal(await page.locator('.agent .dot.dialog').count(), 0);
+  } finally { await page.close(); }
+});
 
 test('Codex titles appear in navigation and manual labels take precedence', async () => {
   for (const label of ['', 'My custom name']) {
