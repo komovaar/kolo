@@ -94,6 +94,33 @@ async function assertFits(page) {
   assert.equal(metrics.fontSize, 14);
 }
 
+test('sidebar dragging clamps, persists, and refits the terminal', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  try {
+    const handle = page.locator('.side-resize');
+    const bounds = await handle.boundingBox();
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 100);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width / 2 + 100, bounds.y + 100, { steps: 5 });
+    await page.mouse.up();
+    assert.equal((await page.locator('.side').boundingBox()).width, 316);
+    await assertFits(page);
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+    assert.equal((await page.locator('.side').boundingBox()).width, 316);
+    await handle.focus();
+    await page.keyboard.press('End');
+    assert.equal((await page.locator('.side').boundingBox()).width, 480);
+    await page.keyboard.press('Home');
+    assert.equal((await page.locator('.side').boundingBox()).width, 180);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator('.mobile-menu').click();
+    assert.equal(await handle.isVisible(), false);
+    assert.equal((await page.locator('.side').boundingBox()).width, 320);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
 for (const viewport of [
   { width: 2048, height: 1040 }, { width: 1440, height: 900 }, { width: 1024, height: 768 },
   { width: 390, height: 844 }, { width: 320, height: 568 },
