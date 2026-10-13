@@ -538,7 +538,7 @@
           <p class="session-error" role="status" hidden></p>
           <div class="context-warning" role="status" hidden>
             <p class="context-warning-text"></p>
-            <button class="context-ack">Acknowledge reset</button>
+            <button class="go secondary context-ack">Acknowledge reset</button>
           </div>
           <div class="session-badges">
             <span class="session-state"></span>
@@ -553,23 +553,23 @@
             <p class="share-feedback" role="status"></p>
           </div>
         </details>
-        <button class="go session-stop" type="button">
+        <button class="go session-stop" type="button" aria-label="Stop session" title="Stop session">
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
-          Stop session
+          <span class="session-stop-label">Stop</span>
         </button>
       </header>
       <div class="screen">
         <div id="term"></div>
       </div>
       <div class="watch-bar" role="region" aria-label="Terminal status and controls">
-        <p class="note" role="status"></p>
         <div class="status-details"><span class="session-connection" role="status">Connecting…</span><span class="session-access"></span></div>
+        <p class="note" role="status"></p>
+        <span class="typist" hidden></span>
         <div class="zoom" role="group" aria-label="Terminal zoom">
           <button class="out" title="Zoom out" aria-label="Zoom out">&minus;</button>
           <button class="at" title="Fit terminal to window" aria-label="Fit terminal to window">fit</button>
           <button class="in" title="Zoom in" aria-label="Zoom in">+</button>
         </div>
-        <span class="typist" hidden></span>
         <button type="button" class="watch-action restart" disabled>restart</button>
       </div>
     </section>
@@ -1579,7 +1579,7 @@ function createTerminal() {
     customGlyphs: true,
     scrollback: 5000,
     theme: { background: '#101314', foreground: '#E7E9E4',
-             cursor: '#2C6F62', selectionBackground: '#2C6F62' },
+             cursor: '#A0C4B1', selectionBackground: '#284336', brightBlack: '#8B949A' },
   });
   const stage = document.createElement('div');
   stage.className = 'terminal-stage';
@@ -1772,7 +1772,7 @@ function connect(name) {
   ws.onopen = () => {
     if (ws !== socket) return;
     el('.session-connection').textContent = 'Restoring screen…';
-    say('.watch .note', `watching ${name}`);
+    say('.watch .note', '');
   };
 
   ws.onmessage = (ev) => {
@@ -1797,7 +1797,7 @@ function connect(name) {
         fit();
         break;
       case 'state':
-        say('.watch .note', describe(msg.state));
+        say('.watch .note', msg.state === 'dialog' ? describe(msg.state) : '');
         const agent = lastAgents.find((a) => a.name === name);
         if (agent) agent.screen_state = msg.state;
         attention.update(lastAgents);
@@ -1866,6 +1866,7 @@ function keyboardChanged() {
   const bar = el('.typist');
   bar.hidden = !typist;
   bar.textContent = typist ? (typist === me.name ? 'Last input: you' : `Last input: ${typist}`) : '';
+  bar.title = bar.textContent;
 }
 
 // tell sends one thing to the agent. Who it is from is the hub's word, taken

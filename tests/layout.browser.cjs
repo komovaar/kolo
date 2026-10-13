@@ -42,9 +42,10 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
     deviceScaleFactor: mobile ? 2 : 1 });
   if (agents !== fixture.agents || readOnly) await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, agents, you: { ...fixture.you, read_only: readOnly } } }));
   const errors = [], resizeRequests = [], keys = [];
-  let sendState;
+  let sendState, stream;
   page.on('pageerror', (error) => errors.push(error.message));
   await page.routeWebSocket('**/v1/watch/**', (ws) => {
+    stream = ws;
     sendState = (state) => ws.send(JSON.stringify({ type: 'state', state }));
     function paint(cols, rows) {
       ws.send(JSON.stringify({ type: 'size', cols, rows }));
@@ -64,7 +65,11 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
   await page.goto(`${url}/#/agent/${agents[0]?.name || "layout"}`);
   await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
   await page.evaluate(() => document.fonts.ready);
-  return { page, errors, resizeRequests, keys, sendState: (state) => sendState(state) };
+  return { page, errors, resizeRequests, keys, sendState: (state) => sendState(state),
+    sendOutput: (output) => stream.send(Buffer.from(output)),
+    sendMessage: (message) => stream.send(JSON.stringify(message)),
+    closeStream: () => stream.close({ code: 1012, reason: 'Machine reconnecting' }),
+  };
 }
 
 async function assertFits(page) {
@@ -756,3 +761,51 @@ test('light appearance persists across entry pages with readable selected contro
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });
+
+for (const width of [1440, 390]) {
+  test(`terminal recovery and collaboration keep controls readable at ${width}px`, async () => {
+    const agents = [
+      { ...workspaceAgents[0], label: 'Review API authentication and session permissions', screen_state: 'busy' },
+      ...workspaceAgents.slice(1),
+      ...Array.from({ length: 20 }, (_, i) => ({ ...fixture.agents[0], name: `review-${i}`, label: `Review service ${i + 1}`, screen_state: 'idle' })),
+    ];
+    const { page, errors, keys, sendState, sendOutput, sendMessage, closeStream } = await openSession({ width, height: 900 }, agents);
+    const paint = () => sendOutput('\x1b[2J\x1b[H' + [
+      '\x1b[90m/work/api  ·  codex\x1b[0m', '',
+      'Review API authentication and session permissions', '',
+      '\x1b[90mReading route handlers and access checks…\x1b[0m', '',
+      '\x1b[32m$\x1b[0m git diff --stat',
+      ' internal/hub/server.go       | 12 ++++++------',
+      ' internal/hub/access_test.go  | 24 ++++++++++++++++++++++++',
+      ' 2 files changed, 30 insertions(+), 6 deletions(-)', '',
+      '\x1b[32m$\x1b[0m go test ./internal/hub',
+      'ok  github.com/whosgotch/kolo/internal/hub  0.709s', '',
+      'Access checks cover control and read-only members.',
+      'The terminal connection stays open after a refused action.', '',
+      '\x1b[90mReviewing the remaining changes…\x1b[0m',
+    ].join('\r\n'));
+    try {
+      await assertFits(page);
+      sendState('busy');
+      paint();
+      sendMessage({ type: 'keyboard', who: 'Mira' });
+      await page.waitForFunction(() => document.querySelector('.typist').textContent === 'Last input: Mira');
+      await assertFits(page);
+      paint();
+      await saveReview(page, `terminal-crafted-${width}`);
+      closeStream();
+      await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Reconnecting…');
+      assert.equal(await page.evaluate(() => term.options.disableStdin), true);
+      assert.equal(await page.locator('.watch .restart').isDisabled(), true);
+      assert.equal(await page.locator('.typist').isVisible(), false);
+      await saveReview(page, `terminal-reconnecting-${width}`);
+      await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+      assert.equal(await page.evaluate(() => term.options.disableStdin), false);
+      await page.locator('.xterm-helper-textarea').focus();
+      await page.keyboard.type('git status');
+      await page.keyboard.press('Enter');
+      assert.equal(keys.join(''), 'git status\r');
+      assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  });
+}

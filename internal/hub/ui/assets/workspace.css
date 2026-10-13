@@ -196,3 +196,48 @@
   .mobile-menu:hover { background: var(--raised-hover); color: var(--text); }
   .mobile-title { font-size: var(--kolo-type-body); }
 }
+
+/* Terminal chrome follows the shell grid; the output has no surrounding card. */
+.session-head { flex: none; min-height: var(--kolo-header-height); padding: var(--kolo-space-1) var(--kolo-space-3); gap: var(--kolo-space-2); background: var(--kolo-bg-header); }
+.session-info { gap: var(--kolo-space-2) var(--kolo-space-3); }
+.session-title { max-width: 45%; margin: 0; padding-right: var(--kolo-space-3); font: 500 var(--kolo-type-body)/20px var(--ui); }
+.session-context { font: var(--kolo-type-caption)/20px var(--kolo-mono); color: var(--faint); }
+.session-badges { gap: var(--kolo-space-2); }
+.session-badges span { font-size: var(--kolo-type-small); line-height: 20px; white-space: nowrap; }
+.session-head .icon-btn { width: 28px; height: 28px; min-height: 28px; }
+.session-stop { min-height: 28px; padding: 3px var(--kolo-space-2); gap: 6px; color: var(--faint); font-size: var(--kolo-type-small); }
+.session-stop:hover:not(:disabled) { color: var(--kolo-fg-danger); background: var(--raised-hover); }
+.screen { padding: var(--kolo-space-2) var(--kolo-space-3); background: var(--kolo-bg-terminal); }
+.watch-bar { min-height: var(--kolo-status-height); padding: 2px var(--kolo-space-3); gap: var(--kolo-space-3); background: var(--kolo-bg-header); }
+.status-details { flex: none; margin-right: auto; gap: var(--kolo-space-3); font-size: var(--kolo-type-small); line-height: 20px; }
+.status-details .session-connection::before { width: 5px; height: 5px; margin-right: 6px; }
+.session-connection[data-state=live]::before { background: var(--kolo-accent); }
+.session-access { border-left: 1px solid var(--line); padding-left: var(--kolo-space-3); color: var(--faint); }
+.watch-bar .note { font-size: var(--kolo-type-small); line-height: 18px; color: var(--dim); }
+.watch-bar .note.problem { color: var(--kolo-fg-danger); }
+.watch-bar .typist { font-size: var(--kolo-type-small); color: var(--dim); }
+.zoom { gap: 2px; border-left: 1px solid var(--line); padding-left: var(--kolo-space-2); }
+.zoom button { min-width: 24px; min-height: 24px; padding: 2px; line-height: 20px; }
+.zoom .at { min-width: 32px; font: var(--kolo-type-small)/20px var(--kolo-mono); text-transform: capitalize; }
+.watch-action { min-height: 24px; padding: 2px 6px; line-height: 20px; }
+.context-warning { padding: var(--kolo-space-2) var(--kolo-space-3); border: none; border-left: 2px solid var(--kolo-state-running); border-radius: 0; background: var(--raised); font-size: var(--kolo-type-small); line-height: 18px; }
+.context-warning p { margin-bottom: var(--kolo-space-2); }
+.context-ack { min-height: 28px; padding: 2px var(--kolo-space-2); font-size: var(--kolo-type-small); }
+.session-error { font-size: var(--kolo-type-small); line-height: 18px; }
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .session-head { padding: var(--kolo-space-1) var(--kolo-space-2); }
+  .session-info { max-height: min(120px, 25dvh); }
+  .session-head .icon-btn { width: 36px; height: 36px; min-height: 36px; }
+  .session-stop { min-width: 36px; min-height: 36px; padding: var(--kolo-space-2); }
+  .session-stop-label { display: none; }
+  .session-context { font-size: var(--kolo-type-small); }
+  .screen { padding: var(--kolo-space-1); }
+  .watch-bar { padding: 2px var(--kolo-space-2); gap: 0 var(--kolo-space-2); }
+  .status-details { flex-direction: column; align-items: flex-start; gap: 0; margin: 0; }
+  .session-access { border: none; padding: 0; }
+  .watch-bar .note { grid-row: 1; font-size: var(--kolo-type-small); }
+  .watch-bar .typist { line-height: 18px; }
+  .zoom { border: none; padding: 0; gap: 0; }
+  .zoom button { min-width: 36px; min-height: 40px; }
+  .watch-bar .restart { min-height: 40px; padding: 2px 4px; }
+}
