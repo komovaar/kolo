@@ -1,25 +1,69 @@
-/* Workspace refinements share the same surfaces and controls as entry pages. */
-.brand { padding: var(--kolo-space-1) var(--kolo-space-2); gap: var(--kolo-space-2); }
-.brand-name { font-size: var(--kolo-type-body); }
-.side-tools { display: grid; gap: var(--kolo-space-2); padding: var(--kolo-space-3); }
-.switch-open { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; padding: var(--kolo-space-1); border-radius: var(--r); text-align: left; color: var(--dim); }
-.switch-open:hover { color: var(--text); background: var(--raised-hover); }
-.switch-open span { flex: 1; }
-.switch-shortcut { font-size: 10px; padding: 1px 3px; }
-.side-new { width: 100%; min-height: 32px; font-size: var(--kolo-type-small); }
-.side-caption { padding-top: var(--kolo-space-2); text-transform: none; letter-spacing: 0; }
-.side-overview { min-height: 36px; }
-.side-overview[aria-current=page] { background: var(--raised-hover); }
-.agent { padding: var(--kolo-space-2) var(--kolo-space-2) var(--kolo-space-2) var(--kolo-space-4); }
-.agent:hover, .group-head:hover, .me:hover { background: var(--raised-hover); }
-.agent.on { background: var(--kolo-selection); }
-.agent.on::before { background: var(--kolo-fg-success); }
-.agent.on .name, .agent .rename, .kind-choice.on, .kind-choice.on .kind-chip, .me .initial { color: var(--text); }
-.agent .dir { padding-left: 28px; font: var(--kolo-type-caption)/1.5 var(--kolo-mono); }
-.agent .drop { opacity: 0; }
-.agent:hover .drop, .agent:focus-within .drop { opacity: 1; }
-.drop:hover { color: var(--kolo-fg-danger); }
+/* Kolo workspace. The sidebar is a compact explorer, with one selected row. */
+.side { background: var(--kolo-bg-sidebar); container: sidebar / inline-size; }
+.brand { height: var(--kolo-header-height); flex: none; padding: 0 var(--kolo-space-3); gap: var(--kolo-space-2); }
+.brand-home { width: 20px; height: 28px; flex: none; }
+.brand .mark { width: 20px; height: 20px; opacity: 1; }
+.brand-name { font-size: 14px; }
+.workspace-label { min-width: 0; margin-left: auto; color: var(--dim); font-size: var(--kolo-type-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-nav { display: grid; gap: 2px; padding: var(--kolo-space-2) var(--kolo-space-2) 0; }
+.side-overview, .side-activity { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; width: 100%; padding: 5px var(--kolo-space-2); border: none; border-radius: var(--kolo-radius-small); text-align: left; color: var(--dim); text-decoration: none; transition: background-color var(--kolo-transition), color var(--kolo-transition); }
+.side-overview:hover, .side-activity:hover { background: var(--raised-hover); color: var(--text); }
+.side-overview[aria-current=page], .side-activity[aria-current=page] { background: var(--kolo-selection); color: var(--text); transition: none; }
+.side-nav svg { color: var(--faint); }
+.side-nav [aria-current=page] svg { color: var(--kolo-accent); }
+.side-tools { display: grid; gap: var(--kolo-space-1); padding: var(--kolo-space-3) var(--kolo-space-2) var(--kolo-space-1); }
+.switch-open { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; width: 100%; padding: var(--kolo-space-1) var(--kolo-space-2); border: 1px solid var(--line); border-radius: var(--kolo-radius-small); text-align: left; color: var(--dim); background: var(--kolo-bg-input); }
+.switch-open:hover { color: var(--text); border-color: var(--kolo-border-strong); }
+.switch-open > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--kolo-type-small); }
+.switch-shortcut { flex: none; border: none; padding: 0; font-size: 10px; color: var(--faint); }
+.side-new { width: 100%; min-height: 32px; justify-content: flex-start; border: none; padding: var(--kolo-space-1) var(--kolo-space-2); font-size: var(--kolo-type-small); color: var(--dim); }
+.side-new:hover:not(:disabled) { color: var(--text); }
+.side-caption { padding: var(--kolo-space-4) var(--kolo-space-4) var(--kolo-space-1); text-transform: none; letter-spacing: 0; color: var(--faint); font-size: var(--kolo-type-small); font-weight: 500; }
+.groups { padding: 0 var(--kolo-space-2) var(--kolo-space-3); gap: var(--kolo-space-2); }
+.group-head { min-height: 32px; padding: 2px var(--kolo-space-1); gap: var(--kolo-space-2); border-radius: var(--kolo-radius-small); }
+.group-head:hover { background: var(--raised-hover); }
+.group-head .chip { width: 14px; height: 14px; }
 .group-head .chip svg { width: 14px; height: 14px; }
+.group-head .label { font-size: var(--kolo-type-small); font-weight: 500; color: var(--dim); }
+.group-head .icon-btn { width: 24px; height: 24px; opacity: 0; }
+.group-head:hover .icon-btn, .group-head:focus-within .icon-btn { opacity: 1; }
+.group-body { gap: 2px; }
+.agent { padding: 6px var(--kolo-space-2); gap: 2px; border-radius: var(--kolo-radius-small); transition: background-color var(--kolo-transition); }
+.agent:hover { background: var(--raised-hover); }
+.agent.on { background: var(--kolo-selection); transition: none; }
+.agent.on::before { left: 0; top: var(--kolo-space-2); bottom: var(--kolo-space-2); width: 2px; border-radius: 2px; background: var(--kolo-accent); }
+.agent .row { min-height: 20px; gap: var(--kolo-space-2); }
+.agent .name { font: 450 var(--kolo-type-body)/20px var(--ui); padding-right: 6px; }
+.agent.on .name { color: var(--text); font-weight: 500; }
+.agent .kind-chip { width: 16px; height: 16px; }
+.agent .dir { padding-left: 24px; color: var(--faint); font: var(--kolo-type-caption)/18px var(--kolo-mono); }
+.agent .rename { color: var(--text); font: var(--kolo-type-body)/18px var(--ui); }
+.agent .row > .dot { width: 6px; height: 6px; }
+.agent .row > .spinner { width: 12px; height: 12px; }
+.agent .drop { position: absolute; top: var(--kolo-space-1); right: var(--kolo-space-1); width: 24px; height: 24px; opacity: 0; pointer-events: none; background: var(--raised-hover); border-radius: var(--kolo-radius-small); }
+.agent:hover .drop:not(:disabled), .agent:focus-within .drop:not(:disabled) { opacity: 1; pointer-events: auto; }
+.agent:has(.drop:not([hidden]):not(:disabled)):is(:hover, :focus-within) .row > :is(.dot, .spinner) { opacity: 0; }
+.drop:hover { color: var(--kolo-fg-danger); }
+.spinner .track { stroke: var(--line); }
+.spinner .arc { stroke: var(--dim); }
+.me { padding: var(--kolo-space-2) var(--kolo-space-3); min-height: 52px; gap: var(--kolo-space-2); }
+.me:hover { background: var(--raised-hover); }
+.me .avatar { width: 28px; height: 28px; border-radius: var(--kolo-radius); background: var(--raised-hover); }
+.me .initial { color: var(--text); font-weight: 500; }
+.me .name { font: 500 var(--kolo-type-body)/18px var(--ui); }
+.me .status { font: var(--kolo-type-small)/16px var(--ui); }
+.me .presence { width: 7px; height: 7px; background: var(--kolo-accent); border-color: var(--kolo-bg-sidebar); }
+.me-menu { left: var(--kolo-space-2); right: var(--kolo-space-2); bottom: calc(100% + 4px); z-index: 15; background: var(--kolo-bg-overlay); border-radius: var(--kolo-radius); }
+.me-item { min-height: 32px; padding: 6px var(--kolo-space-2); font-size: var(--kolo-type-small); border-radius: var(--kolo-radius-small); }
+.side svg:not(.mark) [stroke] { stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.kind-choice.on, .kind-choice.on .kind-chip { color: var(--text); }
+@container sidebar (max-width: 210px) { .switch-shortcut { display: none; } }
+@media (pointer: coarse) {
+  .group-head .icon-btn { opacity: 1; }
+  .agent { padding-right: 36px; }
+  .agent .drop { pointer-events: auto; width: 28px; height: 28px; }
+}
+
 .no-hosts code, .session-directory, .session-machine, .session-context, .entry .at, .entry .on, .entry .said { font-family: var(--kolo-mono); }
 .screen, .agent .dir, .session-directory, .session-machine, .session-context, .entry .at, .entry .on, .entry .said { letter-spacing: 0; }
 .session-directory, .session-context { font-size: var(--kolo-type-caption); }
@@ -87,7 +131,7 @@
   .switch-scrim { padding-top: var(--kolo-space-4); }
 }
 @media (pointer: coarse) {
-  .switch-open, .side-new, .agent, .side-overview { min-height: 44px; }
+  .switch-open, .side-new, .agent, .side-overview, .side-activity { min-height: 44px; }
   .agent .drop { opacity: 0.8; }
   .session-search { min-height: 44px; }
 }

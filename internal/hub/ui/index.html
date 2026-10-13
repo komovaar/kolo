@@ -460,12 +460,12 @@
         </svg>
       </button>
       <span class="brand-name kolo-wordmark">kolo</span>
-      <span class="spacer"></span>
-      <button class="icon-btn log-open" title="Activity log" aria-label="Activity log">
-        <svg width="13" height="13" viewBox="0 0 13 13"><path d="M2 3.5h9M2 6.5h9M2 9.5h5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </button>
+      <span class="workspace-label"></span>
     </div>
-    <a class="side-overview" href="#" aria-current="page"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor"/><path d="M2 6h12M6 6v8" stroke="currentColor"/></svg>Overview</a>
+    <nav class="side-nav" aria-label="Workspace">
+      <a class="side-overview" href="#" aria-current="page"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 6h12M6 6v8" stroke="currentColor" stroke-width="1.5"/></svg>Overview</a>
+      <button class="side-activity log-open" type="button" title="Activity log" aria-label="Activity log"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/></svg>Activity</button>
+    </nav>
     <div class="side-tools">
       <button class="switch-open" type="button" aria-label="Switch session" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 4 3 3-3 3M8 11h5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Switch session</span><kbd class="switch-shortcut" aria-hidden="true"></kbd></button>
       <button class="go secondary side-new" type="button"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>New session</button>
@@ -483,8 +483,8 @@
       <div class="me-menu" id="account-menu" hidden>
         <button class="me-item attention-toggle" type="button" aria-pressed="false">enable desktop alerts</button>
         <button class="me-item theme-toggle" type="button">Use light appearance</button>
-        <a class="me-item" href="https://github.com/whosgotch/kolo" target="_blank" rel="noreferrer">source</a>
-        <form method="post" action="/logout"><button class="me-item" type="submit">sign out</button></form>
+        <a class="me-item" href="https://github.com/whosgotch/kolo" target="_blank" rel="noreferrer">Source code</a>
+        <form method="post" action="/logout"><button class="me-item" type="submit">Sign out</button></form>
       </div>
     </div>
     <div class="side-resize" role="separator" tabindex="0" aria-label="Resize sidebar"
@@ -808,6 +808,8 @@ function signOut() {
   el('.me').setAttribute('aria-expanded', 'false');
   el('.me .name').textContent = '';
   el('.me .initial').textContent = '';
+  el('.workspace-label').textContent = '';
+  el('.workspace-label').title = '';
   show('signin');
   el('.signin .problem').hidden = !location.search.includes('refused');
   el('#signin-token').focus();
@@ -859,6 +861,8 @@ async function refresh() {
   el('.me .status').textContent = data.you.read_only ? 'read-only · online' : 'online';
   el('.me .name').textContent = data.you.name;
   el('.mobile-title').textContent = data.org || 'Kolo';
+  el('.workspace-label').textContent = data.org || 'Workspace';
+  el('.workspace-label').title = data.org || 'Workspace';
   el('.me .initial').textContent = (data.you.name.trim().slice(0, 1) || '?').toUpperCase();
   me = data.you;
   hosts = data.hosts;
@@ -1161,6 +1165,8 @@ function renderGroups(agents) {
         <svg width="12" height="12" viewBox="0 0 13 13"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>`;
     head.querySelector('.label').textContent = host;
+    head.querySelector('.label').title = host;
+    head.title = hostInfo ? host : `${host} · Machine disconnected`;
     head.querySelector('.add').dataset.focusKey = JSON.stringify(['add', host]);
     head.querySelector('.add').title = `New session on ${host}`;
     head.querySelector('.add').setAttribute('aria-label', `New session on ${host}`);
@@ -1254,7 +1260,7 @@ function renderGroups(agents) {
         const name = document.createElement('span');
         name.className = 'name';
         name.textContent = a.label || a.title || a.name;
-        name.title = canControl() ? 'Double-click or press F2 to rename' : 'Read-only access';
+        name.title = `${name.textContent} · ${canControl() ? 'Double-click or press F2 to rename' : 'Read-only access'}`;
         name.ondblclick = (ev) => { ev.stopPropagation(); startRename(a); };
         rowInner.append(name);
       }
@@ -1275,6 +1281,7 @@ function renderGroups(agents) {
       drop.onclick = (ev) => { ev.stopPropagation(); stop(a.name); };
       rowInner.append(drop);
       row.querySelector('.dir').textContent = a.dir;
+      row.querySelector('.dir').title = a.dir;
       row.title = a.error ? `${state.label}: ${a.error}` : state.label;
       row.onclick = () => { setNavigation(false); location.hash = `#/agent/${a.name}`; };
       row.onkeydown = (ev) => {
@@ -2145,6 +2152,8 @@ async function route() {
   updateMobileTitle();
   if (!name && !log) el('.side-overview').setAttribute('aria-current', 'page');
   else el('.side-overview').removeAttribute('aria-current');
+  if (log) el('.log-open').setAttribute('aria-current', 'page');
+  else el('.log-open').removeAttribute('aria-current');
   if (watching !== name) close();
   // The screen is put up before the list is fetched, so opening an agent does
   // not wait on a round trip that has nothing to do with it.
