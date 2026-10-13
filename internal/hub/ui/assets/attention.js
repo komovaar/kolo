@@ -27,9 +27,9 @@ globalThis.KoloAttention = class {
     const on = supported && this.enabled && Notification.permission === 'granted';
     this.button.disabled = !supported || denied || this.pending || this.unavailable;
     this.button.setAttribute('aria-pressed', String(on && !this.unavailable));
-    this.button.textContent = !supported || this.unavailable ? 'desktop alerts unavailable' :
-      denied ? 'desktop alerts blocked' : this.pending ? 'allow alerts in your browser' :
-      on ? 'disable desktop alerts' : 'enable desktop alerts';
+    this.button.textContent = !supported || this.unavailable ? 'Desktop alerts unavailable' :
+      denied ? 'Desktop alerts blocked' : this.pending ? 'Allow alerts in your browser' :
+      on ? 'Disable desktop alerts' : 'Enable desktop alerts';
     this.button.title = !window.isSecureContext ? 'Desktop alerts require HTTPS or localhost.' :
       !supported || this.unavailable ? 'This browser cannot show desktop alerts. The tab still shows the waiting count.' :
       denied ? 'Allow notifications in this site’s browser settings to enable alerts.' :

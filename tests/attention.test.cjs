@@ -183,7 +183,7 @@ test('revoked permission prevents further notifications', () => {
   p.Notification.permission = 'denied';
   p.attention.update([agent('dialog')]);
   assert.equal(p.notices.length, 0);
-  assert.equal(p.button.textContent, 'desktop alerts blocked');
+  assert.equal(p.button.textContent, 'Desktop alerts blocked');
 });
 
 test('blocked browser storage does not break enabling or status updates', async () => {
@@ -199,20 +199,20 @@ test('mobile constructor failures fall back to the tab title', () => {
   p.attention.update([]);
   p.attention.update([agent('dialog')]);
   assert.equal(p.document.title, '(1 waiting) kolo');
-  assert.equal(p.button.textContent, 'desktop alerts unavailable');
+  assert.equal(p.button.textContent, 'Desktop alerts unavailable');
 });
 
 test('permission and asynchronous display errors leave a usable page', async () => {
   const p = page({ permission: 'default', enabled: false });
   p.Notification.requestPermission = async () => { throw Error('unsupported'); };
   await p.button.onclick();
-  assert.equal(p.button.textContent, 'desktop alerts unavailable');
+  assert.equal(p.button.textContent, 'Desktop alerts unavailable');
   const q = page();
   q.attention.update([]);
   q.attention.update([agent('dialog')]);
   q.notices[0].onerror();
   assert.equal(q.notices[0].closed, true);
-  assert.equal(q.button.textContent, 'desktop alerts unavailable');
+  assert.equal(q.button.textContent, 'Desktop alerts unavailable');
 });
 
 
