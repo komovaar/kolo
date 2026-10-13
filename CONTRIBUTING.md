@@ -31,6 +31,12 @@ npx playwright install firefox
 KOLO_BROWSER=firefox node --test --test-name-pattern='session switcher' tests/layout.browser.cjs
 ```
 
+To run all browser checks in Firefox, use `KOLO_BROWSER=firefox npm run test:browser`.
+Firefox phone checks use narrow viewports and touch input; Playwright's
+`isMobile` emulation is Chromium-only.
+
+Interface tokens, layout, and review guidance are in [UI design](docs/ui-design.md).
+
 ## What lands
 
 Build, vet, `gofmt -l .` and the tests clean. CI runs those on Linux and macOS.

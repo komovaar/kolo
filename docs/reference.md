@@ -194,6 +194,7 @@ identifier starts with a new label. The API can clear a label with
 The overview lists sessions with their machine, working directory, and activity.
 Search by session name, program, machine, or directory. **New session** is also
 available in the sidebar while a terminal is open.
+Connected machine details can be collapsed; they open when no machine is available.
 
 Choose **Switch session**, or press **Ctrl+Shift+Space** (**Cmd+Shift+Space** on macOS),
 to search sessions and common actions from any view. Use the arrow keys to
@@ -208,6 +209,7 @@ from the host. Invitations and member access remain managed by `kolo invite`,
 The account menu switches between dark and light appearance. The preference
 is saved for this hub and also applies to sign-in and invitation pages. The
 terminal keeps its dark canvas for consistent program colours.
+Activity entries link to sessions that are still available.
 
 ## Typing and control
 
@@ -281,7 +283,7 @@ offers its questions through a real interface, kolo will use that instead.
 ## Attention alerts
 
 The browser tab title counts running agents whose screens show a question.
-Open your name menu and choose **enable desktop alerts** to also receive a
+Open your name menu and choose **Enable desktop alerts** to also receive a
 desktop notification when an agent starts waiting for an answer. Your browser
 asks permission only when you choose this option. The preference is saved in
 this browser for this hub; use the same menu to disable it.
