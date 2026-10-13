@@ -38,7 +38,7 @@ after(async () => {
 
 async function openSession(viewport, agents = fixture.agents, readOnly = false) {
   const mobile = viewport.width <= 760 || viewport.height <= 500;
-  const page = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile,
+  const page = await browser.newPage({ viewport, isMobile: mobile && browser.browserType().name() === 'chromium', hasTouch: mobile,
     deviceScaleFactor: mobile ? 2 : 1 });
   if (agents !== fixture.agents || readOnly) await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, agents, you: { ...fixture.you, read_only: readOnly } } }));
   const errors = [], resizeRequests = [], keys = [];
@@ -829,6 +829,31 @@ for (const width of [1440, 390]) {
       await link.focus();
       await page.keyboard.press('Enter');
       await page.waitForFunction(() => agentInURL() === 'api-review' && screenReady);
+      assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  });
+}
+
+for (const width of [320, 390]) {
+  test(`session controls remain reachable in a short ${width}px viewport`, async () => {
+    const { page, errors } = await openSession({ width, height: 800 }, workspaceAgents);
+    try {
+      await page.locator('.mobile-switch').click();
+      await page.setViewportSize({ width, height: 350 });
+      await page.waitForFunction(() => document.querySelector('.switch-dialog').getBoundingClientRect().bottom <= innerHeight + 1);
+      const dialog = await page.locator('.switch-dialog').boundingBox();
+      assert.ok(dialog.y >= 0 && dialog.y + dialog.height <= 351);
+      assert.equal(await page.getByRole('combobox').evaluate((node) => node === document.activeElement), true);
+      await saveReview(page, `switcher-short-${width}`);
+      await page.getByRole('combobox').fill('new session');
+      await page.keyboard.press('Enter');
+      await page.getByLabel('Directory', { exact: true }).fill('/work/api');
+      await page.getByRole('button', { name: 'Start session', exact: true }).scrollIntoViewIfNeeded();
+      const submit = await page.getByRole('button', { name: 'Start session', exact: true }).boundingBox();
+      assert.ok(submit.y >= 0 && submit.y + submit.height <= 351);
+      assert.equal(await page.getByLabel('Directory', { exact: true }).evaluate((node) => getComputedStyle(node).fontSize), '16px');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('.mobile-menu').evaluate((node) => node === document.activeElement), true);
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   });

@@ -55,6 +55,6 @@ code { font-family: var(--kolo-mono); letter-spacing: 0; }
 @media (pointer: coarse) { .go, .icon-btn { min-height: 44px; } .icon-btn { min-width: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 760px) {
   .auth input:not([type=hidden]) { min-height: 44px; font-size: 16px; }
 }

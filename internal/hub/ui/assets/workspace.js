@@ -4,6 +4,12 @@
   const scrim = el('.switch-scrim');
   const query = el('.switch-query');
   const results = el('.switch-results');
+  function updateOverlayHeight() {
+    document.documentElement.style.setProperty('--kolo-visual-height', `${window.visualViewport?.height || innerHeight}px`);
+  }
+  updateOverlayHeight();
+  addEventListener('resize', updateOverlayHeight);
+  window.visualViewport?.addEventListener('resize', updateOverlayHeight);
   let opener = null;
   let options = [];
   let selected = 0;
@@ -81,8 +87,9 @@
       } },
       { key: 'action:activity', name: 'Open activity log', icon: '.log-open svg', run: () => {
         location.hash = '#/log';
-        el('.log-head h2').tabIndex = -1;
-        requestAnimationFrame(() => el('.log-head h2').focus());
+        const title = sidebarMedia.matches ? el('.mobile-title') : el('.log-head h2');
+        title.tabIndex = -1;
+        requestAnimationFrame(() => title.focus());
       } },
     ];
     if (canControl() && hosts.some((host) => host.allow?.length && host.dirs?.length)) {

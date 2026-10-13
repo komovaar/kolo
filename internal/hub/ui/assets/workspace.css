@@ -311,3 +311,13 @@
 @media (max-width: 420px) {
   .entry { grid-template-columns: 70px minmax(0, 1fr) 100px; padding-inline: var(--kolo-space-3); }
 }
+
+/* Use the visible viewport for overlays when a software keyboard is open. */
+.scrim, .switch-scrim { height: min(var(--kolo-visual-height, 100dvh), 100dvh); }
+@media (pointer: coarse), (max-width: 760px) {
+  .dialog input, .dialog select, .dialog input:is([name=dir], [name=command], [name=name]) { font-size: 16px; min-height: 44px; }
+  .switch-query { font-size: 16px; }
+}
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .log-head { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); }
+}
