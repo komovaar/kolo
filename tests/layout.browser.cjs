@@ -110,6 +110,7 @@ test('live activity immediately updates the sidebar indicator and its label', as
         document.querySelector(`.agent ${selector}`)?.getAttribute('aria-label') === label,
       { selector, label }, { timeout: 1000 });
       assert.equal(await page.locator('.session-head .session-state').textContent(), label);
+      assert.equal(await page.locator('.agent .session-state').count(), 0);
     }
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
@@ -224,7 +225,7 @@ test('agent marks share a monochrome vector style without icon backgrounds', asy
   const { page, errors } = await openSession({ width: 1440, height: 900 });
   try {
     await page.locator('.agent .kind-chip svg').waitFor();
-    await page.locator('.side .new').click();
+    await page.locator('.group-head .add').first().click();
     for (const program of ['codex', 'claude', 'opencode']) {
       const icon = page.locator(`.kind-picker svg[data-agent="${program}"]`);
       await icon.waitFor();
@@ -307,7 +308,7 @@ test('creation accepts a typed folder and generates a name when left blank', asy
       }
       return route.fulfill({ json: fixture });
     });
-    await page.locator('.side .new').click();
+    await page.locator('.group-head .add').first().click();
     await page.locator('input[name=dir]').fill('/work/another-project');
     await page.locator('#new-name').focus();
     assert.equal(await page.locator('#new-name').evaluate((e) => getComputedStyle(e).outlineColor), 'rgb(44, 111, 98)');
