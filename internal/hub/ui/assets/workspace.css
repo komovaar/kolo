@@ -21,6 +21,7 @@
 .drop:hover { color: var(--kolo-fg-danger); }
 .group-head .chip svg { width: 14px; height: 14px; }
 .no-hosts code, .session-directory, .session-machine, .session-context, .entry .at, .entry .on, .entry .said { font-family: var(--kolo-mono); }
+.screen, .agent .dir, .session-directory, .session-machine, .session-context, .entry .at, .entry .on, .entry .said { letter-spacing: 0; }
 .session-directory, .session-context { font-size: var(--kolo-type-caption); }
 .section-heading h2 { font-size: var(--kolo-type-body); }
 .session-link { min-height: 60px; }

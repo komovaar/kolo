@@ -45,15 +45,15 @@
   --kolo-space-6: 24px;
   --kolo-space-8: 32px;
   --kolo-type-small: 12px;
-  --kolo-type-caption: 11px;
+  --kolo-type-caption: 12px;
   --kolo-type-body: 13px;
-  --kolo-type-heading: 16px;
-  --kolo-type-title: 24px;
+  --kolo-type-heading: 14px;
+  --kolo-type-title: 20px;
   --kolo-radius: 6px;
 
   /* type */
   --kolo-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --kolo-sans: "Archivo", system-ui, sans-serif;
+  --kolo-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --kolo-mono-line: 1.17;   /* ASCII grid depends on this exact value */
   --kolo-cell-aspect: 0.5146;
   --kolo-wordmark-tracking: 0.06em;
