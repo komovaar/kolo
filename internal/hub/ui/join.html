@@ -15,11 +15,11 @@
 </head>
 <body class="auth" data-org="{{.Org}}">
 <main class="auth-content">
-  <div class="auth-brand"><img src="/assets/icon-32.png" alt="">kolo</div>
+  <div class="auth-brand"><svg width="20" height="20" viewBox="0 0 22 22" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M0.88,11 a10.12,10.12 0 1,0 20.24,0 a10.12,10.12 0 1,0 -20.24,0 Z M5.1194,9.6954 a7.1852,7.1852 0 1,0 14.3704,0 a7.1852,7.1852 0 1,0 -14.3704,0 Z"/></svg><span class="kolo-wordmark">kolo</span></div>
   <h1>Join <span class="org"></span></h1>
 
   <section class="ask" hidden>
-    <p id="name-help">Join your team’s shared coding workspace. Your name appears when you interact with a session.</p>
+    <p id="name-help">Use the name your teammates will recognize.</p>
     <form method="post" action="/join">
       <input name="invite" type="hidden">
       <label for="join-name">Your name</label>
@@ -30,8 +30,7 @@
 
   <p role="alert" class="problem nolink" hidden>This link is missing its invite. Ask for the whole
      of it. Everything after the <code>#</code> is the part that matters.</p>
-  <p role="alert" class="problem refused" hidden>This invite no longer works. Ask whoever runs
-     kolo for another.</p>
+  <p role="alert" class="problem refused" hidden>This invite is no longer available. Ask the host for a new link.</p>
 
   <p class="source">Kolo is AGPL-3.0 free software. <a href="https://github.com/whosgotch/kolo">View source</a></p>
 </main>
