@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -298,6 +299,11 @@ func (a *Agents) launch(name string) error {
 	kind := adapter.For(spec.Command)
 	// After the lent arguments, so the agent comes back as it was started.
 	argv, resumed := adapter.Argv(spec.Command), false
+	if isCodex(spec.Command) {
+		// Only the conversation title: project and activity components would
+		// otherwise rename the session on every change of working state.
+		argv = append(argv, "-c", `tui.terminal_title=["thread-title"]`)
+	}
 	switch {
 	case p.fresh && len(kind.Pin) > 0:
 		id := newSessionID()
@@ -509,6 +515,7 @@ func (a *Agents) watch(ctx context.Context, name string, kind adapter.Adapter, l
 	defer ticker.Stop()
 
 	was := detect.Unknown
+	titleTick := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -524,7 +531,52 @@ func (a *Agents) watch(ctx context.Context, name string, kind adapter.Adapter, l
 		if id := kind.SessionFrom(live.Text()); id != "" {
 			a.remember(name, live, id)
 		}
+		titleTick++
+		if titleTick%5 == 0 {
+			a.readTitle(name, live)
+		}
 	}
+}
+
+func isCodex(command string) bool {
+	argv := adapter.Argv(command)
+	return len(argv) > 0 && filepath.Base(argv[0]) == "codex"
+}
+
+func (a *Agents) readTitle(name string, live *session.Session) {
+	title := strings.TrimSpace(live.Title())
+	if title == "Codex" {
+		title = ""
+	}
+	a.mu.Lock()
+	p, ok := a.running[name]
+	if !ok || p.live != live || p.status != hub.StatusRunning || !isCodex(p.spec.Command) {
+		a.mu.Unlock()
+		return
+	}
+	changed := p.spec.Title != title
+	if title == "" && !changed {
+		a.mu.Unlock()
+		return
+	}
+	p.spec.Title = title
+	report := titleReport{Type: "title", Name: name, CreatedAt: p.spec.CreatedAt, Title: title}
+	a.mu.Unlock()
+	if changed {
+		a.save()
+	}
+	// Repeat so a full report buffer cannot leave the hub with an old title.
+	select {
+	case a.reports <- report:
+	default:
+	}
+}
+
+type titleReport struct {
+	Type      string    `json:"type"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	Title     string    `json:"title"`
 }
 
 func (a *Agents) reading(name string, live *session.Session, now detect.State) {

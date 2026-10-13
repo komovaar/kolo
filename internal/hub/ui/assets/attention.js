@@ -80,7 +80,7 @@ globalThis.KoloAttention = class {
   renderTitle(agents) {
     const name = this.selected();
     const agent = agents.find((a) => a.name === name);
-    const title = name ? `${agent?.label || agent?.name || name} · ${this.title}` : this.title;
+    const title = name ? `${agent?.label || agent?.title || agent?.name || name} · ${this.title}` : this.title;
     document.title = this.waiting ? `(${this.waiting} waiting) ${title}` : title;
   }
 
@@ -109,7 +109,7 @@ globalThis.KoloAttention = class {
       if (!this.ready || seen || watching || !this.enabled || this.button.disabled ||
           Notification.permission !== 'granted') continue;
       try {
-        const notice = new Notification(`${a.label || a.name} needs you`, {
+        const notice = new Notification(`${a.label || a.title || a.name} needs you`, {
           body: 'Open Kolo to read and answer the question.',
           icon: '/assets/icon-180.png',
           tag: `kolo-attention-${a.name}`,

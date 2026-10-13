@@ -175,13 +175,18 @@ they are allowed to share a directory.
 
 Sharing a directory still means sharing its files. Kolo does not referee that.
 
+**Codex sessions use their conversation title automatically.** Kolo asks Codex
+to emit only its thread title as the terminal window title and displays it in
+the sidebar, session header, log and alerts when available. Until then, the
+session identifier is shown. Other programs keep their existing names.
+
 **Session labels are saved on the hub.** Double-click a session's name in the
 sidebar to rename it. This changes its display label; the session identifier,
 URLs and host command stay the same. A successful rename is saved before the
 hub confirms it and survives browser reloads, host reconnects, and hub or host
 restarts. Labels belong to the exact session, so stopping it and reusing the
 identifier starts with a new label. The API can clear a label with
-`PATCH /v1/agents/{name}` and `{"label":""}` to display its identifier again.
+`PATCH /v1/agents/{name}` and `{"label":""}` to display its automatic title (or identifier when no title is available).
 
 ## Typing and control
 

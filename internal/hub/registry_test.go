@@ -319,3 +319,31 @@ func TestDisconnectedSessionsCannotBeControlledAndReconcile(t *testing.T) {
 		t.Fatal("reconnect retained a session absent from host")
 	}
 }
+
+func TestAutomaticTitleIsScopedToSessionAndPreservesManualLabel(t *testing.T) {
+	r := registryFixture(t)
+	_, err := r.Add(agentFixture("work", "/work/api"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := r.Agents()[0]
+	if !r.setTitle("devbox", "work", a.CreatedAt, "Resize sidebar with mouse") {
+		t.Fatal("title refused")
+	}
+	if _, err := r.setLabel("work", "My own name", func(Agent) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if !r.setTitle("devbox", "work", a.CreatedAt, "Updated title") {
+		t.Fatal("title update refused")
+	}
+	got := r.Agents()[0]
+	if got.Label != "My own name" || got.Title != "Updated title" || got.Name != "work" {
+		t.Fatalf("agent: %+v", got)
+	}
+	if r.setTitle("other-host", "work", a.CreatedAt, "Wrong host") {
+		t.Fatal("wrong host accepted")
+	}
+	if r.setTitle("devbox", "work", a.CreatedAt.Add(1), "Reused name") {
+		t.Fatal("wrong session accepted")
+	}
+}

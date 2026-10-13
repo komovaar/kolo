@@ -447,6 +447,8 @@ func (s *Server) handleHost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		switch report.Type {
+		case "title":
+			s.registry.setTitle(h.ID, report.Name, report.CreatedAt, report.Title)
 		case "status":
 			accepted := s.registry.SetStatus(h.ID, report.Name, report.Status, label(report.Error, maxError))
 			if accepted && report.Status == StatusFailed {
@@ -945,6 +947,7 @@ type hostWelcome struct {
 }
 
 type agentReport struct {
+	Title         string         `json:"title,omitempty"`
 	CreatedAt     time.Time      `json:"created_at"`
 	ContextResets []ContextReset `json:"context_resets,omitempty"`
 	Type          string         `json:"type"`

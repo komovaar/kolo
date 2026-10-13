@@ -46,6 +46,12 @@ func New(cols, rows int, markers detect.Markers) *Session {
 
 func (s *Session) Markers() detect.Markers { return s.markers }
 
+func (s *Session) Title() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.screen.Title()
+}
+
 func (s *Session) Viewers() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

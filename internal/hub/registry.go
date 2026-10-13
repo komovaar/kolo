@@ -62,6 +62,7 @@ func (h *host) resumesByName(command string) bool {
 type Agent struct {
 	Name          string         `json:"name"`
 	Label         string         `json:"label,omitempty"`
+	Title         string         `json:"title,omitempty"`
 	Host          string         `json:"host"`
 	Dir           string         `json:"dir"`
 	Command       string         `json:"command"`
@@ -144,6 +145,7 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 		a.Host = id
 		a.retry = 0
 		a.Label = label(a.Label, maxLabel)
+		a.Title = label(a.Title, maxLabel)
 		a.Error = label(a.Error, maxError)
 		h.agents[a.Name] = &a
 	}
@@ -280,6 +282,17 @@ func (r *Registry) setLabel(name, value string, save func(Agent) error) (Agent, 
 	}
 	a.Label = value
 	return *a, nil
+}
+
+func (r *Registry) setTitle(host, name string, created time.Time, title string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, h := r.find(name)
+	if h == nil || h.send == nil || h.info.ID != host || !a.CreatedAt.Equal(created) {
+		return false
+	}
+	a.Title = label(title, maxLabel)
+	return true
 }
 
 func (r *Registry) Sender(name string) (Sender, bool) {

@@ -94,6 +94,22 @@ async function assertFits(page) {
   assert.equal(metrics.fontSize, 14);
 }
 
+test('Codex titles appear in navigation and manual labels take precedence', async () => {
+  for (const label of ['', 'My custom name']) {
+    const title = 'Resize sidebar with mouse';
+    const { page, errors } = await openSession({ width: 1440, height: 900 },
+      [{ ...fixture.agents[0], title, label }]);
+    try {
+      const expected = label || title;
+      assert.equal(await page.locator('.session-title').textContent(), expected);
+      assert.equal(await page.locator('.agent .name').textContent(), expected);
+      assert.equal(await page.locator('.agent .drop').getAttribute('aria-label'), `Stop session ${expected}`);
+      assert.ok((await page.title()).startsWith(expected));
+      assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  }
+});
+
 test('sidebar dragging clamps, persists, and refits the terminal', async () => {
   const { page, errors } = await openSession({ width: 1440, height: 900 });
   try {

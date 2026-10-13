@@ -98,6 +98,12 @@ func (s *Screen) Size() (cols, rows int) {
 	return s.term.Size()
 }
 
+func (s *Screen) Title() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.term.Title()
+}
+
 // Text is the screen as plain rows, one per line.
 func (s *Screen) Text() string { return s.term.String() }
 

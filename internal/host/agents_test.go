@@ -543,10 +543,10 @@ sleep 30
 	}
 	nextReport(t, a)
 	waitFor(t, func() bool {
-		return strings.Contains(screenOf(t, a, "checkups").Text(), "args [--model gpt-6]")
+		return strings.Contains(screenOf(t, a, "checkups").Text(), "args [--model gpt-6 -c tui.terminal_title=[\"thread-title\"]]")
 	})
 
-	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6]")
+	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6 -c tui.terminal_title=[\"thread-title\"]]")
 	a.mu.Lock()
 	resets := len(a.running["checkups"].spec.ContextResets)
 	a.mu.Unlock()
@@ -555,8 +555,8 @@ sleep 30
 	}
 	screenOf(t, a, "checkups").Write([]byte("\r\nTo continue this session, run codex resume 12345678-1234-1234-1234-123456789abc\r\n"))
 	waitFor(t, func() bool { return sessionOf(t, a, "checkups") == "12345678-1234-1234-1234-123456789abc" })
-	bounce(t, a, "checkups", a.Restart, "args [--model gpt-6 resume 12345678-1234-1234-1234-123456789abc]")
-	bounce(t, a, "checkups", a.Fresh, "args [--model gpt-6]")
+	bounce(t, a, "checkups", a.Restart, "resume 12345678-1234-1234-1234-123456789abc]")
+	bounce(t, a, "checkups", a.Fresh, "args [--model gpt-6 -c tui.terminal_title=[\"thread-title\"]]")
 }
 
 func TestRestartResumesAndFreshDoesNot(t *testing.T) {
@@ -893,5 +893,45 @@ func TestResizeRejectsInvalidDimensions(t *testing.T) {
 		if err := a.Resize("missing", size[0], size[1]); err == nil || !strings.Contains(err.Error(), "invalid terminal") {
 			t.Fatalf("size %v: %v", size, err)
 		}
+	}
+}
+
+func TestCodexConversationTitleReportsAndPersists(t *testing.T) {
+	a, dir := agentsFixture(t)
+	a.state = filepath.Join(dir, "state.json")
+	live := session.New(120, 40, detect.Markers{})
+	created := time.Now().UTC()
+	a.running["work"] = &process{spec: hub.Agent{Name: "work", Dir: dir, Command: "codex", CreatedAt: created}, live: live, status: hub.StatusRunning}
+	live.Write([]byte("\x1b]2;Resize sidebar "))
+	live.Write([]byte("with mouse\x1b\\"))
+	a.readTitle("work", live)
+	report := (<-a.reports).(titleReport)
+	if report.Title != "Resize sidebar with mouse" || !report.CreatedAt.Equal(created) {
+		t.Fatalf("report: %+v", report)
+	}
+	saved, err := ReadState(a.state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Agents[0].Spec.Title != report.Title {
+		t.Fatalf("saved: %+v", saved)
+	}
+	a.readTitle("work", live)
+	if (<-a.reports).(titleReport).Title != report.Title {
+		t.Fatal("title not repeated for delivery recovery")
+	}
+	a.running["work"].spec.Command = "sh"
+	a.readTitle("work", live)
+	select {
+	case r := <-a.reports:
+		t.Fatalf("shell title reported: %+v", r)
+	default:
+	}
+	a.running["work"].spec.Command = "codex"
+	a.readTitle("work", session.New(120, 40, detect.Markers{}))
+	select {
+	case r := <-a.reports:
+		t.Fatalf("stale screen reported: %+v", r)
+	default:
 	}
 }

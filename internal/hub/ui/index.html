@@ -964,7 +964,7 @@ function drawSession() {
   const name = agentInURL();
   const agent = lastAgents.find((a) => a.name === name);
   const state = sessionState(agent, !!agent && hosts.some((h) => h.id === agent.host));
-  el('.session-title').textContent = agent ? (agent.label || agent.name) : name || 'Session';
+  el('.session-title').textContent = agent ? (agent.label || agent.title || agent.name) : name || 'Session';
   el('.session-context').textContent = agent
     ? `${agent.host} · ${agent.command} · ${agent.dir}` : 'Waiting for session details';
   el('.session-head .session-state').textContent = state.label;
@@ -996,7 +996,7 @@ let renameDraft = '';
 function startRename(a) {
   if (!canControl()) return;
   renamingId = a.name;
-  renameDraft = a.label || a.name;
+  renameDraft = a.label || a.title || a.name;
   drawGroups(lastAgents);
 }
 
@@ -1012,7 +1012,7 @@ async function commitRename() {
   const current = lastAgents.find((a) => a.name === id);
   // Nothing worth a round trip: empty is a mis-click, unchanged is a blur
   // that wasn't really an edit.
-  if (!id || !draft || (current && draft === (current.label || current.name))) {
+  if (!id || !draft || (current && draft === (current.label || current.title || current.name))) {
     cancelRename();
     return;
   }
@@ -1179,7 +1179,7 @@ function renderGroups(agents) {
       } else {
         const name = document.createElement('span');
         name.className = 'name';
-        name.textContent = a.label || a.name;
+        name.textContent = a.label || a.title || a.name;
         name.title = canControl() ? 'double-click to rename' : 'read-only access';
         name.ondblclick = (ev) => { ev.stopPropagation(); startRename(a); };
         rowInner.append(name);
@@ -1195,7 +1195,7 @@ function renderGroups(agents) {
       drop.disabled = !hostInfo;
       drop.className = 'drop';
       drop.dataset.focusKey = JSON.stringify(['stop', a.host, a.name, a.created_at]);
-      drop.title = `Stop session ${a.label || a.name}`;
+      drop.title = `Stop session ${a.label || a.title || a.name}`;
       drop.setAttribute('aria-label', drop.title);
       drop.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>';
       drop.onclick = (ev) => { ev.stopPropagation(); stop(a.name); };
@@ -1967,7 +1967,7 @@ function when(at) {
 // the name, which is what survives a rename.
 function labelOf(name) {
   const a = lastAgents.find((x) => x.name === name);
-  return (a && a.label) || name;
+  return (a && (a.label || a.title)) || name;
 }
 
 
