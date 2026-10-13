@@ -182,12 +182,32 @@ the sidebar, session header, log and alerts when available. Until then, the
 session identifier is shown. Other programs keep their existing names.
 
 **Session labels are saved on the hub.** Double-click a session's name in the
-sidebar to rename it. This changes its display label; the session identifier,
+sidebar, or focus its row and press **F2**, to rename it. This changes its display label; the session identifier,
 URLs and host command stay the same. A successful rename is saved before the
 hub confirms it and survives browser reloads, host reconnects, and hub or host
 restarts. Labels belong to the exact session, so stopping it and reusing the
 identifier starts with a new label. The API can clear a label with
 `PATCH /v1/agents/{name}` and `{"label":""}` to display its automatic title (or identifier when no title is available).
+
+### Finding and sharing sessions
+
+The overview lists sessions with their machine, working directory, and activity.
+Search by session name, program, machine, or directory. **New session** is also
+available in the sidebar while a terminal is open.
+
+Choose **Switch session**, or press **Ctrl+Shift+Space** (**Cmd+Shift+Space** on macOS),
+to search sessions and common actions from any view. Use the arrow keys to
+select a result, **Enter** to open it, and **Escape** to return to your work.
+The shell's **Ctrl+K** shortcut remains available.
+
+Open **Share session** in the terminal header to copy its link. This link opens
+the same session for existing workspace members; new teammates need an invite
+from the host. Invitations and member access remain managed by `kolo invite`,
+`kolo who`, and the organization file.
+
+The account menu switches between dark and light appearance. The preference
+is saved for this hub and also applies to sign-in and invitation pages. The
+terminal keeps its dark canvas for consistent program colours.
 
 ## Typing and control
 

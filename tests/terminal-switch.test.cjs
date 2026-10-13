@@ -19,7 +19,7 @@ function page() {
   let nextTimer = 0;
   const el = (selector) => {
     if (!nodes.has(selector)) nodes.set(selector, {
-      children: [], classList: { toggle() {} }, replaceChildren() { this.children = []; }, append(child) { this.children.push(child); },
+      children: [], classList: { toggle() {} }, focus() { this.focused = true; }, setAttribute() {}, replaceChildren() { this.children = []; }, append(child) { this.children.push(child); },
     });
     return nodes.get(selector);
   };

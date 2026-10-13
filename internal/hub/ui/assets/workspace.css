@@ -1,0 +1,92 @@
+/* Workspace refinements share the same surfaces and controls as entry pages. */
+.brand { padding: var(--kolo-space-1) var(--kolo-space-2); gap: var(--kolo-space-2); }
+.brand-name { font-size: var(--kolo-type-body); }
+.side-tools { display: grid; gap: var(--kolo-space-2); padding: var(--kolo-space-3); }
+.switch-open { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; padding: var(--kolo-space-1); border-radius: var(--r); text-align: left; color: var(--dim); }
+.switch-open:hover { color: var(--text); background: var(--raised-hover); }
+.switch-open span { flex: 1; }
+.switch-shortcut { font-size: 10px; padding: 1px 3px; }
+.side-new { width: 100%; min-height: 32px; font-size: var(--kolo-type-small); }
+.side-caption { padding-top: var(--kolo-space-2); text-transform: none; letter-spacing: 0; }
+.side-overview { min-height: 36px; }
+.side-overview[aria-current=page] { background: var(--raised-hover); }
+.agent { padding: var(--kolo-space-2) var(--kolo-space-2) var(--kolo-space-2) var(--kolo-space-4); }
+.agent:hover, .group-head:hover, .me:hover { background: var(--raised-hover); }
+.agent.on { background: var(--kolo-selection); }
+.agent.on::before { background: var(--kolo-fg-success); }
+.agent.on .name, .agent .rename, .kind-choice.on, .kind-choice.on .kind-chip, .me .initial { color: var(--text); }
+.agent .dir { padding-left: 28px; font: var(--kolo-type-caption)/1.5 var(--kolo-mono); }
+.agent .drop { opacity: 0; }
+.agent:hover .drop, .agent:focus-within .drop { opacity: 1; }
+.drop:hover { color: var(--kolo-fg-danger); }
+.group-head .chip svg { width: 14px; height: 14px; }
+.no-hosts code, .session-directory, .session-machine, .session-context, .entry .at, .entry .on, .entry .said { font-family: var(--kolo-mono); }
+.session-directory, .session-context { font-size: var(--kolo-type-caption); }
+.section-heading h2 { font-size: var(--kolo-type-body); }
+.session-link { min-height: 60px; }
+.session-link:hover { background: var(--raised); }
+.overview-state[data-state=busy], .overview-state[data-state=idle], .session-state[data-state=busy], .session-state[data-state=idle] { color: var(--dim); }
+.overview-state[data-state=busy]::before { background: var(--kolo-state-idle); }
+.session-state[data-state=dialog], .overview-state[data-state=dialog], .overview-state[data-state=starting], .workspace-message { color: var(--kolo-state-running); }
+.overview-state[data-state=starting]::before { background: var(--kolo-state-running); }
+.session-badges { flex: none; }
+.watch-bar .note:empty { display: none; }
+.watch-bar .note { font-size: var(--kolo-type-caption); }
+.watch-bar .session-access { font-size: var(--kolo-type-caption); }
+.session-connection[data-state=pending] { color: var(--kolo-state-running); }
+.watch-bar .restart { text-transform: capitalize; }
+.session-head { position: relative; }
+.session-share { flex: none; }
+.session-share > summary { list-style: none; }
+.session-share > summary::-webkit-details-marker { display: none; }
+.share-panel { position: absolute; top: calc(100% + 8px); right: 12px; z-index: 12; width: min(360px, calc(100vw - 24px)); padding: var(--kolo-space-4); border: 1px solid var(--line); border-radius: var(--r); background: var(--raised); }
+.share-panel label { display: block; margin-bottom: var(--kolo-space-2); font-weight: 500; }
+.share-link-row { display: flex; gap: var(--kolo-space-2); }
+.share-link-row input { width: 100%; min-width: 0; padding: var(--kolo-space-2); border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); font: var(--kolo-type-caption) var(--kolo-mono); }
+.share-panel p { color: var(--dim); font-size: var(--kolo-type-small); margin: var(--kolo-space-3) 0 0; }
+.share-panel .share-feedback:empty { display: none; }
+.share-panel .share-feedback.problem { color: var(--kolo-fg-danger); }
+.session-share[open] > summary { color: var(--text); background: var(--raised-hover); }
+.switch-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: min(12vh, 80px) var(--kolo-space-4) var(--kolo-space-4); background: #0008; }
+.switch-dialog { width: 560px; max-width: 100%; max-height: 100%; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.switch-head { display: flex; align-items: center; justify-content: space-between; padding: var(--kolo-space-2) var(--kolo-space-4); }
+.switch-head h2 { font-size: var(--kolo-type-body); font-weight: 500; margin: 0; }
+.switch-search { display: flex; align-items: center; gap: var(--kolo-space-3); padding: var(--kolo-space-3) var(--kolo-space-4); border-block: 1px solid var(--line); color: var(--dim); }
+.switch-search:focus-within { border-bottom-color: var(--kolo-focus-ring); }
+.switch-query { width: 100%; min-width: 0; outline: none; }
+.switch-query:focus-visible { outline: none; }
+.switch-results { overflow-y: auto; min-height: 0; padding: var(--kolo-space-2); }
+.switch-option { display: flex; align-items: center; gap: var(--kolo-space-3); padding: var(--kolo-space-2); min-height: 44px; border-radius: var(--r); cursor: pointer; }
+.switch-option[aria-selected=true] { background: var(--kolo-selection); }
+.switch-option:hover { background: var(--raised-hover); }
+.switch-option .kind-chip { width: 20px; }
+.switch-copy { flex: 1; min-width: 0; }
+.switch-name, .switch-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switch-name { font-weight: 500; }
+.switch-meta { font: var(--kolo-type-caption)/1.5 var(--kolo-mono); color: var(--dim); margin-top: var(--kolo-space-1); }
+.switch-option .overview-state { flex: none; }
+.switch-current { font-size: var(--kolo-type-caption); color: var(--dim); }
+.switch-option:not(.switch-action) + .switch-action { border-top: 1px solid var(--line); margin-top: var(--kolo-space-1); }
+.switch-foot { display: flex; align-items: center; gap: var(--kolo-space-4); padding: var(--kolo-space-3) var(--kolo-space-4); border-top: 1px solid var(--line); color: var(--dim); font-size: var(--kolo-type-caption); }
+.switch-empty { color: var(--dim); padding: var(--kolo-space-4); margin: 0; }
+.mobile-switch { margin-left: auto; }
+:is(.side-resize, .agent, .me, .session-search, .dialog input, .dialog select):focus-visible { outline-color: var(--kolo-focus-ring); }
+.session-search:focus-within { outline-color: var(--kolo-focus-ring); }
+@media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
+  .session-head { overflow: visible; max-height: none; }
+  .session-info { max-height: min(120px, 25dvh); overflow-y: auto; }
+  .session-context { font-size: var(--kolo-type-caption); }
+  .status-details { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .session-access { display: inline; }
+  .mobile-menu { display: flex; align-items: center; gap: var(--kolo-space-2); padding: var(--kolo-space-2); }
+  .mobile-title { font-weight: 500; }
+  .switch-option .overview-state { display: none; }
+  .home-guide { font-size: var(--kolo-type-small); }
+  .share-panel { right: 8px; }
+  .switch-scrim { padding-top: var(--kolo-space-4); }
+}
+@media (pointer: coarse) {
+  .switch-open, .side-new, .agent, .side-overview { min-height: 44px; }
+  .agent .drop { opacity: 0.8; }
+  .session-search { min-height: 44px; }
+}

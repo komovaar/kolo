@@ -13,7 +13,7 @@ function page() {
   let resets = 0, closed = 0, nextTimer = 0;
   const el = (selector) => {
     if (!nodes.has(selector)) nodes.set(selector, {
-      textContent: 'private', children: ['private'], classList: { toggle() {} },
+      textContent: 'private', children: ['private'], classList: { toggle() {} }, focus() { this.focused = true; }, setAttribute() {},
       replaceChildren() { this.children = []; },
     });
     return nodes.get(selector);
@@ -57,10 +57,12 @@ test('authentication loss closes the terminal, clears private state, and stays s
   assert.equal(p.resets(), 1);
   assert.equal(p.el('.context-warning').hidden, true);
   assert.equal(p.el('.context-warning-text').textContent, '');
-  for (const selector of ['.groups', '.host-cards', '.log-rows']) {
+  for (const selector of ['.groups', '.host-cards', '.session-list', '.log-rows']) {
     assert.deepEqual(p.el(selector).children, []);
   }
   assert.deepEqual(p.views, ['signin']);
+  assert.equal(p.el('#signin-token').focused, true);
+  assert.equal(p.el('.session-query').value, '');
   socket.onmessage({ data: new ArrayBuffer(1) });
   assert.deepEqual(p.writes, []);
   p.context.fetch = () => { throw new Error('signed-out page tried to authenticate again'); };

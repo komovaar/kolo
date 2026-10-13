@@ -28,6 +28,29 @@
   --kolo-accent: var(--kolo-patina);
   --kolo-focus: var(--kolo-patina);
 
+  /* Readable foregrounds on the dark canvas; state dots keep their hues. */
+  --kolo-fg-subtle: color-mix(in srgb, var(--kolo-chalk) 30%, var(--kolo-slate));
+  --kolo-fg-danger: color-mix(in srgb, var(--kolo-fail) 60%, var(--kolo-chalk));
+  --kolo-fg-success: color-mix(in srgb, var(--kolo-patina) 55%, var(--kolo-chalk));
+  --kolo-border: color-mix(in srgb, var(--kolo-slate) 35%, var(--kolo-bg));
+  --kolo-surface-hover: #242a2c;
+  --kolo-selection: #263b36;
+  --kolo-focus-ring: var(--kolo-brass);
+  color-scheme: dark;
+
+  --kolo-space-1: 4px;
+  --kolo-space-2: 8px;
+  --kolo-space-3: 12px;
+  --kolo-space-4: 16px;
+  --kolo-space-6: 24px;
+  --kolo-space-8: 32px;
+  --kolo-type-small: 12px;
+  --kolo-type-caption: 11px;
+  --kolo-type-body: 13px;
+  --kolo-type-heading: 16px;
+  --kolo-type-title: 24px;
+  --kolo-radius: 6px;
+
   /* type */
   --kolo-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --kolo-sans: "Archivo", system-ui, sans-serif;
@@ -37,11 +60,19 @@
 }
 
 [data-theme="light"] {
-  --kolo-bg: var(--kolo-chalk);
-  --kolo-bg-raised: #F1F2EE;
+  --kolo-bg: #FAFBF9;
+  --kolo-bg-raised: #F0F2EF;
   --kolo-fg: var(--kolo-void);
   --kolo-fg-muted: var(--kolo-slate);
   --kolo-state-running: var(--kolo-brass-ink);
+  --kolo-fg-subtle: #505955;
+  --kolo-fg-danger: var(--kolo-fail);
+  --kolo-fg-success: var(--kolo-patina);
+  --kolo-border: #D4D9D5;
+  --kolo-surface-hover: #E6EAE6;
+  --kolo-selection: #E0EAE4;
+  --kolo-focus-ring: var(--kolo-brass-ink);
+  color-scheme: light;
 }
 
 /* The mark, wherever it is rendered as text. */

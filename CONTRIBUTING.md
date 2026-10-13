@@ -24,6 +24,13 @@ These are development dependencies only; the shipped binary still embeds all
 browser assets. Linux CI installs Chromium and runs the same checks.
 Set `KOLO_SCREENSHOT_DIR=/tmp/kolo-layout` when running them to save screenshots.
 
+The session switcher also has Firefox keyboard checks:
+
+```sh
+npx playwright install firefox
+KOLO_BROWSER=firefox node --test --test-name-pattern='session switcher' tests/layout.browser.cjs
+```
+
 ## What lands
 
 Build, vet, `gofmt -l .` and the tests clean. CI runs those on Linux and macOS.

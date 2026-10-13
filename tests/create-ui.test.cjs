@@ -75,6 +75,7 @@ function creationPage(fetch, refresh) {
   const request = { name: 'work', host: 'devbox', dir: '/work', command: 'sh' };
   const context = vm.createContext({
     canControl: () => true, signedIn: true, authRun: 0, createPending: false,
+    document: { activeElement: null },
     pickedCommand: 'sh', fetch, refresh, location: {},
     FormData: class { get(key) { return request[key]; } },
     el: () => ({ hidden: true }), say: (_, text) => notes.push(text),

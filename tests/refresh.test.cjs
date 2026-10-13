@@ -18,7 +18,7 @@ function page() {
   const context = vm.createContext({
     retryPending: null, reconcileWatch() {},
     refreshRun: 0, authRun: 0, authLost: false, signedIn: false, renamingId: null, location: { search: '' },
-    el: () => ({ classList: { toggle() {} }, replaceChildren() {} }),
+    el: () => ({ classList: { toggle() {} }, replaceChildren() {}, focus() {}, setAttribute() {} }),
     close() {}, term: { reset() {} },
     show: (name) => screens.push(name), drawGroups() {}, drawChoices() {}, drawHome() {}, drawSession() {}, applyAccess() {},
     attention: { update: (agents) => updates.push(agents[0].name), reset: () => { resets++; } },
