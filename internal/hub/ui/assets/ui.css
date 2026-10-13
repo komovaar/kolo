@@ -6,7 +6,7 @@
   --line: var(--kolo-border);
   --text: var(--kolo-fg);
   --dim: var(--kolo-fg-subtle);
-  --faint: var(--kolo-fg-subtle);
+  --faint: var(--kolo-fg-muted);
   --structure: var(--kolo-accent);
   --ui: var(--kolo-sans);
   --r: var(--kolo-radius);
@@ -25,12 +25,16 @@ input::placeholder { color: var(--dim); opacity: 1; }
 .icon-btn { background: none; border: 1px solid transparent; border-radius: var(--r); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--dim); }
 .icon-btn:hover:not(:disabled) { background: var(--raised); color: var(--text); }
 .icon-btn.off { opacity: 0.35; cursor: default; }
-.go { display: inline-flex; align-items: center; justify-content: center; gap: var(--kolo-space-2); min-height: 36px; border: 1px solid transparent; border-radius: var(--r); padding: var(--kolo-space-2) var(--kolo-space-3); color: var(--text); font-weight: 500; text-decoration: none; }
+.go { display: inline-flex; align-items: center; justify-content: center; gap: var(--kolo-space-2); min-height: var(--kolo-control-height); border: 1px solid transparent; border-radius: var(--kolo-radius-small); padding: 5px var(--kolo-space-3); color: var(--text); font-weight: 500; line-height: 20px; text-decoration: none; }
 .go svg { color: currentColor; }
 .go:hover:not(:disabled) { background: var(--raised-hover); }
-.primary { background: var(--structure); color: var(--kolo-chalk); border-color: color-mix(in srgb, var(--kolo-chalk) 20%, var(--structure)); }
-.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--structure) 90%, var(--bg)); }
+.go.primary { background: var(--structure); color: var(--kolo-accent-ink); border-color: var(--structure); }
+.go.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--structure) 90%, var(--text)); }
 .secondary { border-color: var(--line); }
+button, a, summary { -webkit-tap-highlight-color: transparent; }
+.go, .icon-btn { transition: background-color var(--kolo-transition), border-color var(--kolo-transition), color var(--kolo-transition); }
+::selection { color: var(--text); background: var(--kolo-selection); }
+* { scrollbar-width: thin; scrollbar-color: var(--kolo-border-strong) transparent; }
 .problem { color: var(--kolo-fg-danger); }
 .auth { min-height: 100dvh; display: grid; place-items: safe center; padding: var(--kolo-space-6); overflow-y: auto; }
 .auth-content { width: 100%; max-width: 360px; }

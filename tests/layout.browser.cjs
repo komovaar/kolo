@@ -314,7 +314,13 @@ test('creation accepts a typed folder and generates a name when left blank', asy
     await page.locator('.group-head .add').first().click();
     await page.locator('input[name=dir]').fill('/work/another-project');
     await page.locator('#new-name').focus();
-    assert.equal(await page.locator('#new-name').evaluate((e) => getComputedStyle(e).outlineColor), 'rgb(217, 164, 65)');
+    const focus = await page.locator('#new-name').evaluate((node) => ({
+      color: getComputedStyle(node).outlineColor,
+      background: getComputedStyle(node).backgroundColor,
+      width: getComputedStyle(node).outlineWidth,
+    }));
+    assert.equal(focus.width, '2px');
+    assert.ok(contrastRatio(focus.color, focus.background) >= 3, 'focus ring needs visible contrast');
     await page.getByRole('button', { name: 'Start session', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.dialog-note').textContent.includes('must be shared'));
     assert.equal(request.dir, '/work/another-project');
@@ -334,6 +340,15 @@ async function saveReview(page, name) {
   if (!process.env.KOLO_SCREENSHOT_DIR) return;
   fs.mkdirSync(process.env.KOLO_SCREENSHOT_DIR, { recursive: true });
   await page.screenshot({ path: path.join(process.env.KOLO_SCREENSHOT_DIR, `${name}.png`) });
+}
+
+function contrastRatio(foreground, background) {
+  const luminance = (rgb) => rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  }).reduce((sum, value, i) => sum + value * [0.2126, 0.7152, 0.0722][i], 0);
+  const a = luminance(foreground), b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
 for (const width of [1440, 768, 390, 320]) {
@@ -705,8 +720,7 @@ test('light appearance persists across entry pages with readable selected contro
       color: getComputedStyle(node).color,
       background: getComputedStyle(node.closest('.agent')).backgroundColor,
     }));
-    assert.equal(style.color, 'rgb(16, 19, 20)');
-    assert.equal(style.background, 'rgb(224, 234, 228)');
+    assert.ok(contrastRatio(style.color, style.background) >= 4.5, 'selected text must stay readable');
     await saveReview(page, 'terminal-light');
     await page.locator('.brand-home').click();
     await page.locator('.home').waitFor({ state: 'visible' });

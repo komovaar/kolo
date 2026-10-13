@@ -8,34 +8,38 @@
   --kolo-slate: #6E7673;
   --kolo-chalk: #E7E9E4;
 
-  /* hues: patina is structural, brass is a signal */
+  /* Original brand hues, retained for generated artwork and CLI output. */
   --kolo-patina: #2C6F62;
   --kolo-brass: #D9A441;
   --kolo-brass-ink: #9C6C15; /* brass as text on light surfaces */
   --kolo-fail: #A63D2E;
 
-  /* state vocabulary: exactly four, do not extend */
-  --kolo-state-idle: var(--kolo-slate);
-  --kolo-state-running: var(--kolo-brass);
-  --kolo-state-done: var(--kolo-patina);
-  --kolo-state-failed: var(--kolo-fail);
-
-  /* semantic, dark ground is the default */
-  --kolo-bg: var(--kolo-void);
-  --kolo-bg-raised: var(--kolo-graphite);
-  --kolo-fg: var(--kolo-chalk);
-  --kolo-fg-muted: var(--kolo-slate);
-  --kolo-accent: var(--kolo-patina);
-  --kolo-focus: var(--kolo-patina);
-
-  /* Readable foregrounds on the dark canvas; state dots keep their hues. */
-  --kolo-fg-subtle: color-mix(in srgb, var(--kolo-chalk) 30%, var(--kolo-slate));
-  --kolo-fg-danger: color-mix(in srgb, var(--kolo-fail) 60%, var(--kolo-chalk));
-  --kolo-fg-success: color-mix(in srgb, var(--kolo-patina) 55%, var(--kolo-chalk));
-  --kolo-border: color-mix(in srgb, var(--kolo-slate) 35%, var(--kolo-bg));
-  --kolo-surface-hover: #242a2c;
-  --kolo-selection: #263b36;
-  --kolo-focus-ring: var(--kolo-brass);
+  /* Workspace surfaces: terminal, canvas, sidebar, and transient controls. */
+  --kolo-bg: #171A1C;
+  --kolo-bg-raised: #202427;
+  --kolo-bg-sidebar: #1C1F22;
+  --kolo-bg-header: #1C1F22;
+  --kolo-bg-input: #191C1F;
+  --kolo-bg-overlay: #222629;
+  --kolo-bg-terminal: var(--kolo-void);
+  --kolo-fg: #E5E8EB;
+  --kolo-fg-muted: #90989F;
+  --kolo-fg-subtle: #A9B0B7;
+  --kolo-accent: #A0C4B1;
+  --kolo-accent-ink: #18271F;
+  --kolo-focus: var(--kolo-accent);
+  --kolo-focus-ring: var(--kolo-focus);
+  --kolo-fg-danger: #DF9B98;
+  --kolo-fg-success: var(--kolo-accent);
+  --kolo-state-idle: #899197;
+  --kolo-state-running: #D1B27E;
+  --kolo-state-done: #8BB39F;
+  --kolo-state-failed: #CA8682;
+  --kolo-border: #30363B;
+  --kolo-border-subtle: #252A2E;
+  --kolo-border-strong: #495258;
+  --kolo-surface-hover: #292E32;
+  --kolo-selection: #2B3431;
   color-scheme: dark;
 
   --kolo-space-1: 4px;
@@ -50,6 +54,13 @@
   --kolo-type-heading: 14px;
   --kolo-type-title: 20px;
   --kolo-radius: 6px;
+  --kolo-radius-small: 4px;
+  --kolo-radius-overlay: 8px;
+  --kolo-control-height: 32px;
+  --kolo-header-height: 44px;
+  --kolo-status-height: 28px;
+  --kolo-transition: 100ms ease;
+
 
   /* type */
   --kolo-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
@@ -60,18 +71,28 @@
 }
 
 [data-theme="light"] {
-  --kolo-bg: #FAFBF9;
-  --kolo-bg-raised: #F0F2EF;
-  --kolo-fg: var(--kolo-void);
-  --kolo-fg-muted: var(--kolo-slate);
-  --kolo-state-running: var(--kolo-brass-ink);
-  --kolo-fg-subtle: #505955;
-  --kolo-fg-danger: var(--kolo-fail);
-  --kolo-fg-success: var(--kolo-patina);
-  --kolo-border: #D4D9D5;
-  --kolo-surface-hover: #E6EAE6;
-  --kolo-selection: #E0EAE4;
-  --kolo-focus-ring: var(--kolo-brass-ink);
+  --kolo-bg: #FAFBFC;
+  --kolo-bg-raised: #F0F2F4;
+  --kolo-bg-sidebar: #F2F4F5;
+  --kolo-bg-header: #F2F4F5;
+  --kolo-bg-input: #FFFFFF;
+  --kolo-bg-overlay: #FFFFFF;
+  --kolo-fg: #20272C;
+  --kolo-fg-muted: #65717B;
+  --kolo-fg-subtle: #5B6670;
+  --kolo-accent: #3D7057;
+  --kolo-accent-ink: #F9FCFA;
+  --kolo-fg-danger: #9D4543;
+  --kolo-fg-success: var(--kolo-accent);
+  --kolo-state-idle: #737E87;
+  --kolo-state-running: #876221;
+  --kolo-state-done: #3D7057;
+  --kolo-state-failed: #A14D49;
+  --kolo-border: #D7DDE1;
+  --kolo-border-subtle: #E8ECEF;
+  --kolo-border-strong: #9BA6AE;
+  --kolo-surface-hover: #E7ECEF;
+  --kolo-selection: #E3EAE6;
   color-scheme: light;
 }
 
