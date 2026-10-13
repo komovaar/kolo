@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -383,9 +384,7 @@ func (a *Agents) launch(name string) error {
 			n, err := started.Read(buf)
 			if n > 0 {
 				live.Write(buf[:n])
-				if id := kind.SessionFrom(live.Text()); id != "" {
-					a.remember(name, live, id)
-				}
+				a.readSession(name, kind, live)
 			}
 			if err != nil {
 				return
@@ -528,9 +527,7 @@ func (a *Agents) watch(ctx context.Context, name string, kind adapter.Adapter, l
 			a.reading(name, live, now)
 			live.Announce(event{Type: "state", State: now.String()})
 		}
-		if id := kind.SessionFrom(live.Text()); id != "" {
-			a.remember(name, live, id)
-		}
+		a.readSession(name, kind, live)
 		titleTick++
 		if titleTick%5 == 0 {
 			a.readTitle(name, live)
@@ -543,9 +540,28 @@ func isCodex(command string) bool {
 	return len(argv) > 0 && filepath.Base(argv[0]) == "codex"
 }
 
+var codexSessionTitle = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func (a *Agents) readSession(name string, kind adapter.Adapter, live *session.Session) {
+	a.mu.Lock()
+	p := a.running[name]
+	codex := p != nil && p.live == live && isCodex(p.spec.Command)
+	a.mu.Unlock()
+	// With thread-title configured, Codex emits its full conversation ID as
+	// the initial OSC title. Its exit footer never arrives when we kill it.
+	// OSC titles also survive a narrow terminal clipping the visible screen.
+	if title := strings.TrimSpace(live.Title()); codex && codexSessionTitle.MatchString(title) {
+		a.remember(name, live, title)
+		return
+	}
+	if id := kind.SessionFrom(live.Text()); id != "" {
+		a.remember(name, live, id)
+	}
+}
+
 func (a *Agents) readTitle(name string, live *session.Session) {
 	title := strings.TrimSpace(live.Title())
-	if title == "Codex" {
+	if title == "Codex" || codexSessionTitle.MatchString(title) {
 		title = ""
 	}
 	a.mu.Lock()

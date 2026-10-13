@@ -103,7 +103,8 @@ agent's own screen:
 2. **How to resume its conversation.** Without this, every restart starts over.
 
 Kolo ships descriptions for `claude`, `codex`, and `opencode`.
-Codex restarts using the conversation ID printed on its Kolo-owned screen.
+Codex saves its conversation ID from its initial terminal title while it is
+running, and can also read it from the exit message on its Kolo-owned screen.
 Kolo never uses `resume --last` to select an unrelated local conversation.
 If the ID is unavailable, Kolo starts fresh and shows a conversation-reset warning.
 
@@ -176,7 +177,7 @@ they are allowed to share a directory.
 Sharing a directory still means sharing its files. Kolo does not referee that.
 
 **Codex sessions use their conversation title automatically.** Kolo asks Codex
-to emit only its thread title as the terminal window title and displays it in
+to emit its thread title as the terminal window title and displays it in
 the sidebar, session header, log and alerts when available. Until then, the
 session identifier is shown. Other programs keep their existing names.
 

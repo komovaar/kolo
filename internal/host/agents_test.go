@@ -751,6 +751,66 @@ sleep 30
 	})
 }
 
+func TestCodexConversationsSurviveHostRestartsWithoutAnExitFooter(t *testing.T) {
+	dir := t.TempDir()
+	state := filepath.Join(t.TempDir(), "agents.json")
+	script := fakeAgentNamed(t, dir, "codex", `case "$*" in
+	  *resume*) for arg do id="$arg"; done ;;
+	  *) id=$(printf '12345678-1234-1234-1234-%012d' "$$") ;;
+esac
+printf 'args [%s]\r\n' "$*"
+printf '\033]0;%s\007' "$id"
+sleep 1
+printf '\033]2;Fix the server\033\\'
+sleep 30
+`)
+	cfg := Config{Dirs: []string{dir}, Allow: []string{script}}
+	first := NewAgents(cfg, state)
+	t.Cleanup(first.StopAll)
+	for _, name := range []string{"one", "two"} {
+		if err := first.Start(spec(name, dir, script)); err != nil {
+			t.Fatal(err)
+		}
+		// OSC titles remain complete even when a browser shrinks the screen.
+		screenOf(t, first, name).Resize(20, 10)
+	}
+	waitFor(t, func() bool {
+		saved, err := ReadState(state)
+		return err == nil && len(saved.Agents) == 2 && saved.Agents[0].Session != "" && saved.Agents[1].Session != ""
+	})
+	ids := map[string]string{"one": sessionOf(t, first, "one"), "two": sessionOf(t, first, "two")}
+	if ids["one"] == ids["two"] {
+		t.Fatal("two conversations have the same identity")
+	}
+	waitFor(t, func() bool {
+		got := first.Specs()
+		return got[0].Title == "Fix the server" && got[1].Title == "Fix the server"
+	})
+	first.StopAll()
+
+	for range 2 {
+		back := NewAgents(cfg, state)
+		t.Cleanup(back.StopAll)
+		if err := back.Restore(); err != nil {
+			t.Fatal(err)
+		}
+		for name, id := range ids {
+			waitFor(t, func() bool {
+				return strings.Contains(screenOf(t, back, name).Text(), "resume "+id+"]")
+			})
+			if got := sessionOf(t, back, name); got != id {
+				t.Fatalf("%s resumed %q, want %q", name, got, id)
+			}
+		}
+		for _, s := range back.Specs() {
+			if len(s.ContextResets) != 0 {
+				t.Fatalf("host restart reset %s: %+v", s.Name, s.ContextResets)
+			}
+		}
+		back.StopAll()
+	}
+}
+
 func TestTheStateFileSaysHowAScreenIsReading(t *testing.T) {
 	dir := t.TempDir()
 	state := filepath.Join(t.TempDir(), "agents.json")
@@ -902,6 +962,23 @@ func TestCodexConversationTitleReportsAndPersists(t *testing.T) {
 	live := session.New(120, 40, detect.Markers{})
 	created := time.Now().UTC()
 	a.running["work"] = &process{spec: hub.Agent{Name: "work", Dir: dir, Command: "codex", CreatedAt: created}, live: live, status: hub.StatusRunning}
+	id := "12345678-1234-1234-1234-123456789abc"
+	live.Write([]byte("\x1b]0;" + id[:18]))
+	a.readSession("work", adapter.For("codex"), live)
+	if got := sessionOf(t, a, "work"); got != "" {
+		t.Fatalf("incomplete title recorded as %q", got)
+	}
+	live.Write([]byte(id[18:] + "\x07"))
+	a.readSession("work", adapter.For("codex"), live)
+	if got := sessionOf(t, a, "work"); got != id {
+		t.Fatalf("initial title recorded as %q, want %q", got, id)
+	}
+	a.readTitle("work", live)
+	select {
+	case r := <-a.reports:
+		t.Fatalf("conversation ID reported as a display title: %+v", r)
+	default:
+	}
 	live.Write([]byte("\x1b]2;Resize sidebar "))
 	live.Write([]byte("with mouse\x1b\\"))
 	a.readTitle("work", live)
@@ -913,7 +990,7 @@ func TestCodexConversationTitleReportsAndPersists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Agents[0].Spec.Title != report.Title {
+	if saved.Agents[0].Spec.Title != report.Title || saved.Agents[0].Session != id {
 		t.Fatalf("saved: %+v", saved)
 	}
 	a.readTitle("work", live)
