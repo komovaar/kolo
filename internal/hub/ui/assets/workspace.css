@@ -658,12 +658,12 @@ html, body { height: 100%; overflow: hidden; }
 .field { gap: var(--kolo-space-2); }
 .field label { font-weight: 500; font-size: var(--kolo-type-small); }
 .field-help, .machine-help { font-size: var(--kolo-type-small); line-height: 18px; color: var(--dim); }
-.dialog input, .dialog select { min-height: 34px; padding: 6px var(--kolo-space-2); border-radius: var(--kolo-radius-small); background: var(--kolo-bg-input); font: var(--kolo-type-body)/20px var(--ui); }
+.dialog input, .dialog select { min-height: var(--kolo-control-height); padding: 5px var(--kolo-space-2); border-radius: var(--kolo-radius-small); background: var(--kolo-bg-input); font: var(--kolo-type-body)/20px var(--ui); }
 .dialog input[name=dir], .dialog input[name=command], .dialog input[name=name] { font: var(--kolo-type-small)/20px var(--kolo-mono); letter-spacing: 0; }
 .dialog input:focus, .dialog select:focus { border-color: var(--kolo-focus-ring); }
 .dialog-note { padding: 0 var(--kolo-space-4) var(--kolo-space-3); font-size: var(--kolo-type-small); line-height: 18px; }
 .kind-picker { background: var(--kolo-bg-input); padding: var(--kolo-space-1); gap: 2px; border-radius: var(--kolo-radius-small); }
-.kind-choice { min-height: 36px; padding: 6px var(--kolo-space-2); border-radius: var(--kolo-radius-small); font-size: var(--kolo-type-body); gap: var(--kolo-space-2); }
+.kind-choice { min-height: var(--kolo-control-height); padding: 6px var(--kolo-space-2); border-radius: var(--kolo-radius-small); font-size: var(--kolo-type-body); gap: var(--kolo-space-2); }
 .kind-choice.on { background: var(--kolo-selection); color: var(--text); }
 .kind-choice.on .kind-label { font-weight: 500; }
 .kind-type { color: var(--faint); font-size: var(--kolo-type-small); }
