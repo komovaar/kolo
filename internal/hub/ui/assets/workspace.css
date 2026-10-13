@@ -280,3 +280,34 @@
 @media (pointer: coarse) { .kind-choice { min-height: 44px; } }
 .field-optional { color: var(--faint); font-weight: 400; margin-left: var(--kolo-space-1); }
 .field-help:empty { display: none; }
+
+/* Activity is an aligned ledger with the same title bar and row rhythm. */
+.log-head { min-height: var(--kolo-header-height); padding: var(--kolo-space-3) var(--kolo-space-4); background: var(--kolo-bg-header); }
+.log-head h2 { font: 500 var(--kolo-type-heading)/20px var(--ui); }
+.log-description { padding: var(--kolo-space-3) var(--kolo-space-4); margin: 0; font-size: var(--kolo-type-small); color: var(--dim); line-height: 18px; }
+.log-columns, .entry { display: grid; grid-template-columns: 100px minmax(80px, 120px) 148px minmax(120px, 180px) minmax(0, 1fr); gap: var(--kolo-space-4); padding: var(--kolo-space-2) var(--kolo-space-4); }
+.log-columns { font-size: var(--kolo-type-small); color: var(--faint); border-bottom: 1px solid var(--line); }
+.log-rows { padding: 0; }
+.entry { align-items: baseline; min-height: 36px; border-radius: 0; border-bottom: 1px solid var(--kolo-border-subtle); }
+.entry .at { grid-column: 1; width: auto; }
+.entry .who { grid-column: 2; width: auto; }
+.entry .what { grid-column: 3; }
+.entry .on { grid-column: 4; }
+.entry .said { grid-column: 5; }
+.entry > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry a.on { color: var(--text); text-decoration: none; }
+.entry a.on:hover { color: var(--kolo-accent); text-decoration: underline; }
+.entry[data-action=failed] .what { color: var(--kolo-fg-danger); }
+.log-empty { padding: var(--kolo-space-4); font-size: var(--kolo-type-small); }
+.log-message, .log-retry { margin: var(--kolo-space-3) var(--kolo-space-4); font-size: var(--kolo-type-small); }
+.workspace-message { padding: 6px var(--kolo-space-4); font-size: var(--kolo-type-small); line-height: 18px; }
+.workspace-retry { font-size: var(--kolo-type-small); }
+@media (max-width: 1100px) {
+  .log-columns { display: none; }
+  .entry { grid-template-columns: 80px minmax(0, 1fr) 120px; gap: var(--kolo-space-1) var(--kolo-space-3); }
+  .entry .on { grid-row: 2; grid-column: 2 / -1; }
+  .entry .said { grid-row: 3; grid-column: 2 / -1; }
+}
+@media (max-width: 420px) {
+  .entry { grid-template-columns: 70px minmax(0, 1fr) 100px; padding-inline: var(--kolo-space-3); }
+}

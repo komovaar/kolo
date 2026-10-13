@@ -493,7 +493,7 @@
 
   <main>
     <div class="workspace-message" role="status" hidden>
-      <p>Connection lost. Session details may be out of date.</p>
+      <p>Workspace updates paused. Session details may be out of date.</p>
       <button class="go secondary workspace-retry" type="button">Reconnect</button>
     </div>
     <section class="home" hidden>
@@ -578,8 +578,9 @@
     <section class="log" hidden>
       <div class="log-head">
         <h2>Activity</h2>
-        <p>Session actions and member input. Terminal output is not recorded.</p>
       </div>
+      <p class="log-description">Session actions and member input. Terminal output is not recorded.</p>
+      <div class="log-columns" aria-hidden="true"><span>Time</span><span>Member</span><span>Action</span><span>Session</span><span>Input</span></div>
       <p class="log-message" role="status">Loading activity…</p>
       <button class="go log-retry" type="button" hidden>Retry loading activity</button>
       <div class="log-rows"></div>
@@ -2009,10 +2010,14 @@ el('.log-retry').onclick = drawLog;
 function entryRow(e) {
   const row = document.createElement('div');
   row.className = 'entry';
+  row.dataset.action = e.what;
   const put = (cls, text) => {
-    const span = document.createElement('span');
+    const available = cls === 'on' && lastAgents.some((agent) => agent.name === e.agent);
+    const span = document.createElement(available ? 'a' : 'span');
     span.className = cls;
     span.textContent = text;
+    span.title = String(text || '');
+    if (available) span.href = `#/agent/${e.agent}`;
     row.append(span);
   };
 

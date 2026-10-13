@@ -809,3 +809,27 @@ for (const width of [1440, 390]) {
     } finally { await page.close(); }
   });
 }
+
+for (const width of [1440, 390]) {
+  test(`activity links only available sessions and retains readable rows at ${width}px`, async () => {
+    const { page, errors } = await openSession({ width, height: 900 }, workspaceAgents);
+    try {
+      await page.route('**/v1/log', (route) => route.fulfill({ json: { persistent: true, entries: [
+        { at: new Date().toISOString(), who: { name: 'Mira' }, what: 'created', agent: 'api-review' },
+        { at: new Date().toISOString(), who: { name: 'Reviewer' }, what: 'said', agent: 'api-review', text: 'go test ./internal/hub' },
+        { at: new Date().toISOString(), who: { name: 'Mira' }, what: 'stopped', agent: 'retired-session' },
+      ] } }));
+      await page.evaluate(() => { location.hash = '#/log'; });
+      await page.locator('.entry').first().waitFor();
+      assert.equal(await page.locator('.entry a.on').count(), 2);
+      assert.equal(await page.locator('.entry span.on').count(), 1);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await saveReview(page, `activity-crafted-${width}`);
+      const link = page.locator('.entry a.on').first();
+      await link.focus();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => agentInURL() === 'api-review' && screenReady);
+      assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  });
+}
