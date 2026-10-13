@@ -351,7 +351,7 @@ function contrastRatio(foreground, background) {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-for (const width of [1440, 768, 390, 320]) {
+for (const width of [2048, 1440, 768, 390, 320]) {
   test(`workspace search, statuses, and navigation work at ${width}px`, async () => {
     const { page, errors } = await openSession({ width, height: 900 }, workspaceAgents);
     try {
@@ -361,6 +361,9 @@ for (const width of [1440, 768, 390, 320]) {
       assert.match(await page.locator('.home-summary').textContent(), /4 sessions · 1 waiting for input/);
       assert.deepEqual(await page.locator('.overview-state').allTextContents(), ['Waiting for input', 'Working', 'Ready', 'Failed']);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const content = await page.locator('.home-content').boundingBox();
+      const pane = await page.locator('.home').boundingBox();
+      assert.ok(Math.abs(content.width - pane.width) < 1, 'overview must fill the workspace width');
       await saveReview(page, `workspace-${width}`);
       const search = page.getByRole('searchbox', { name: 'Search sessions' });
       await search.fill('/work/web');
@@ -393,6 +396,25 @@ test('workspace polling preserves focused session and exposes disconnected machi
     assert.equal(await page.evaluate(() => document.activeElement.dataset.session), 'api-review');
     assert.ok((await page.locator('.overview-state').allTextContents()).every((s) => s === 'Machine disconnected'));
     assert.equal(await page.locator('.home-new').isDisabled(), true);
+    assert.equal(await page.locator('.home-setup').isVisible(), true);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('machine disclosure stays collapsed while polling and opens for connection recovery', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.locator('.side-overview').click();
+    await page.locator('.home').waitFor({ state: 'visible' });
+    const summary = page.locator('.machines-section > summary');
+    await summary.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('.host-cards').isVisible(), false);
+    await page.evaluate(() => refresh());
+    assert.equal(await page.locator('.host-cards').isVisible(), false);
+    assert.equal(await summary.evaluate((node) => node === document.activeElement), true);
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, hosts: [] } }));
+    await page.evaluate(() => refresh());
     assert.equal(await page.locator('.home-setup').isVisible(), true);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }

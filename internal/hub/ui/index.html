@@ -446,7 +446,7 @@
 
 <div class="app" hidden>
   <nav class="mobile-nav" aria-label="Workspace navigation">
-    <button class="mobile-menu" type="button" aria-expanded="false" aria-controls="session-navigation">Sessions</button>
+    <button class="mobile-menu" type="button" aria-label="Sessions" title="Browse sessions" aria-expanded="false" aria-controls="session-navigation"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" stroke-linecap="round"/></svg></button>
     <span class="mobile-title">Kolo</span>
   </nav>
   <button class="nav-shade" type="button" aria-label="Close session navigation" tabindex="-1"></button>
@@ -501,16 +501,16 @@
         <div class="home-intro">
           <div>
             <h1>Sessions</h1>
-            <p class="home-guide">Open a session to follow its progress or work together.</p>
+            <p class="home-guide sr-only">Open a session to follow its progress or work together.</p>
           </div>
           <button type="button" class="go primary home-new"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>New session</button>
         </div>
         <section class="home-section" aria-labelledby="sessions-title">
-          <div class="section-heading">
-            <div><h2 id="sessions-title">All sessions</h2><p class="home-summary"></p></div>
+          <div class="section-heading session-toolbar">
+            <div><h2 id="sessions-title" class="sr-only">Workspace sessions</h2><p class="home-summary"></p></div>
             <label class="session-search"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" fill="none"/><path d="m10.5 10.5 3 3" stroke="currentColor" stroke-linecap="round"/></svg><input type="search" class="session-query" aria-label="Search sessions" placeholder="Search sessions…" autocomplete="off"></label>
           </div>
-          <div class="session-list-head" aria-hidden="true"><span>Session / directory</span><span class="machine-label">Machine</span><span>Status</span></div>
+          <div class="session-list-head" aria-hidden="true"><span>Session</span><span class="machine-label">Machine</span><span>Activity</span></div>
           <div class="session-list" aria-label="Workspace sessions"></div>
           <div class="sessions-empty" hidden>
             <h3 class="sessions-empty-title">No sessions yet</h3>
@@ -518,15 +518,15 @@
             <button class="go secondary search-clear" type="button" hidden>Clear search</button>
           </div>
         </section>
-        <section class="home-section" aria-labelledby="machines-title">
-          <div class="section-heading"><div><h2 id="machines-title">Connected machines</h2><p>Programs and directories available to your team.</p></div><span class="machine-count"></span></div>
+        <details class="home-section machines-section" aria-labelledby="machines-title" open>
+          <summary class="section-heading"><h2 id="machines-title">Connected machines</h2><span class="machine-count"></span><svg class="machine-disclosure" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
           <div class="host-cards"></div>
           <div class="home-setup" hidden>
             <p>No machines are connected yet. Connect a machine to make its agents and directories available here.</p>
             <code>kolo host</code>
             <p>Run this on a machine already configured for your organization.</p>
           </div>
-        </section>
+        </details>
       </div>
     </section>
 
@@ -897,6 +897,7 @@ function drawHome() {
   el('.home-new').disabled = !hosts.some((h) => h.allow?.length && h.dirs?.length);
   el('.home-new').title = el('.home-new').disabled ? 'Connect a machine that shares programs and directories first.' : '';
   el('.home-setup').hidden = hosts.length > 0;
+  if (!hosts.length) el('.machines-section').open = true;
   el('.machine-count').textContent = `${hosts.length} connected`;
   const cards = el('.host-cards');
   cards.replaceChildren();
@@ -941,7 +942,7 @@ function updateMobileTitle() {
   const selected = agentInURL();
   const active = lastAgents.find((agent) => agent.name === selected);
   el('.mobile-title').textContent = selected ? (active?.label || active?.title || selected)
-    : logInURL() ? 'Activity' : 'Sessions';
+    : logInURL() ? 'Activity' : el('.workspace-label').textContent || 'Kolo';
 }
 
 let sessionListSnapshot = '';
