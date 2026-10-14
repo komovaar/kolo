@@ -959,6 +959,7 @@ function close() {
   clearTimeout(reconnectTimer);
   reconnectTimer = null;
   watching = null;
+  el('.session-connection').textContent = 'Disconnected';
   typist = null; keyboardChanged();
   el('.watch .restart').disabled = true;
   if (socket) { const was = socket; socket = null; was.close(); }

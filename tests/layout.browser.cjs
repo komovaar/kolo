@@ -564,7 +564,7 @@ test('session creation success opens the new shared terminal', async () => {
     await page.locator('.group-head .add').click();
     await page.getByRole('button', { name: 'Start session', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.scrim').hidden && location.hash !== '#/agent/layout');
-    await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+    await page.waitForFunction((name) => watching === name && screenReady && document.querySelector('.session-connection').textContent === 'Live connection', made.name);
     assert.equal(await page.locator('.session-title').textContent(), made.name);
     assert.equal(await page.evaluate(() => term.options.disableStdin), false);
     assert.deepEqual(errors, []);
