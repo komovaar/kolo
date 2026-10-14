@@ -643,73 +643,10 @@ function renderGroups(agents) {
 // choices are the host's own terms, so nothing can be picked that will only
 // be refused a moment later, unless the host lent any command or any
 // directory, in which case that field opens up into free text.
-let choicesSnapshot = '';
-let directoryHost = null;
-let createPending = false;
 function drawChoices() {
-  if (createPending) return;
-  const hostSel = el('#new-host'), dirSel = el('#new-dir'), dirInput = el('input[name=dir]');
-  const picker = el('.kind-picker'), cmdInput = el('input[name=command]'), known = el('#known-commands');
-  const hostField = el('.host-field');
-  const chosen = createHostPref || hostSel.value;
-  const snapshot = JSON.stringify([hosts, chosen]);
-  if (snapshot === choicesSnapshot) return;
-  choicesSnapshot = snapshot;
-  fill(hostSel, hosts.map((h) => h.id));
-  if (chosen && hosts.some((h) => h.id === chosen)) hostSel.value = chosen;
-  choicesSnapshot = JSON.stringify([hosts, hostSel.value]);
-  createHostPref = null;
-  // Asking which host is not a question when only one machine is lending
-  // itself. The field disappears rather than making you answer something
-  // that only ever has one answer.
-  hostField.hidden = hosts.length <= 1;
-  el('.field-row').classList.toggle('single', hosts.length <= 1);
-
-  const host = hosts.find((h) => h.id === hostSel.value) || hosts[0];
-  el('.machine-help').textContent = host ? `Run on ${host.id}.`
-    : 'Connect a machine before starting a session.';
-  const sharedDirs = (host?.dirs || []).filter((dir) => dir !== '*');
-  const previousDir = dirInput.value;
-  dirSel.hidden = dirSel.disabled = true;
-  dirInput.hidden = dirInput.disabled = false;
-  fill(dirSel, sharedDirs);
-  const suggestions = el('#shared-directories');
-  suggestions.replaceChildren();
-  for (const dir of sharedDirs) {
-    const option = document.createElement('option');
-    option.value = dir;
-    suggestions.append(option);
-  }
-  if (!previousDir || directoryHost !== host?.id) dirInput.value = sharedDirs[0] || '';
-  directoryHost = host?.id || null;
-  el('#directory-help').textContent = (host?.dirs || []).includes('*')
-    ? 'Enter a folder path on this machine.'
-    : `Allowed folders: ${sharedDirs.join(', ') || 'none'}.`;
-
-  const lendingAny = !!host && (host.allow || []).includes('*');
-  picker.hidden = lendingAny;
-  cmdInput.hidden = cmdInput.disabled = !lendingAny;
-  known.replaceChildren();
-  if (lendingAny) {
-    el('#command-help').textContent = 'This machine allows any command. Enter an installed agent, shell, or other program.';
-    for (const name of new Set([...(host.allow || []).filter((c) => c !== '*'), ...(host.found || [])])) {
-      const option = document.createElement('option');
-      option.value = name;
-      known.append(option);
-    }
-  } else {
-    drawKindPicker(host?.allow || []);
-  }
-  const ready = !!host && (host.allow || []).length > 0 && (host.dirs || []).length > 0;
-  el('form.create button[type=submit]').disabled = !ready;
-  say('.dialog-note', !host ? 'No machines connected. Run kolo host on a configured machine.'
-    : !ready ? 'This machine must share a program and a directory before you can start a session.' : '');
+  window.KoloUI.creation.update(hosts, canControl());
 }
 
-// drawKindPicker is the agent field for a host that lends a fixed set of
-// commands: one row per command, a mark next to each rather than a plain
-// list a select could already do.
-let pickedCommand = null;
 function programKind(command) {
   const program = programOf(command).toLowerCase().replace(/\.exe$/, '');
   if (['sh', 'bash', 'zsh', 'fish', 'dash', 'ksh', 'pwsh', 'powershell', 'cmd'].includes(program)) return 'Shell';
@@ -717,88 +654,22 @@ function programKind(command) {
   return 'Command';
 }
 
-function drawKindPicker(commands) {
-  const picker = el('.kind-picker');
-  picker.replaceChildren();
-  if (!commands.includes(pickedCommand)) pickedCommand = commands[0] || null;
-  for (const command of commands) {
-    const choice = document.createElement('button');
-    choice.type = 'button';
-    choice.setAttribute('aria-pressed', String(command === pickedCommand));
-    choice.className = 'kind-choice' + (command === pickedCommand ? ' on' : '');
-    choice.innerHTML = `<span class="kind-chip" aria-hidden="true"></span><span class="kind-label"></span><span class="kind-type"></span><svg class="kind-selected" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m3 8 3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    choice.querySelector('.kind-chip').append(kindIcon(command));
-    choice.querySelector('.kind-label').textContent = command;
-    choice.querySelector('.kind-type').textContent = programKind(command);
-    choice.onclick = () => {
-      pickedCommand = command;
-      drawKindPicker(commands);
-      picker.querySelector('[aria-pressed="true"]').focus();
-    };
-    picker.append(choice);
-  }
-  el('#command-help').textContent = !commands.length ? 'No programs are shared by this machine.'
-    : programKind(pickedCommand) === 'Shell' ? 'Commands run directly on this machine.' : '';
-}
-
-// options may be absent rather than empty: a host that lends nothing sends null
-// for it, and Go writes an empty slice as null besides. Reading it as [] keeps a
-// missing list from throwing halfway through drawing the form, which is how the
-// dir and command boxes came to be empty while the machine box was filled.
-function fill(select, options) {
-  const chosen = select.value;
-  select.replaceChildren();
-  for (const value of options || []) {
-    const option = document.createElement('option');
-    option.value = option.textContent = value;
-    select.append(option);
-  }
-  if ((options || []).includes(chosen)) select.value = chosen;
-}
-
-el('#new-host').onchange = drawChoices;
-
-// The dialog is reachable from either +, the heading's and each group's,
-// regardless of what's open behind it, and closes back to exactly that.
-let createHostPref = null;
-let createOpener = null;
 function openCreate(hostPref) {
   if (!canControl()) return;
   setNavigation(false);
-  createOpener = document.activeElement;
-  createHostPref = hostPref || null;
-  choicesSnapshot = '';
   drawChoices();
-  el('.scrim').hidden = false;
+  window.KoloUI.creation.open(hostPref);
   el('.app').inert = true;
-  const firstProgram = el('.kind-picker [aria-pressed="true"]');
-  (firstProgram || el('#new-command')).focus();
 }
 function closeCreate() {
-  el('.scrim').hidden = true;
   el('.app').inert = false;
-  el('form.create').reset();
-  choicesSnapshot = '';
-  say('.dialog-note', '');
-  if (signedIn) (createOpener?.isConnected && createOpener.getClientRects().length
-    ? createOpener : el('.brand-home')).focus();
+  window.KoloUI.creation.close();
 }
 el('.home-new').onclick = () => openCreate(null);
 el('.side .log-open').onclick = () => { setNavigation(false); location.hash = '#/log'; };
 el('.brand-home').onclick = () => { setNavigation(false); location.hash = ''; };
-el('.dialog .close').onclick = closeCreate;
-el('.dialog .cancel').onclick = closeCreate;
-el('.scrim').onclick = (ev) => { if (ev.target === el('.scrim')) closeCreate(); };
-el('.scrim').onkeydown = (ev) => {
-  if (ev.key === 'Escape') { ev.preventDefault(); closeCreate(); }
-  if (ev.key !== 'Tab') return;
-  const controls = [...el('.dialog').querySelectorAll('button, input, select')]
-    .filter((node) => !node.disabled && node.getClientRects().length);
-  const first = controls[0], last = controls[controls.length - 1];
-  if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
-  else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
-};
 
+let createPending = false;
 function automaticSessionName(command, dir) {
   const project = (dir || '').split(/[\\/]/).filter(Boolean).pop() || 'session';
   const base = `${project}-${programOf(command) || 'agent'}`.toLowerCase()
@@ -811,20 +682,19 @@ async function createSession(ev) {
   ev.preventDefault();
   if (!canControl()) return;
   const submit = ev.target.querySelector('button[type=submit]');
-  if (submit.disabled) return;
+  if (submit.disabled || createPending) return;
   createPending = true;
   if (document.activeElement === submit) el('.dialog').focus();
-  submit.disabled = true;
-  el('.create-label').textContent = 'Starting…';
   const form = new FormData(ev.target);
   const lendingAny = !el('input[name=command]').hidden;
-  const command = lendingAny ? form.get('command') : pickedCommand;
+  const command = lendingAny ? form.get('command') : window.KoloUI.creation.command;
   const request = {
     name: form.get('name')?.trim() || automaticSessionName(command, form.get('dir')), host: form.get('host'),
     dir: form.get('dir'), command,
   };
   const run = authRun;
   const body = JSON.stringify(request);
+  window.KoloUI.creation.setPending(true);
   try {
     const resp = await fetch('/v1/agents', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
@@ -853,13 +723,12 @@ async function createSession(ev) {
     }
   } finally {
     createPending = false;
-    submit.disabled = false;
-    el('.create-label').textContent = 'Start session';
+    window.KoloUI.creation.setPending(false);
     drawChoices();
-    if (!el('.scrim').hidden && document.activeElement === el('.dialog')) submit.focus();
+    if (!el('.scrim').hidden) el('form.create button[type=submit]')?.focus();
   }
 }
-el('form.create').onsubmit = createSession;
+window.KoloController = { createSession, closeCreate, kindGlyph, programKind };
 
 async function stop(name) {
   if (!canControl()) return;
@@ -878,6 +747,7 @@ async function stop(name) {
 }
 
 function say(sel, message, problem) {
+  if (sel === '.dialog-note') { window.KoloUI.creation.message(message, problem); return; }
   const note = el(sel);
   note.textContent = message;
   note.classList.toggle('problem', !!problem);

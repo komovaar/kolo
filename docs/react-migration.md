@@ -9,7 +9,7 @@ that the same controls never have two owners.
 
 - [x] Extract the inline workspace controller without changing behavior.
 - [x] Add a pinned React, TypeScript, and Vite production build and CI checks.
-- [ ] Migrate session creation to a customized shadcn/Radix dialog.
+- [x] Migrate session creation to a customized shadcn/Radix dialog.
 - [ ] Migrate session browsing and supporting workspace controls incrementally.
 - [ ] Review desktop/mobile, keyboard access, permissions, polling, and recovery.
 - [ ] Verify embedded assets through the Go server and a standalone binary.

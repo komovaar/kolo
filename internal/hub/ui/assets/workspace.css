@@ -1,5 +1,8 @@
 /* Frame and terminal mechanics; component treatments follow below. */
 html, body { height: 100%; overflow: hidden; }
+.dialog-overlay { position: absolute; inset: 0; }
+.scrim .dialog { position: relative; }
+fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
   .signin { height: 100dvh; min-height: 0; }
 
   /* ---- the frame: agents down the side, one agent filling the rest -------- */

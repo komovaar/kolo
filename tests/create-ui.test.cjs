@@ -5,68 +5,40 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
-const source = ['drawChoices', 'fill'].map((name) =>
-  html.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))[0]).join('\n');
+const model = import('../frontend/src/creation-model.ts');
 const host = (id, extra = {}) => ({ id, dirs: ['/work'], allow: ['sh'], ...extra });
+const initial = { open: true, pending: false, hosts: [], allowed: true, host: '', dir: '', command: '', name: '', message: '', problem: false };
 
-function page(hosts) {
-  const nodes = new Map(), picks = [];
-  const el = (selector) => {
-    if (!nodes.has(selector)) nodes.set(selector, {
-      value: '', children: [], classList: { toggle() {} },
-      replaceChildren() { this.children = []; this.value = ''; },
-      append(child) { this.children.push(child); if (!this.value) this.value = child.value; },
-    });
-    return nodes.get(selector);
-  };
-  const context = vm.createContext({
-    hosts, el, choicesSnapshot: '', directoryHost: null, createHostPref: null, createPending: false,
-    document: { createElement: () => ({}) },
-    drawKindPicker: (commands) => picks.push(commands),
-    say: (selector, message) => { el(selector).textContent = message; },
-  });
-  vm.runInContext(source, context);
-  return { context, el, picks };
-}
-
-test('a machine-specific action overrides the previously selected machine', () => {
-  const p = page([host('old'), host('chosen', { allow: ['claude'] })]);
-  p.el('#new-host').value = 'old';
-  p.context.createHostPref = 'chosen';
-  p.context.drawChoices();
-  assert.equal(p.el('#new-host').value, 'chosen');
-  assert.deepEqual(p.picks, [['claude']]);
+test('machine-specific creation selects the requested host and its defaults', async () => {
+  const { reconcileCreation } = await model;
+  const state = reconcileCreation({ ...initial, host: 'old' }, [host('old'), host('chosen', { allow: ['claude'], dirs: ['/other'] })], true, 'chosen');
+  assert.equal(state.host, 'chosen');
+  assert.equal(state.command, 'claude');
+  assert.equal(state.dir, '/other');
 });
 
-test('unchanged polling preserves program controls and server error feedback', () => {
-  const p = page([host('devbox')]);
-  p.context.drawChoices();
-  const option = p.el('#new-dir').children[0];
-  p.el('.dialog-note').textContent = 'That session name is already in use.';
-  p.context.drawChoices();
-  assert.equal(p.picks.length, 1);
-  assert.equal(p.el('#new-dir').children[0], option);
-  assert.match(p.el('.dialog-note').textContent, /already in use/);
+test('polling preserves typed creation drafts and error feedback', async () => {
+  const { reconcileCreation } = await model;
+  const state = { ...initial, host: 'devbox', dir: '/custom/project', name: 'review', command: 'sh', message: 'Name already used' };
+  const next = reconcileCreation(state, [host('devbox')], true);
+  assert.equal(next.dir, state.dir);
+  assert.equal(next.name, state.name);
+  assert.equal(next.message, state.message);
 });
 
-test('missing programs or directories disable creation without breaking the form', () => {
+test('creation requires control access, available programs, and directories', async () => {
+  const { creationReady, reconcileCreation } = await model;
   for (const hosts of [[], [host('empty', { allow: null })], [host('empty', { dirs: [] })]]) {
-    const p = page(hosts);
-    p.context.drawChoices();
-    assert.equal(p.el('form.create button[type=submit]').disabled, true);
-    assert.ok(p.el('.dialog-note').textContent);
+    assert.equal(creationReady(reconcileCreation(initial, hosts, true)), false);
   }
+  assert.equal(creationReady(reconcileCreation(initial, [host('one')], false)), false);
 });
 
-test('polling cannot re-enable submission while creation is in flight', () => {
-  const p = page([host('devbox')]);
-  p.context.drawChoices();
-  p.context.createPending = true;
-  p.el('form.create button[type=submit]').disabled = true;
-  p.context.hosts = [host('another')];
-  p.context.drawChoices();
-  assert.equal(p.el('form.create button[type=submit]').disabled, true);
-  assert.equal(p.el('#new-host').value, 'devbox');
+test('polling cannot replace an in-flight creation request', async () => {
+  const { reconcileCreation, creationReady } = await model;
+  const state = { ...initial, pending: true, host: 'devbox' };
+  assert.equal(reconcileCreation(state, [host('another')], true), state);
+  assert.equal(creationReady(state), false);
 });
 
 const createSource = html.match(/async function createSession\(ev\) \{[\s\S]*?\n\}/)[0];
@@ -76,7 +48,8 @@ function creationPage(fetch, refresh) {
   const context = vm.createContext({
     canControl: () => true, signedIn: true, authRun: 0, createPending: false,
     document: { activeElement: null },
-    pickedCommand: 'sh', fetch, refresh, location: {},
+    fetch, refresh, location: {},
+    window: { KoloUI: { creation: { command: 'sh', setPending: (pending) => { submit.disabled = pending; } } } },
     FormData: class { get(key) { return request[key]; } },
     el: () => ({ hidden: true }), say: (_, text) => notes.push(text),
     closeCreate() { context.closed = true; }, drawChoices() {},
@@ -108,17 +81,15 @@ test('creation does not open private sessions after sign-out', async () => {
 });
 
 
-test('directory paths can be edited and polling preserves the draft', () => {
-  const p = page([host('one'), host('two', { dirs: ['/other'] })]);
-  p.context.drawChoices();
-  assert.equal(p.el('input[name=dir]').value, '/work');
-  assert.equal(p.el('input[name=dir]').disabled, false);
-  p.el('input[name=dir]').value = '/custom/project';
-  p.context.drawChoices();
-  assert.equal(p.el('input[name=dir]').value, '/custom/project');
-  p.el('#new-host').value = 'two';
-  p.context.drawChoices();
-  assert.equal(p.el('input[name=dir]').value, '/other');
+test('changing machines resets directories and handles unrestricted commands', async () => {
+  const { reconcileCreation } = await model;
+  const hosts = [host('one'), host('two', { allow: ['*'], dirs: ['*'] })];
+  const state = reconcileCreation({ ...initial, host: 'one', dir: '/custom/project', command: 'sh' }, hosts, true, 'two');
+  assert.equal(state.dir, '');
+  assert.equal(state.command, '');
+  const next = reconcileCreation({ ...state, dir: '/typed', command: 'bash' }, hosts, true);
+  assert.equal(next.dir, '/typed');
+  assert.equal(next.command, 'bash');
 });
 
 test('automatic names are valid and unique even for non-Latin folder names', () => {

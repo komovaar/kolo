@@ -193,63 +193,11 @@
   </section>
 </div>
 
-<!-- Session creation returns focus to the action that opened it. -->
-<div class="scrim" hidden>
-  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="create-title" tabindex="-1">
-    <div class="dialog-head">
-      <h2 id="create-title">New session</h2>
-      <button type="button" class="icon-btn close" title="Close" aria-label="Close new session dialog">
-        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <form class="create">
-      <div class="dialog-body">
-        <p class="machine-help"></p>
-        <div class="field agent-field">
-          <label for="new-command" id="program-label">Program</label>
-          <div class="kind-picker" role="group" aria-labelledby="program-label" aria-describedby="command-help" hidden></div>
-          <input id="new-command" name="command" list="known-commands" placeholder="e.g. claude or bash" aria-describedby="command-help" hidden disabled required>
-          <datalist id="known-commands"></datalist>
-          <p class="field-help" id="command-help"></p>
-        </div>
-        <div class="field-row">
-          <div class="field host-field">
-            <label for="new-host">Machine</label>
-            <select id="new-host" name="host"></select>
-          </div>
-          <div class="field">
-            <label for="directory-input">Directory</label>
-            <select id="new-dir" name="dir"></select>
-            <input id="directory-input" name="dir" aria-label="Directory" list="shared-directories" placeholder="e.g. /home/me/project" hidden disabled required aria-describedby="directory-help">
-            <datalist id="shared-directories"></datalist>
-            <p class="field-help" id="directory-help"></p>
-          </div>
-        </div>
-        <div class="field">
-          <label for="new-name">Session name <span class="field-optional">(optional)</span></label>
-          <input id="new-name" name="name" placeholder="Automatic" maxlength="32" pattern="[a-z0-9]([a-z0-9\-]*[a-z0-9])?" aria-describedby="name-help">
-          <p class="field-help" id="name-help">Lowercase letters, numbers, and hyphens.</p>
-        </div>
-      </div>
-      <p class="note dialog-note" role="status"></p>
-      <div class="dialog-foot">
-        <button type="button" class="go cancel">Cancel</button>
-        <button type="submit" class="go primary">
-          <span class="create-label">Start session</span>
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <div id="react-root"></div>
 <script type="module" src="/assets/react/workspace.js"></script>
 <script src="/assets/xterm.js"></script>
 <script src="/assets/terminal-queries.js"></script>
 <script src="/assets/addon-canvas.js"></script>
 <script src="/assets/attention.js"></script>
-<script src="/assets/session-controller.js"></script>
-<script src="/assets/auth.js"></script>
-<script src="/assets/workspace.js"></script>
 </body>
 </html>

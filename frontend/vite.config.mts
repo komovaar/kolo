@@ -11,6 +11,11 @@ export default defineConfig(({ command }) => ({
   publicDir: path('../internal/hub/ui'),
   plugins: [react(), {
     name: 'kolo-development-page',
+    generateBundle(_, bundle) {
+      for (const asset of Object.values(bundle)) {
+        if (asset.type === 'chunk') asset.code = asset.code.replace(/[\t ]+$/gm, '');
+      }
+    },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         if (request.url?.split('?')[0] !== '/') return next();
@@ -34,6 +39,7 @@ export default defineConfig(({ command }) => ({
     copyPublicDir: false,
     sourcemap: false,
     minify: true,
+    rolldownOptions: { output: { minify: true } },
     lib: { entry: path('./src/main.tsx'), formats: ['es'], fileName: () => 'workspace.js' },
   },
 }));
