@@ -389,6 +389,70 @@ for (const width of [2048, 1440, 768, 390, 320]) {
   });
 }
 
+for (const width of [1440, 390, 320]) {
+  test(`overview filters combine search, machine, and activity at ${width}px`, async () => {
+    const agents = [...workspaceAgents, { ...fixture.agents[0], name: 'offline', host: 'offline-box', label: 'Offline shell', command: 'bash', screen_state: 'idle' }];
+    const { page, errors } = await openSession({ width, height: 900 }, agents, true);
+    try {
+      if (width <= 760) await page.locator('.mobile-menu').click();
+      await page.locator('.side-overview').click();
+      const machine = page.getByRole('combobox', { name: 'Filter by machine' });
+      const activity = page.getByRole('combobox', { name: 'Filter by activity' });
+      await activity.selectOption('attention');
+      assert.equal(await page.locator('.session-link').count(), 3);
+      await machine.selectOption('devbox');
+      assert.equal(await page.locator('.session-link').count(), 2);
+      await page.getByRole('searchbox', { name: 'Search sessions' }).fill('opencode');
+      assert.equal(await page.locator('.session-name').textContent(), 'Investigate failing tests');
+      assert.equal(await page.locator('.session-results').textContent(), '1 of 5 shown');
+      await saveReview(page, `overview-filtered-${width}`);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await page.getByRole('button', { name: 'Reset filters' }).click();
+      assert.equal(await page.locator('.session-link').count(), 5);
+      assert.equal(await machine.inputValue(), '');
+      assert.equal(await activity.inputValue(), '');
+      assert.equal(await page.locator('.session-query').evaluate((node) => node === document.activeElement), true);
+      await machine.selectOption('offline-box');
+      await activity.selectOption('disconnected');
+      assert.equal(await page.locator('.session-name').textContent(), 'Offline shell');
+      assert.equal(await page.locator('.home-new').isVisible(), false);
+      assert.deepEqual(errors, []);
+    } finally { await page.close(); }
+  });
+}
+
+test('overview polling retains filters and recovers focus when activity changes', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 }, workspaceAgents);
+  try {
+    await page.locator('.brand-home').click();
+    await page.getByRole('combobox', { name: 'Filter by machine' }).selectOption('devbox');
+    await page.getByRole('combobox', { name: 'Filter by activity' }).selectOption('dialog');
+    await page.locator('.session-link').focus();
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: {
+      ...fixture, agents: workspaceAgents.map((agent) => ({ ...agent, screen_state: 'busy' })),
+    } }));
+    await page.evaluate(() => refresh());
+    assert.equal(await page.locator('.session-link').count(), 0);
+    assert.equal(await page.locator('.sessions-empty-title').textContent(), 'No matching sessions');
+    assert.equal(await page.locator('.session-query').evaluate((node) => node === document.activeElement), true);
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, hosts: [], agents: workspaceAgents } }));
+    await page.evaluate(() => refresh());
+    assert.equal(await page.getByRole('combobox', { name: 'Filter by machine' }).inputValue(), 'devbox');
+    await page.getByRole('combobox', { name: 'Filter by activity' }).selectOption('disconnected');
+    assert.equal(await page.locator('.session-link').count(), 4);
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, hosts: [], agents: [] } }));
+    await page.evaluate(() => refresh());
+    assert.equal(await page.getByRole('combobox', { name: 'Filter by machine' }).inputValue(), 'devbox');
+    await page.route('**/v1/agents', (route) => route.fulfill({ status: 401 }));
+    await page.evaluate(() => refresh());
+    await page.locator('.signin').waitFor({ state: 'visible' });
+    assert.equal(await page.locator('select[aria-label="Filter by machine"]').inputValue(), '');
+    assert.equal(await page.locator('select[aria-label="Filter by activity"]').inputValue(), '');
+    assert.equal(await page.locator('select[aria-label="Filter by machine"] option').count(), 1);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
 test('workspace polling preserves focused session and exposes disconnected machines', async () => {
   const { page, errors } = await openSession({ width: 1440, height: 900 }, workspaceAgents);
   try {

@@ -50,6 +50,11 @@ tooltips. Activity is a separate navigation destination.
 
 The overview fills the available workspace width, with 24px content insets and
 a modest page title. A dedicated toolbar precedes compact 40px session rows.
+Search combines with machine and activity filters. Needs attention includes
+waiting, failed, and disconnected sessions; ordinary startup is separate.
+Filtering preserves the machine choice during interruptions and offers one
+reset action. Polling moves focus to search when a focused result no longer
+matches, and authentication loss clears all filters.
 Session, program, directory, machine, and activity have separate columns so
 technical details can be compared across sessions. At narrower widths, machine
 and directory move into row metadata without losing their values. Connected
