@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { createStore } from './store';
-import type { WorkspaceData } from './types';
+import { createStore } from '../../core/store';
+import type { WorkspaceData } from '../../core/types';
 import { KindIcon } from './creation';
 
 const empty: WorkspaceData = { hosts: [], agents: [], allowed: false };

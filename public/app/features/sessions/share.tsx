@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import * as Popover from '@radix-ui/react-popover';
-import { createStore } from './store';
+import { createStore } from '../../core/store';
 
 const initial = { open: false, url: '', message: '', problem: false, copying: false, generation: 0 };
 const store = createStore(initial);

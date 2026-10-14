@@ -6,14 +6,18 @@ changes its shape. Thank you for caring about it.
 
 ```
 npm ci
-npm run build:ui        # after changing frontend/src; includes type checking
+npm run build:ui        # after changing public/app; includes type checking
 go install ./cmd/kolo    # onto $(go env GOPATH)/bin, which may not be on PATH
 go run ./cmd/kolo up     # a hub, lending this directory
 go test ./...
 node --test tests/*.test.cjs
 ```
 
-React source lives in `frontend/src`. Node 22.12+ is needed to change it.
+React source lives in `public/app`, following Grafana's separation of shared
+`core` code and product `features`. Session workflows live in
+`public/app/features/sessions`; shared primitives and the controller boundary
+live in `public/app/core`. Vite and TypeScript configuration live at the
+repository root. Node 22.12+ is needed to change the UI.
 Compiled assets in `internal/hub/ui/assets/react` are committed and embedded
 in the Go binary; users and Go-only builders do not need Node. CI runs
 `npm run check:ui` to catch stale assets. Commit source and generated assets

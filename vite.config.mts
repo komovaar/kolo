@@ -8,8 +8,8 @@ const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.u
 
 export default defineConfig(({ command }) => ({
   define: { 'process.env.NODE_ENV': JSON.stringify(command === 'build' ? 'production' : 'development') },
-  root: path('.'),
-  publicDir: path('../internal/hub/ui'),
+  root: path('./public'),
+  publicDir: path('./internal/hub/ui'),
   plugins: [react(), {
     name: 'kolo-development-page',
     async generateBundle(_, bundle) {
@@ -28,11 +28,11 @@ export default defineConfig(({ command }) => ({
           } catch { directory = dirname(directory); }
         }
       }
-      let licenses = await readFile(path('./NOTICE.md'), 'utf8');
+      let licenses = await readFile(path('./public/NOTICE.md'), 'utf8');
       for (const [name, directory] of [...packages].sort(([a], [b]) => a.localeCompare(b, 'en'))) {
         const license = (await readdir(directory)).sort().find((file) => /^(license|copying)(\.|$)/i.test(file));
         const licensePath = license ? join(directory, license)
-          : path(`./licenses/${name.replace('@', '-').replace(/\//g, '_')}.txt`);
+          : path(`./public/licenses/${name.replace('@', '-').replace(/\//g, '_')}.txt`);
         licenses += `\n\n--- ${name} ---\n\n${await readFile(licensePath, 'utf8')}`;
       }
       this.emitFile({ type: 'asset', fileName: 'LICENSES.txt', source: licenses });
@@ -40,7 +40,7 @@ export default defineConfig(({ command }) => ({
     handleHotUpdate({ file, server }) {
       // The transitional controller has a single lifetime. Reload the page
       // rather than running global initialization twice during migration.
-      if (file.startsWith(path('./src/'))) {
+      if (file.startsWith(path('./public/app/'))) {
         server.ws.send({ type: 'full-reload' });
         return [];
       }
@@ -49,8 +49,8 @@ export default defineConfig(({ command }) => ({
       server.middlewares.use(async (request, response, next) => {
         if (request.url?.split('?')[0] !== '/') return next();
         try {
-          const source = await readFile(path('../internal/hub/ui/index.html'), 'utf8');
-          const page = source.replace('/assets/react/workspace.js', '/src/main.tsx');
+          const source = await readFile(path('./internal/hub/ui/index.html'), 'utf8');
+          const page = source.replace('/assets/react/workspace.js', '/app/index.tsx');
           response.setHeader('Content-Type', 'text/html');
           response.end(await server.transformIndexHtml(request.url!, page));
         } catch (error) { next(error as Error); }
@@ -63,12 +63,12 @@ export default defineConfig(({ command }) => ({
       [route, { target: process.env.KOLO_DEV_HUB || 'http://127.0.0.1:7300', ws: true }])),
   },
   build: {
-    outDir: path('../internal/hub/ui/assets/react'),
+    outDir: path('./internal/hub/ui/assets/react'),
     emptyOutDir: true,
     copyPublicDir: false,
     sourcemap: false,
     minify: true,
     rolldownOptions: { output: { minify: true } },
-    lib: { entry: path('./src/main.tsx'), formats: ['es'], fileName: () => 'workspace.js' },
+    lib: { entry: path('./public/app/index.tsx'), formats: ['es'], fileName: () => 'workspace.js' },
   },
 }));

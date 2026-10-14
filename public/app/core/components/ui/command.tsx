@@ -1,4 +1,4 @@
-// Adapted from shadcn/ui's new-york Command (MIT); see frontend/NOTICE.md.
+// Adapted from shadcn/ui's new-york Command (MIT); see public/NOTICE.md.
 import { Command as CommandPrimitive } from 'cmdk';
 import type { ComponentProps } from 'react';
 

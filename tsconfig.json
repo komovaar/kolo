@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "vite.config.mts"]
+  "include": ["public/app", "vite.config.mts"]
 }

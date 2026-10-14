@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
-import { createStore } from './store';
+import { createStore } from '../../core/store';
 import { creationReady, reconcileCreation } from './creation-model';
-import type { CreationState } from './types';
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from './components/ui/dialog';
+import type { CreationState } from '../../core/types';
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../../core/components/ui/dialog';
 
 const initial: CreationState = { open: false, pending: false, allowed: false, hosts: [], host: '', dir: '', command: '', name: '', message: '', problem: false };
 const store = createStore(initial);

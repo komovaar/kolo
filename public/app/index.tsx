@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { creation, CreationDialog } from './creation';
-import { overview, Overview } from './overview';
-import { share, SessionShare } from './share';
-import { switcher, SessionSwitcher } from './switcher';
-import { WorkspaceBoundary } from './error-boundary';
+import { creation, CreationDialog } from './features/sessions/creation';
+import { overview, Overview } from './features/sessions/overview';
+import { share, SessionShare } from './features/sessions/share';
+import { switcher, SessionSwitcher } from './features/sessions/switcher';
+import { WorkspaceBoundary } from './core/error-boundary';
 
 // Components move into this root one workflow at a time. The terminal keeps
 // its independent lifecycle and DOM; streaming output never enters React state.

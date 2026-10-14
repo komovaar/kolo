@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { createStore } from './store';
+import { createStore } from '../../core/store';
 import { workspaceStore } from './overview';
 import { KindIcon } from './creation';
-import { Dialog, DialogContent, DialogTitle, DialogClose } from './components/ui/dialog';
-import { Command, CommandInput, CommandList, CommandItem } from './components/ui/command';
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '../../core/components/ui/dialog';
+import { Command, CommandInput, CommandList, CommandItem } from '../../core/components/ui/command';
 
 const store = createStore({ open: false, generation: 0 });
 let opener: HTMLElement | null = null;

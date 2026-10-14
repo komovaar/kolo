@@ -1,4 +1,4 @@
-import type { CreationState, Host } from './types';
+import type { CreationState, Host } from '../../core/types';
 
 export function reconcileCreation(state: CreationState, hosts: Host[], allowed: boolean, preferred?: string | null): CreationState {
   if (state.pending) return state;

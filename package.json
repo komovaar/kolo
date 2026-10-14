@@ -4,10 +4,10 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev:ui": "vite --config frontend/vite.config.mts",
-    "typecheck": "tsc --project frontend/tsconfig.json",
-    "build:ui": "npm run typecheck && vite build --config frontend/vite.config.mts",
-    "check:ui": "node frontend/check-build.mjs",
+    "dev:ui": "vite --config vite.config.mts",
+    "typecheck": "tsc --project tsconfig.json",
+    "build:ui": "npm run typecheck && vite build --config vite.config.mts",
+    "check:ui": "node scripts/check-ui-build.mjs",
     "test:browser": "node --test tests/*.browser.cjs"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
-const model = import('../frontend/src/creation-model.ts');
+const model = import('../public/app/features/sessions/creation-model.ts');
 const host = (id, extra = {}) => ({ id, dirs: ['/work'], allow: ['sh'], ...extra });
 const initial = { open: true, pending: false, hosts: [], allowed: true, host: '', dir: '', command: '', name: '', message: '', problem: false };
 

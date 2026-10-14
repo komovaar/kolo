@@ -1,4 +1,4 @@
-// Adapted from shadcn/ui's new-york Dialog (MIT); see frontend/NOTICE.md.
+// Adapted from shadcn/ui's new-york Dialog (MIT); see public/NOTICE.md.
 // Keep its Radix composition and replace default styling with Kolo tokens.
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useRef } from 'react';
