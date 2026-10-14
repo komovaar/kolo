@@ -15,12 +15,12 @@
   --kolo-fail: #A63D2E;
 
   /* Workspace surfaces: terminal, canvas, sidebar, and transient controls. */
-  --kolo-bg: #171A1C;
-  --kolo-bg-raised: #202427;
-  --kolo-bg-sidebar: #1C1F22;
-  --kolo-bg-header: #1C1F22;
-  --kolo-bg-input: #191C1F;
-  --kolo-bg-overlay: #222629;
+  --kolo-bg: #17181A;
+  --kolo-bg-raised: #1D1E20;
+  --kolo-bg-sidebar: #131416;
+  --kolo-bg-header: #17181A;
+  --kolo-bg-input: #191A1C;
+  --kolo-bg-overlay: #202123;
   --kolo-bg-terminal: var(--kolo-void);
   --kolo-fg: #E5E8EB;
   --kolo-fg-muted: #90989F;
@@ -35,11 +35,11 @@
   --kolo-state-running: #D1B27E;
   --kolo-state-done: #8BB39F;
   --kolo-state-failed: #CA8682;
-  --kolo-border: #30363B;
-  --kolo-border-subtle: #252A2E;
-  --kolo-border-strong: #495258;
-  --kolo-surface-hover: #292E32;
-  --kolo-selection: #2B3431;
+  --kolo-border: #2D2F32;
+  --kolo-border-subtle: #242629;
+  --kolo-border-strong: #484C51;
+  --kolo-surface-hover: #25272A;
+  --kolo-selection: #2B2D30;
   color-scheme: dark;
 
   --kolo-space-1: 4px;

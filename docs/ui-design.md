@@ -10,6 +10,11 @@ controls, and JetBrains Mono for terminals and technical metadata. The Kolo
 ring and monospace wordmark identify the workspace. Amber means attention is
 needed; red communicates a failure. Routine activity uses neutral text.
 
+The dark explorer sits below the workspace in brightness, so navigation recedes
+and terminal content stays central. Headers share the canvas tone; borders and
+neutral selected rows establish hierarchy without tinting large surfaces.
+Celadon remains reserved for actions, focus, and small selection indicators.
+
 `brand/tokens.css` is the canonical source for workspace tokens. Its served
 copy, `internal/hub/ui/assets/tokens.css`, must stay identical. The original
 brand hues remain available for artwork and CLI output.
