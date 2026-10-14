@@ -292,6 +292,8 @@ test('desktop resizing increases the agent grid without shrinking or scaling tex
 test('read-only viewers fit and pan the shared grid without sending resize requests', async () => {
   const { page, errors, resizeRequests } = await openSession({ width: 390, height: 844 }, fixture.agents, true);
   try {
+    assert.equal(await page.locator('.session-access').isVisible(), true);
+    assert.equal(await page.locator('.session-access').textContent(), 'Read-only');
     await page.waitForFunction(() => {
       const frame = document.querySelector('#term').getBoundingClientRect();
       const grid = document.querySelector('.xterm-screen').getBoundingClientRect();
@@ -778,7 +780,7 @@ for (const width of [390, 320]) {
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => document.activeElement === document.querySelector('.session-share button'));
       assert.equal(await page.getByLabel('Share session', { exact: true }).evaluate((node) => node === document.activeElement), true);
-      assert.equal(await page.locator('.session-access').isVisible(), true);
+      assert.equal(await page.locator('.session-access').isVisible(), false);
       assert.deepEqual(errors, []);
     } finally { await page.close(); }
   });
