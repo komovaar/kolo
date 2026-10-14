@@ -32,7 +32,8 @@ avoid assigning new colours to individual components.
 - Terminal text starts at 14px and is fitted through the existing PTY rules.
 - Spacing uses 4, 8, 12, 16, 24, and 32px tokens. Optical adjustments belong
   inside controls, rather than changing the layout grid.
-- Desktop pane headers are 44px; the terminal status bar starts at 28px.
+- Terminal identity headers are 56px, with a session name above technical
+  context. Compact utility headers are 44px; the status bar starts at 28px.
 - Ordinary controls are 32px tall. Touch controls receive larger targets.
 - Small controls use 4px radii; menus use 6px; modal frames use 8px.
 - Interface icons use a 1.5px stroke. Vendor marks retain their own geometry.

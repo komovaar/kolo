@@ -584,7 +584,10 @@ test('explorer navigation switches terminals with a compact header and bottom co
     const frame = await page.locator('#term').boundingBox();
     const controls = await page.locator('.watch-bar').boundingBox();
     const header = await page.locator('.session-head').boundingBox();
-    assert.ok(header.height <= 44, 'session header should remain compact');
+    assert.ok(header.height <= 56, 'two-line session header should remain compact');
+    const title = await page.locator('.session-title').boundingBox();
+    const context = await page.locator('.session-context').boundingBox();
+    assert.ok(context.y >= title.y + title.height - 1, 'technical context should sit below the session name');
     assert.ok(controls.y >= frame.y + frame.height - 1, 'status controls overlap the terminal');
     const screen = await page.locator('.screen').evaluate((node) => ({
       margin: getComputedStyle(node).margin, radius: getComputedStyle(node).borderRadius,
