@@ -26,6 +26,7 @@ export const creation = {
     store.set({ ...reconcileCreation(state, state.hosts, state.allowed, host), open: true, message: '', problem: false });
   },
   close() { patch({ open: false, name: '', message: '', problem: false }); restoreFocus(); },
+  clear() { store.set({ ...initial, pending: store.getSnapshot().pending }); opener = null; },
   setPending(pending: boolean) { patch({ pending }); },
   message(message: string, problem = false) { patch({ message, problem }); },
   get command() { return store.getSnapshot().command; },

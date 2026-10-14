@@ -24,7 +24,7 @@ function page() {
     close() { closed++; this.readyState = 3; this.onclose?.(); }
   }
   const context = vm.createContext({
-    window: { KoloUI: { switcher: { close() {} }, share: { close() {} }, overview: { clear() { uiClears++; } } } }, drawChoices() {},
+    window: { KoloUI: { creation: { clear() {} }, switcher: { close() {} }, share: { close() {} }, overview: { clear() { uiClears++; } } } }, drawChoices() {},
     retryPending: null, canWatch: () => true,
     logRun: 0, signedIn: true, authLost: false, refreshRun: 0, authRun: 0,
     me: { name: 'Dana' }, hosts: [{ id: 'private' }], lastAgents: [{ name: 'private' }],

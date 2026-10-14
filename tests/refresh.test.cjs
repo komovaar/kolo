@@ -16,7 +16,7 @@ function page() {
   const updates = [], screens = [];
   let resets = 0;
   const context = vm.createContext({
-    window: { KoloUI: { switcher: { close() {} }, share: { close() {} }, overview: { clear() {} } } }, drawChoices() {},
+    window: { KoloUI: { creation: { clear() {} }, switcher: { close() {} }, share: { close() {} }, overview: { clear() {} } } }, drawChoices() {},
     retryPending: null, reconcileWatch() {},
     refreshRun: 0, authRun: 0, authLost: false, signedIn: false, renamingId: null, location: { search: '' },
     el: () => ({ classList: { toggle() {} }, replaceChildren() {}, focus() {}, setAttribute() {} }),

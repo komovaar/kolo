@@ -16,6 +16,14 @@ export default defineConfig(({ command }) => ({
         if (asset.type === 'chunk') asset.code = asset.code.replace(/[\t ]+$/gm, '');
       }
     },
+    handleHotUpdate({ file, server }) {
+      // The transitional controller has a single lifetime. Reload the page
+      // rather than running global initialization twice during migration.
+      if (file.startsWith(path('./src/'))) {
+        server.ws.send({ type: 'full-reload' });
+        return [];
+      }
+    },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         if (request.url?.split('?')[0] !== '/') return next();

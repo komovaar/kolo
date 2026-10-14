@@ -135,6 +135,7 @@ function signOut() {
   window.KoloUI.share.close();
   applyAccess();
   attention.reset();
+  window.KoloUI.creation.clear();
   el('.groups').replaceChildren();
   window.KoloUI.overview.clear();
   drawChoices();
@@ -618,6 +619,18 @@ async function createSession(ev) {
 }
 window.KoloController = { createSession, closeCreate, openCreate, kindGlyph, programKind, programOf, sessionState,
   prepareOverlay() { setNavigation(false); setAccountMenu(false); window.KoloUI.share.close(); },
+  suspend() {
+    ++authRun;
+    ++refreshRun;
+    signedIn = false;
+    authLost = true;
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    term.options.disableStdin = true;
+    const previous = socket;
+    socket = null;
+    previous?.close();
+  },
 };
 
 async function stop(name) {

@@ -738,6 +738,101 @@ test('session sharing copies a member link and provides a manual fallback', asyn
   } finally { await page.close(); }
 });
 
+test('failed React download offers a working reload instead of an endless loading screen', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.route('**/assets/react/workspace.js', (route) => route.abort());
+    await page.reload();
+    await page.getByRole('button', { name: 'Try again' }).waitFor();
+    assert.match(await page.locator('.boot-message').textContent(), /Reload/);
+    await page.unroute('**/assets/react/workspace.js');
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('a React rendering failure shows recovery and gates terminal input', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.evaluate(() => {
+      window.KoloController.sessionState = () => { throw new Error('Review rendering failure'); };
+      window.KoloUI.overview.update({ hosts: [], agents: [{ name: 'broken' }], allowed: false });
+    });
+    await page.getByRole('button', { name: 'Try again' }).waitFor();
+    assert.equal(await page.locator('.app').isVisible(), false);
+    assert.equal(await page.evaluate(() => term.options.disableStdin), true);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('React creation preserves draft values and focused controls during polling', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.locator('.side-new').click();
+    await page.getByLabel('Directory', { exact: true }).fill('/work/custom-project');
+    await page.locator('#new-name').fill('custom-session');
+    await page.locator('.kind-choice').first().focus();
+    await page.evaluate(() => { window.focusedProgram = document.activeElement; });
+    await page.route('**/v1/agents', (route) => route.fulfill({ json: { ...fixture, hosts: [{ ...fixture.hosts[0], dirs: ['/work/api', '/work/web'] }] } }));
+    await page.evaluate(() => refresh());
+    assert.equal(await page.getByLabel('Directory', { exact: true }).inputValue(), '/work/custom-project');
+    assert.equal(await page.locator('#new-name').inputValue(), 'custom-session');
+    assert.equal(await page.evaluate(() => document.activeElement === window.focusedProgram), true);
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.getByLabel('Close new session dialog').evaluate((node) => node === document.activeElement), true);
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.getByRole('button', { name: 'Start session', exact: true }).evaluate((node) => node === document.activeElement), true);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('late clipboard completion cannot overwrite feedback for a different session', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 }, workspaceAgents);
+  try {
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => new Promise((resolve) => { window.finishCopy = resolve; }) } });
+    });
+    await page.getByLabel('Share session', { exact: true }).click();
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Copy', exact: true }).isDisabled(), true);
+    await page.keyboard.press('Escape');
+    await page.locator('.agent').filter({ hasText: 'Build the settings page' }).click();
+    await page.waitForURL('**/#/agent/web-build');
+    await page.getByLabel('Share session', { exact: true }).click();
+    await page.evaluate(async () => { window.finishCopy(); await Promise.resolve(); await Promise.resolve(); });
+    assert.equal(await page.getByLabel('Session link', { exact: true }).inputValue(), `${url}/#/agent/web-build`);
+    assert.equal(await page.locator('.share-feedback').textContent(), '');
+    assert.equal(await page.getByRole('button', { name: 'Copy', exact: true }).isDisabled(), false);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('authentication loss during creation clears the dialog and ignores its late response', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  let release, lost = false;
+  try {
+    await page.route('**/v1/agents', async (route) => {
+      if (route.request().method() !== 'POST') return lost ? route.fulfill({ status: 401 }) : route.fulfill({ json: fixture });
+      await new Promise((resolve) => { release = resolve; });
+      return route.fulfill({ status: 201, json: { name: 'private-session' } });
+    });
+    await page.locator('.side-new').click();
+    await page.getByRole('button', { name: 'Start session', exact: true }).click();
+    await page.getByRole('button', { name: 'Starting…', exact: true }).waitFor();
+    lost = true;
+    await page.evaluate(() => refresh());
+    await page.getByLabel('Access token').waitFor();
+    release();
+    await page.waitForFunction(() => !createPending);
+    assert.equal(await page.locator('.scrim').isVisible(), false);
+    assert.equal(await page.locator('.kind-choice').count(), 0);
+    assert.equal(await page.getByLabel('Access token').evaluate((node) => node === document.activeElement), true);
+    assert.notEqual(await page.evaluate(() => location.hash), '#/agent/private-session');
+    assert.deepEqual(errors, []);
+  } finally { release?.(); await page.close(); }
+});
+
 test('light appearance persists across entry pages with readable selected controls', async () => {
   const { page, errors } = await openSession({ width: 1440, height: 900 });
   try {

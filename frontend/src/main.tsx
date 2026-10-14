@@ -4,6 +4,7 @@ import { creation, CreationDialog } from './creation';
 import { overview, Overview } from './overview';
 import { share, SessionShare } from './share';
 import { switcher, SessionSwitcher } from './switcher';
+import { WorkspaceBoundary } from './error-boundary';
 
 // Components move into this root one workflow at a time. The terminal keeps
 // its independent lifecycle and DOM; streaming output never enters React state.
@@ -11,7 +12,7 @@ const container = document.getElementById('react-root');
 if (!container) throw new Error('Missing Kolo interface root');
 window.KoloUI = { creation, overview, share, switcher };
 const root = createRoot(container);
-flushSync(() => root.render(<><CreationDialog /><Overview /><SessionShare /><SessionSwitcher /></>));
+flushSync(() => root.render(<WorkspaceBoundary><CreationDialog /><Overview /><SessionShare /><SessionSwitcher /></WorkspaceBoundary>));
 
 // The transitional controller starts only after React has mounted its owned
 // regions. Keep these classic scripts in order while their components migrate.
@@ -27,8 +28,5 @@ async function loadScript(source: string) {
 try {
   for (const source of ['/assets/session-controller.js', '/assets/auth.js', '/assets/workspace.js']) await loadScript(source);
 } catch {
-  document.querySelector('.boot-message')!.textContent = 'Could not load the workspace. Reload to try again.';
-  const retry = document.querySelector<HTMLButtonElement>('.boot-retry')!;
-  retry.hidden = false;
-  retry.onclick = () => location.reload();
+  window.KoloStartup.fail();
 }
