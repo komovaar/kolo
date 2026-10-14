@@ -48,7 +48,9 @@ Stop controls are revealed on hover or keyboard focus; read-only viewers keep
 their activity indicators. Full names and paths are available in native
 tooltips. Activity is a separate navigation destination.
 
-The overview fills the available workspace width. Its table has aligned
+The overview fills the available workspace width. Its 56px identity bar brings
+the session count, search, and creation together; search moves below the title
+on phones. Its table has aligned
 session, machine, and activity columns. Connected machines can be collapsed;
 recovery guidance opens when machine availability is lost. Avoid metric cards,
 repeated headings, and decorative content added to fill an empty area.

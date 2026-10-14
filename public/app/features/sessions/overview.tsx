@@ -36,13 +36,12 @@ export function Overview() {
   const waiting = agents.filter((agent) => stateOf(agent).key === 'dialog').length;
   const ready = hosts.some((host) => host.allow?.length && host.dirs?.length);
   return createPortal(<div className="home-content">
-    <div className="home-intro"><div><h1>Sessions</h1><p className="home-guide sr-only">{allowed ? 'Open a session to follow its progress or work together.' : 'Read-only access. Open a session to follow your team’s progress.'}</p></div>
+    <div className="home-intro"><div className="home-identity"><h1>Sessions</h1><p className="home-summary">{agents.length ? `${agents.length} ${agents.length === 1 ? 'session' : 'sessions'}${waiting ? ` · ${waiting} waiting for input` : ''}` : 'Start an agent or shell to work together.'}</p><p className="home-guide sr-only">{allowed ? 'Open a session to follow its progress or work together.' : 'Read-only access. Open a session to follow your team’s progress.'}</p></div>
+      <label className="session-search"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" fill="none" /><path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg><input ref={search} type="search" className="session-query" aria-label="Search sessions" placeholder="Search sessions…" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
       <button type="button" className="go primary home-new" hidden={!allowed} disabled={!ready} title={!ready ? 'Connect a machine that shares programs and directories first.' : ''} onClick={() => window.KoloController.openCreate(null)}><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>New session</button>
     </div>
     <section className="home-section" aria-labelledby="sessions-title">
-      <div className="section-heading session-toolbar"><div><h2 id="sessions-title" className="sr-only">Workspace sessions</h2><p className="home-summary">{agents.length ? `${agents.length} ${agents.length === 1 ? 'session' : 'sessions'}${waiting ? ` · ${waiting} waiting for input` : ''}` : 'Start an agent or shell to work together.'}</p></div>
-        <label className="session-search"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" fill="none" /><path d="m10.5 10.5 3 3" stroke="currentColor" strokeLinecap="round" /></svg><input ref={search} type="search" className="session-query" aria-label="Search sessions" placeholder="Search sessions…" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-      </div>
+      <h2 id="sessions-title" className="sr-only">Workspace sessions</h2>
       <div className="session-list-head" aria-hidden="true" hidden={!matches.length}><span>Session</span><span className="machine-label">Machine</span><span>Activity</span></div>
       <div className="session-list" aria-label="Workspace sessions">{matches.map((agent) => {
         const state = stateOf(agent);
