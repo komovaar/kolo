@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testing.T) {
@@ -23,8 +24,8 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agents.json")
 	wanted := spec("work", dir, "cat")
-	wanted.Status = hub.StatusFailed
-	wanted.ContextResets = []hub.ContextReset{{ID: "event", At: time.Now(), PreviousSession: "saved-id"}}
+	wanted.Status = protocol.StatusFailed
+	wanted.ContextResets = []protocol.ContextReset{{ID: "event", At: time.Now(), PreviousSession: "saved-id"}}
 	savedState(t, path, State{Agents: []Record{{Spec: wanted, Session: "replacement"}}})
 	a := NewAgents(Config{Hub: "http://" + server.Addr(), Token: hostToken, Dirs: []string{dir}, Allow: []string{"cat"}}, path)
 	t.Cleanup(a.StopAll)
@@ -39,7 +40,7 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
 		defer resp.Body.Close()
 		var list struct {
-			Agents []hub.Agent
+			Agents []protocol.Agent
 			Hosts  []hub.HostInfo
 		}
 		json.NewDecoder(resp.Body).Decode(&list)
@@ -56,7 +57,7 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
 		defer resp.Body.Close()
 		var list struct {
-			Agents []hub.Agent
+			Agents []protocol.Agent
 			Hosts  []hub.HostInfo
 		}
 		json.NewDecoder(resp.Body).Decode(&list)

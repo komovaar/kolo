@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/whosgotch/kolo/internal/adapter"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // ReadState reads a machine's saved sessions. A missing file is an empty set;
@@ -57,7 +57,7 @@ func decodeState(b []byte) (State, error) {
 	names := make(map[string]bool, len(state.Agents))
 	for _, rec := range state.Agents {
 		spec := rec.Spec
-		if !hub.ValidName(spec.Name) || names[spec.Name] {
+		if !protocol.ValidName(spec.Name) || names[spec.Name] {
 			return State{}, fmt.Errorf("invalid or duplicate session name %q", spec.Name)
 		}
 		names[spec.Name] = true
@@ -70,7 +70,7 @@ func decodeState(b []byte) (State, error) {
 			return State{}, fmt.Errorf("unsupported screen state %q for session %q", rec.State, spec.Name)
 		}
 		switch spec.Status {
-		case "", hub.StatusStarting, hub.StatusRunning, hub.StatusFailed:
+		case "", protocol.StatusStarting, protocol.StatusRunning, protocol.StatusFailed:
 		default:
 			return State{}, fmt.Errorf("unsupported status %q for session %q", spec.Status, spec.Name)
 		}

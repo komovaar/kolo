@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func TestFailedLaunchSurvivesRestartAndCanBeRepaired(t *testing.T) {
@@ -23,11 +24,11 @@ func TestFailedLaunchSurvivesRestartAndCanBeRepaired(t *testing.T) {
 		t.Fatal("missing executable launched")
 	}
 	failed := nextReport(t, a)
-	if failed.Status != hub.StatusFailed || failed.Error == "" {
+	if failed.Status != protocol.StatusFailed || failed.Error == "" {
 		t.Fatalf("failure report: %+v", failed)
 	}
 	state, err := ReadState(path)
-	if err != nil || len(state.Agents) != 1 || state.Agents[0].Spec.Error != failed.Error || state.Agents[0].Spec.Status != hub.StatusFailed {
+	if err != nil || len(state.Agents) != 1 || state.Agents[0].Spec.Error != failed.Error || state.Agents[0].Spec.Status != protocol.StatusFailed {
 		t.Fatalf("persisted failure: %+v, %v", state, err)
 	}
 	a.StopAll()
@@ -36,7 +37,7 @@ func TestFailedLaunchSurvivesRestartAndCanBeRepaired(t *testing.T) {
 	if err := back.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	if got := back.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed || got[0].Error != failed.Error {
+	if got := back.Specs(); len(got) != 1 || got[0].Status != protocol.StatusFailed || got[0].Error != failed.Error {
 		t.Fatalf("restored failure: %+v", got)
 	}
 	select {
@@ -47,7 +48,7 @@ func TestFailedLaunchSurvivesRestartAndCanBeRepaired(t *testing.T) {
 	if err := back.Retry("repair"); err == nil {
 		t.Fatal("retry before repair succeeded")
 	}
-	if got := nextReport(t, back); got.Status != hub.StatusFailed {
+	if got := nextReport(t, back); got.Status != protocol.StatusFailed {
 		t.Fatalf("second failure: %+v", got)
 	}
 	if err := os.WriteFile(script, []byte("#!/bin/sh\nexec cat\n"), 0o700); err != nil {
@@ -56,7 +57,7 @@ func TestFailedLaunchSurvivesRestartAndCanBeRepaired(t *testing.T) {
 	if err := back.Retry("repair"); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, back); got.Status != hub.StatusRunning || got.Error != "" {
+	if got := nextReport(t, back); got.Status != protocol.StatusRunning || got.Error != "" {
 		t.Fatalf("repaired retry: %+v", got)
 	}
 	if err := back.Retry("repair"); err == nil {
@@ -90,13 +91,13 @@ func TestRetryChecksCurrentPermissions(t *testing.T) {
 	if err := back.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	if got := back.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed {
+	if got := back.Specs(); len(got) != 1 || got[0].Status != protocol.StatusFailed {
 		t.Fatalf("failed record was lost after permissions changed: %+v", got)
 	}
 	if err := back.Retry("repair"); err == nil {
 		t.Fatal("retry accepted an unlent command")
 	}
-	if got := back.Specs(); got[0].Status != hub.StatusFailed || got[0].Error == "" {
+	if got := back.Specs(); got[0].Status != protocol.StatusFailed || got[0].Error == "" {
 		t.Fatalf("permission refusal: %+v", got)
 	}
 }
@@ -136,11 +137,11 @@ exec cat
 		go Run(ctx, a, nil)
 		return cancel
 	}
-	list := func() ([]hub.Agent, []hub.HostInfo) {
+	list := func() ([]protocol.Agent, []hub.HostInfo) {
 		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
 		defer resp.Body.Close()
 		var data struct {
-			Agents []hub.Agent
+			Agents []protocol.Agent
 			Hosts  []hub.HostInfo
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
@@ -158,7 +159,7 @@ exec cat
 	}
 	waitFor(t, func() bool {
 		agents, hosts := list()
-		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == hub.StatusFailed
+		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == protocol.StatusFailed
 	})
 	before, _ := list()
 	if before[0].Error != "exit status 1" {
@@ -169,7 +170,7 @@ exec cat
 	startHost()
 	waitFor(t, func() bool {
 		agents, hosts := list()
-		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == hub.StatusFailed
+		return len(hosts) == 1 && len(agents) == 1 && agents[0].Status == protocol.StatusFailed
 	})
 	after, _ := list()
 	if after[0].Error != before[0].Error || !after[0].CreatedAt.Equal(before[0].CreatedAt) {
@@ -188,7 +189,7 @@ exec cat
 	waitForOutput(t, ctx, viewer, "repaired and ready")
 	waitFor(t, func() bool {
 		agents, _ := list()
-		return len(agents) == 1 && agents[0].Status == hub.StatusRunning && agents[0].Error == ""
+		return len(agents) == 1 && agents[0].Status == protocol.StatusRunning && agents[0].Error == ""
 	})
 	resp = memberRequest(t, server, memberToken, "DELETE", "/v1/agents/repair", "")
 	resp.Body.Close()
@@ -223,12 +224,12 @@ func TestStoppingDuringRetryAlwaysCompletes(t *testing.T) {
 func TestWildcardMissingProgramCanBeInstalledAndRetried(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{hub.AllowAny}}, "")
+	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{protocol.AllowAny}}, "")
 	t.Cleanup(a.StopAll)
 	if err := a.Start(spec("repair", dir, "newly-installed-agent")); err == nil {
 		t.Fatal("uninstalled executable launched")
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusFailed {
+	if got := nextReport(t, a); got.Status != protocol.StatusFailed {
 		t.Fatalf("failure: %+v", got)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "newly-installed-agent"), []byte("#!/bin/sh\nexec cat\n"), 0o700); err != nil {
@@ -237,7 +238,7 @@ func TestWildcardMissingProgramCanBeInstalledAndRetried(t *testing.T) {
 	if err := a.Retry("repair"); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusRunning {
+	if got := nextReport(t, a); got.Status != protocol.StatusRunning {
 		t.Fatalf("installed retry: %+v", got)
 	}
 	select {

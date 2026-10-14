@@ -1,5 +1,14 @@
 # React migration
 
+The source now lives in `web/src`. The classic workspace, authentication,
+activity, and terminal controllers described below have been extracted into
+TypeScript modules with explicit runtime dependencies. They are bundled with
+React through ordinary imports; startup no longer loads controllers as ordered
+classic scripts. `web/static` holds static sources and the complete
+`internal/hub/ui` tree is generated. See [contributing](../CONTRIBUTING.md) for
+the current layout and checks. The checkpoints below record the original React
+migration.
+
 Kolo keeps its Go API, terminal transport, and single-binary distribution.
 React owns interface state and rendering; xterm owns its terminal DOM and
 streamed output. A component migration must remove its old DOM renderer so

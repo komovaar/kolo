@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // Org is an organisation and the people and machines in it, held in a file the
@@ -75,11 +77,7 @@ func (i Invite) Spent(now time.Time) bool { return !now.Before(i.Expires) }
 
 // Person is a member as others see them, a separate type from Member so the
 // token hash can't leak into a response.
-type Person struct {
-	ReadOnly bool   `json:"read_only,omitempty"`
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-}
+type Person = protocol.Person
 
 func (m Member) Person() Person { return Person{ID: m.ID, Name: m.Name, ReadOnly: m.ReadOnly} }
 

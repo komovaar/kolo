@@ -4,15 +4,15 @@ import "net/http"
 
 // beginRetry claims a failed session before dispatch, so concurrent viewers
 // cannot each restart it. Dispatch must still use the host seen by this call.
-func (r *Registry) beginRetry(name string) (Agent, Sender, int) {
+func (r *Registry) beginRetry(name string) (registeredAgent, Sender, int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(name)
 	if h == nil || h.send == nil {
-		return Agent{}, nil, http.StatusNotFound
+		return registeredAgent{}, nil, http.StatusNotFound
 	}
 	if a.Status != StatusFailed {
-		return Agent{}, nil, http.StatusConflict
+		return registeredAgent{}, nil, http.StatusConflict
 	}
 	previous := *a
 	r.nextRetry++
@@ -22,7 +22,7 @@ func (r *Registry) beginRetry(name string) (Agent, Sender, int) {
 	return previous, h.send, 0
 }
 
-func (r *Registry) undoRetry(previous Agent) {
+func (r *Registry) undoRetry(previous registeredAgent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, h := r.find(previous.Name)

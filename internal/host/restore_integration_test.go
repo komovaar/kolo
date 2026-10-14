@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func TestRestoreFailuresAreVisibleToMembers(t *testing.T) {
@@ -54,7 +55,7 @@ func TestRestoreFailuresAreVisibleToMembers(t *testing.T) {
 			t.Cleanup(cancel)
 			go Run(ctx, a, nil)
 			var data struct {
-				Agents []hub.Agent
+				Agents []protocol.Agent
 				Hosts  []hub.HostInfo
 			}
 			refresh := func() {
@@ -70,7 +71,7 @@ func TestRestoreFailuresAreVisibleToMembers(t *testing.T) {
 					t.Fatalf("member cannot see rejected session: %+v", data)
 				}
 				for _, got := range data.Agents {
-					if got.Name == "unlent" && (got.Status != hub.StatusFailed || !strings.Contains(got.Error, "does not lend")) {
+					if got.Name == "unlent" && (got.Status != protocol.StatusFailed || !strings.Contains(got.Error, "does not lend")) {
 						t.Fatalf("restore diagnostic missing: %+v", got)
 					}
 				}
@@ -84,7 +85,7 @@ func TestRestoreFailuresAreVisibleToMembers(t *testing.T) {
 				if resp.StatusCode != http.StatusCreated {
 					t.Fatal(resp.Status)
 				}
-				waitFor(t, func() bool { refresh(); return len(data.Agents) == 1 && data.Agents[0].Status == hub.StatusFailed })
+				waitFor(t, func() bool { refresh(); return len(data.Agents) == 1 && data.Agents[0].Status == protocol.StatusFailed })
 				if !strings.Contains(data.Agents[0].Error, "disabled") || len(a.Names()) != 0 {
 					t.Fatalf("host started a session after unsafe restore: %+v", data)
 				}

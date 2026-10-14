@@ -14,7 +14,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/whosgotch/kolo/internal/adapter"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 	"github.com/whosgotch/kolo/internal/session"
 )
 
@@ -94,10 +94,10 @@ func connect(ctx context.Context, cfg Config, agents *Agents, onWelcome func(wel
 			byName = append(byName, command)
 		}
 	}
-	hello, _ := json.Marshal(map[string]any{
-		"type": "hello", "dirs": cfg.Dirs, "allow": cfg.Allow,
-		"found": adapter.Discovered(), "by_name": byName,
-		"agents": agents.Specs(), "version": cfg.Version, "error": agents.Health(),
+	hello, _ := json.Marshal(protocol.HostHello{
+		Type: "hello", Dirs: cfg.Dirs, Allow: cfg.Allow,
+		Found: adapter.Discovered(), ByName: byName,
+		Agents: agents.Specs(), Version: cfg.Version, Error: agents.Health(),
 	})
 	if err := send(ctx, conn, hello); err != nil {
 		return fmt.Errorf("host: hello: %w", err)
@@ -149,7 +149,7 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				// Launch failures are retained and reported by begin. A
 				// reservation refusal has no process record to report from.
 				if !slices.Contains(agents.Names(), c.Agent.Name) {
-					agents.report(c.Agent.Name, hub.StatusFailed, err.Error())
+					agents.report(c.Agent.Name, protocol.StatusFailed, err.Error())
 				}
 			}
 		case "retry":
@@ -160,14 +160,14 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				for _, spec := range agents.Specs() {
 					if spec.Name == c.Name {
 						found = true
-						if spec.Status != hub.StatusFailed {
+						if spec.Status != protocol.StatusFailed {
 							agents.report(c.Name, spec.Status, spec.Error)
 						}
 						break
 					}
 				}
 				if !found {
-					agents.report(c.Name, hub.StatusFailed, err.Error())
+					agents.report(c.Name, protocol.StatusFailed, err.Error())
 				}
 			}
 		case "context-ack":
@@ -257,31 +257,11 @@ func send(ctx context.Context, conn *websocket.Conn, b []byte) error {
 	return conn.Write(ctx, websocket.MessageText, b)
 }
 
-type welcome struct {
-	Type string `json:"type"`
-	Org  string `json:"org"`
-	Host string `json:"host"`
-}
+type welcome = protocol.HostWelcome
 
-type command struct {
-	Cols    int       `json:"cols"`
-	Rows    int       `json:"rows"`
-	Reset   string    `json:"reset,omitempty"`
-	Type    string    `json:"type"`
-	Name    string    `json:"name"`
-	Request uint64    `json:"request"`
-	From    string    `json:"from"`
-	Keys    string    `json:"keys"`
-	Agent   hub.Agent `json:"agent"`
-}
+type command = protocol.HostCommand
 
-type stoppedReport struct {
-	CreatedAt     time.Time          `json:"created_at"`
-	ContextResets []hub.ContextReset `json:"context_resets,omitempty"`
-	Type          string             `json:"type"`
-	Name          string             `json:"name"`
-	Request       uint64             `json:"request"`
-}
+type stoppedReport = protocol.StoppedReport
 
 // https is never silently connected to in the clear.
 func wsURL(base string) string {

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/whosgotch/kolo/internal/host"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func writeState(t *testing.T, state host.State) string {
@@ -62,7 +62,7 @@ func report(t *testing.T, state host.State, kinds string) (string, bool) {
 
 func agent(name, dir, command, state string, since time.Time) host.Record {
 	return host.Record{
-		Spec:  hub.Agent{Name: name, Dir: dir, Command: command},
+		Spec:  protocol.Agent{Name: name, Dir: dir, Command: command},
 		State: state,
 		Since: since,
 	}
@@ -215,7 +215,7 @@ func TestDoctorDoesNotFaultAnAgentItWasNeverGoingToRead(t *testing.T) {
 func TestDoctorReportsFailedSessionsInsteadOfStaleActivity(t *testing.T) {
 	installed(t, "cat")
 	rec := agent("repair", "/work", "cat", "idle", time.Now())
-	rec.Spec.Status, rec.Spec.Error = hub.StatusFailed, "exit status 1"
+	rec.Spec.Status, rec.Spec.Error = protocol.StatusFailed, "exit status 1"
 	out, ok := report(t, host.State{Allows: []string{"cat"}, Agents: []host.Record{rec}}, absent(t))
 	if ok || !strings.Contains(out, "failed: exit status 1") || !strings.Contains(out, "Retry in the browser") {
 		t.Fatalf("failed session report: ok=%v\n%s", ok, out)

@@ -13,23 +13,24 @@ import (
 	"unicode/utf8"
 
 	"github.com/whosgotch/kolo/internal/adapter"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // Agent status values. Starting lasts until the host reports otherwise.
 const (
-	StatusStarting = "starting"
-	StatusRunning  = "running"
-	StatusFailed   = "failed"
+	StatusStarting = protocol.StatusStarting
+	StatusRunning  = protocol.StatusRunning
+	StatusFailed   = protocol.StatusFailed
 )
 
 const maxLabel = 64
 const maxError = 1024
 
 // AllowAny is the -allow entry that lends every command on the host's PATH.
-const AllowAny = "*"
+const AllowAny = protocol.AllowAny
 
 // DirAny is the -dir entry that lends the host's whole filesystem.
-const DirAny = "*"
+const DirAny = protocol.DirAny
 
 func runs(allow []string, command string) bool {
 	if slices.Contains(allow, command) {
@@ -44,13 +45,7 @@ func runs(allow []string, command string) bool {
 
 // Program is the word at the front of a command line, or empty when there is
 // none.
-func Program(command string) string {
-	argv := adapter.Argv(command)
-	if len(argv) == 0 {
-		return ""
-	}
-	return argv[0]
-}
+func Program(command string) string { return adapter.Program(command) }
 
 func (h *host) resumesByName(command string) bool {
 	return slices.Contains(h.info.ByName, command)
@@ -59,22 +54,11 @@ func (h *host) resumesByName(command string) bool {
 // Agent is one agent a host was asked to run. Name addresses it in every URL
 // and protocol message, so it does not change once picked. Label is a member's
 // own word for it and the hub's alone to know.
-type Agent struct {
-	Name          string         `json:"name"`
-	Label         string         `json:"label,omitempty"`
-	Title         string         `json:"title,omitempty"`
-	Host          string         `json:"host"`
-	Dir           string         `json:"dir"`
-	Command       string         `json:"command"`
-	Status        string         `json:"status"`
-	Error         string         `json:"error,omitempty"`
-	ContextResets []ContextReset `json:"context_resets,omitempty"`
-	// ScreenState is filled by the hub when listing agents. It is not process
-	// lifecycle state and is omitted when a host sends or saves an Agent spec.
-	ScreenState string    `json:"screen_state,omitempty"`
-	CreatedBy   Person    `json:"created_by"`
-	CreatedAt   time.Time `json:"created_at"`
-	// Dispatch claim; never serialized or supplied by a host.
+type Agent = protocol.Agent
+
+// Dispatch claims belong to the registry and never travel on the wire.
+type registeredAgent struct {
+	Agent
 	retry uint64
 }
 
@@ -99,7 +83,7 @@ type Sender func(any) error
 type host struct {
 	info   HostInfo
 	send   Sender
-	agents map[string]*Agent
+	agents map[string]*registeredAgent
 }
 
 // Registry retains disconnected sessions until their host reports its current
@@ -128,7 +112,7 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 	h := &host{
 		info:   HostInfo{ID: id, Dirs: dirs, Allow: allow, Found: found, ByName: byName, Since: r.now()},
 		send:   send,
-		agents: map[string]*Agent{},
+		agents: map[string]*registeredAgent{},
 	}
 	delete(r.offline, id)
 	r.hosts[id] = h
@@ -143,11 +127,10 @@ func (r *Registry) Join(id string, dirs, allow, found, byName []string, running 
 			continue
 		}
 		a.Host = id
-		a.retry = 0
 		a.Label = label(a.Label, maxLabel)
 		a.Title = label(a.Title, maxLabel)
 		a.Error = label(a.Error, maxError)
-		h.agents[a.Name] = &a
+		h.agents[a.Name] = &registeredAgent{Agent: a}
 	}
 	return nil
 }
@@ -195,7 +178,7 @@ func (r *Registry) Agents() []Agent {
 	var out []Agent
 	for _, h := range r.allHosts() {
 		for _, a := range h.agents {
-			out = append(out, *a)
+			out = append(out, a.Agent)
 		}
 	}
 	slices.SortFunc(out, func(a, b Agent) int {
@@ -211,7 +194,7 @@ func (r *Registry) Agent(name string) (Agent, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if a, h := r.find(name); h != nil {
-		return *a, true
+		return a.Agent, true
 	}
 	return Agent{}, false
 }
@@ -252,7 +235,7 @@ func (r *Registry) Add(a Agent) (Sender, error) {
 
 	a.CreatedAt = r.now()
 	a.Status = StatusStarting
-	h.agents[a.Name] = &a
+	h.agents[a.Name] = &registeredAgent{Agent: a}
 	return h.send, nil
 }
 
@@ -277,11 +260,11 @@ func (r *Registry) setLabel(name, value string, save func(Agent) error) (Agent, 
 	if h == nil {
 		return Agent{}, fmt.Errorf("no agent called %q", name)
 	}
-	if err := save(*a); err != nil {
+	if err := save(a.Agent); err != nil {
 		return Agent{}, err
 	}
 	a.Label = value
-	return *a, nil
+	return a.Agent, nil
 }
 
 func (r *Registry) setTitle(host, name string, created time.Time, title string) bool {
@@ -341,7 +324,7 @@ func (r *Registry) Remove(name string) (Sender, bool) {
 }
 
 // Callers must hold r.mu.
-func (r *Registry) find(name string) (*Agent, *host) {
+func (r *Registry) find(name string) (*registeredAgent, *host) {
 	for _, h := range r.allHosts() {
 		if a, ok := h.agents[name]; ok {
 			return a, h
@@ -358,20 +341,7 @@ func (r *Registry) allHosts() map[string]*host {
 }
 
 // ValidName reports whether s is a usable agent name in URLs and log lines.
-func ValidName(s string) bool {
-	if len(s) == 0 || len(s) > 32 {
-		return false
-	}
-	for i, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-		case r == '-' && i > 0 && i < len(s)-1:
-		default:
-			return false
-		}
-	}
-	return true
-}
+func ValidName(s string) bool { return protocol.ValidName(s) }
 
 func label(s string, max int) string {
 	var b strings.Builder

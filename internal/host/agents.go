@@ -19,7 +19,7 @@ import (
 	"github.com/whosgotch/kolo/internal/adapter"
 	"github.com/whosgotch/kolo/internal/agent"
 	"github.com/whosgotch/kolo/internal/detect"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 	"github.com/whosgotch/kolo/internal/relay"
 	"github.com/whosgotch/kolo/internal/session"
 )
@@ -66,7 +66,7 @@ type Agents struct {
 }
 
 type process struct {
-	spec   hub.Agent
+	spec   protocol.Agent
 	status string
 	error  string
 	// A launch or supervisor owns cleanup while this is true.
@@ -104,7 +104,7 @@ func NewAgents(cfg Config, state string) *Agents {
 
 // Start runs an agent, after checking it is one this machine agreed to run. A
 // new agent starts fresh: a conversation left in its directory is not its own.
-func (a *Agents) Start(spec hub.Agent) error {
+func (a *Agents) Start(spec protocol.Agent) error {
 	if err := a.reserve(spec, true, ""); err != nil {
 		return err
 	}
@@ -115,10 +115,10 @@ func (a *Agents) runs(command string) bool {
 	if slices.Contains(a.cfg.Allow, command) {
 		return true
 	}
-	if !slices.Contains(a.cfg.Allow, hub.AllowAny) {
+	if !slices.Contains(a.cfg.Allow, protocol.AllowAny) {
 		return false
 	}
-	name := hub.Program(command)
+	name := adapter.Program(command)
 	if name == "" || filepath.Base(name) != name {
 		return false
 	}
@@ -158,8 +158,8 @@ func baseOf(command string) string {
 	return command
 }
 
-func (a *Agents) permitted(spec hub.Agent) error {
-	if !slices.Contains(a.cfg.Dirs, spec.Dir) && !slices.Contains(a.cfg.Dirs, hub.DirAny) {
+func (a *Agents) permitted(spec protocol.Agent) error {
+	if !slices.Contains(a.cfg.Dirs, spec.Dir) && !slices.Contains(a.cfg.Dirs, protocol.DirAny) {
 		return fmt.Errorf("this machine does not lend %s", spec.Dir)
 	}
 	if !a.runs(spec.Command) {
@@ -168,7 +168,7 @@ func (a *Agents) permitted(spec hub.Agent) error {
 	return nil
 }
 
-func conflict(spec, other hub.Agent) error {
+func conflict(spec, other protocol.Agent) error {
 	if other.Dir != spec.Dir {
 		return nil
 	}
@@ -180,14 +180,14 @@ func conflict(spec, other hub.Agent) error {
 	return nil
 }
 
-func newProcess(spec hub.Agent, fresh bool, session string) *process {
+func newProcess(spec protocol.Agent, fresh bool, session string) *process {
 	return &process{
-		spec: spec, status: hub.StatusStarting, fresh: fresh, session: session, supervising: true,
+		spec: spec, status: protocol.StatusStarting, fresh: fresh, session: session, supervising: true,
 		stopped: make(chan struct{}), done: make(chan struct{}),
 	}
 }
 
-func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
+func (a *Agents) reserve(spec protocol.Agent, fresh bool, session string) error {
 	spec.Dir = filepath.Clean(spec.Dir)
 	if err := a.permitted(spec); err != nil {
 		return err
@@ -197,7 +197,7 @@ func (a *Agents) reserve(spec hub.Agent, fresh bool, session string) error {
 
 // retain also restores failed specs whose executable may still be missing.
 // Retry performs the permission checks again before launching them.
-func (a *Agents) retain(spec hub.Agent, fresh bool, session string) error {
+func (a *Agents) retain(spec protocol.Agent, fresh bool, session string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.restoreErr != "" {
@@ -232,7 +232,7 @@ func (a *Agents) begin(name string) error {
 func (a *Agents) Retry(name string) error {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.stopping || p.status != hub.StatusFailed || p.supervising {
+	if !ok || p.stopping || p.status != protocol.StatusFailed || p.supervising {
 		a.mu.Unlock()
 		return fmt.Errorf("%s is not a failed session here", name)
 	}
@@ -240,7 +240,7 @@ func (a *Agents) Retry(name string) error {
 		a.mu.Unlock()
 		return fmt.Errorf("this machine cannot retry while restoring or shutting down")
 	}
-	p.status, p.error, p.fails, p.supervising = hub.StatusStarting, "", 0, true
+	p.status, p.error, p.fails, p.supervising = protocol.StatusStarting, "", 0, true
 	err := a.permitted(p.spec)
 	if err == nil {
 		for other, held := range a.running {
@@ -269,7 +269,7 @@ func (a *Agents) failed(name, reason string) {
 	}
 	p.supervising = false
 	p.agent, p.live, p.input, p.writes = nil, nil, nil, nil
-	p.status, p.error = hub.StatusFailed, reason
+	p.status, p.error = protocol.StatusFailed, reason
 	stopped := p.stopping
 	if stopped {
 		delete(a.running, name)
@@ -282,8 +282,8 @@ func (a *Agents) failed(name, reason string) {
 		// A reconnect may expose the failed spec during save, letting Retry
 		// start it already. Never send an older failure after that launch.
 		a.mu.Lock()
-		if current := a.running[name]; current == p && !p.stopping && p.status == hub.StatusFailed && p.error == reason {
-			a.report(name, hub.StatusFailed, reason)
+		if current := a.running[name]; current == p && !p.stopping && p.status == protocol.StatusFailed && p.error == reason {
+			a.report(name, protocol.StatusFailed, reason)
 		}
 		a.mu.Unlock()
 	}
@@ -320,7 +320,7 @@ func (a *Agents) launch(name string) error {
 		} else if len(kind.Continue) > 0 && a.soleIn(spec.Dir, name) {
 			argv, resumed = append(argv, kind.Continue...), true
 		} else if slices.Contains(kind.Resume, adapter.SessionPlaceholder) {
-			p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), hub.ContextReset{
+			p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), protocol.ContextReset{
 				ID: newSessionID(), At: time.Now(), PreviousSession: was,
 			})
 		}
@@ -365,12 +365,12 @@ func (a *Agents) launch(name string) error {
 	})
 	p.agent, p.started, p.live, p.input = started, time.Now(), live, input
 	p.writes = writes
-	p.status, p.error = hub.StatusRunning, ""
+	p.status, p.error = protocol.StatusRunning, ""
 	p.resumed, p.fresh, p.bounced = resumed, false, false
 	p.state, p.since = detect.Unknown, time.Now()
 	a.mu.Unlock()
 
-	a.report(name, hub.StatusRunning, "")
+	a.report(name, protocol.StatusRunning, "")
 
 	// The PTY must be read or the agent blocks once its buffer fills.
 	go func() {
@@ -458,12 +458,12 @@ func (a *Agents) Fresh(name, from string) error { return a.bounce(name, from, tr
 func (a *Agents) bounce(name, from string, fresh bool) error {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.agent == nil || p.stopping || p.status != hub.StatusRunning {
+	if !ok || p.agent == nil || p.stopping || p.status != protocol.StatusRunning {
 		a.mu.Unlock()
 		return fmt.Errorf("%s is not running here", name)
 	}
 	p.bounced = true
-	p.status = hub.StatusStarting
+	p.status = protocol.StatusStarting
 	if fresh {
 		// The id goes too, or a dying process brings back what was cleared.
 		p.fresh, p.session = true, ""
@@ -497,7 +497,7 @@ func (a *Agents) reach(name string) (view, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	p, ok := a.running[name]
-	if !ok || p.input == nil || p.stopping || p.status != hub.StatusRunning {
+	if !ok || p.input == nil || p.stopping || p.status != protocol.StatusRunning {
 		return view{}, fmt.Errorf("%s is not running here", name)
 	}
 	return p.view(), nil
@@ -566,7 +566,7 @@ func (a *Agents) readTitle(name string, live *session.Session) {
 	}
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.live != live || p.status != hub.StatusRunning || !isCodex(p.spec.Command) {
+	if !ok || p.live != live || p.status != protocol.StatusRunning || !isCodex(p.spec.Command) {
 		a.mu.Unlock()
 		return
 	}
@@ -588,17 +588,12 @@ func (a *Agents) readTitle(name string, live *session.Session) {
 	}
 }
 
-type titleReport struct {
-	Type      string    `json:"type"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	Title     string    `json:"title"`
-}
+type titleReport = protocol.TitleReport
 
 func (a *Agents) reading(name string, live *session.Session, now detect.State) {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.live != live || p.status != hub.StatusRunning || p.state == now {
+	if !ok || p.live != live || p.status != protocol.StatusRunning || p.state == now {
 		a.mu.Unlock()
 		return
 	}
@@ -610,7 +605,7 @@ func (a *Agents) reading(name string, live *session.Session, now detect.State) {
 func (a *Agents) remember(name string, live *session.Session, id string) {
 	a.mu.Lock()
 	p, ok := a.running[name]
-	if !ok || p.live != live || p.status != hub.StatusRunning || p.session == id {
+	if !ok || p.live != live || p.status != protocol.StatusRunning || p.session == id {
 		a.mu.Unlock()
 		return
 	}
@@ -654,7 +649,7 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		p.fails = 0
 	case p.resumed:
 		// Dying at once reads as a refused resume; the refused id goes too.
-		p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), hub.ContextReset{
+		p.spec.ContextResets = append(slices.Clone(p.spec.ContextResets), protocol.ContextReset{
 			ID: newSessionID(), At: time.Now(), PreviousSession: p.session,
 		})
 		p.fresh, p.session = true, ""
@@ -667,11 +662,11 @@ func (a *Agents) wait(name string, started *agent.Agent, closeScreen context.Can
 		a.failed(name, reasonFor(err, "it will not stay running"))
 		return
 	}
-	p.status, p.error = hub.StatusStarting, reason
+	p.status, p.error = protocol.StatusStarting, reason
 	a.mu.Unlock()
 
 	a.save()
-	a.report(name, hub.StatusStarting, reason)
+	a.report(name, protocol.StatusStarting, reason)
 	timer := time.NewTimer(restartDelay)
 	select {
 	case <-timer.C:
@@ -746,17 +741,17 @@ func (a *Agents) StopAll() {
 }
 
 // Specs is what this machine runs or retains for recovery.
-func (a *Agents) Specs() []hub.Agent {
+func (a *Agents) Specs() []protocol.Agent {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	out := make([]hub.Agent, 0, len(a.running))
+	out := make([]protocol.Agent, 0, len(a.running))
 	for _, p := range a.running {
 		spec := p.spec
 		spec.Status, spec.Error = p.status, p.error
 		out = append(out, spec)
 	}
-	slices.SortFunc(out, func(x, y hub.Agent) int { return x.CreatedAt.Compare(y.CreatedAt) })
+	slices.SortFunc(out, func(x, y protocol.Agent) int { return x.CreatedAt.Compare(y.CreatedAt) })
 	return out
 }
 
@@ -780,9 +775,9 @@ type State struct {
 
 // Record is one agent remembered across restarts.
 type Record struct {
-	Spec    hub.Agent `json:"spec"`
-	Session string    `json:"session,omitempty"`
-	Fresh   bool      `json:"fresh,omitempty"`
+	Spec    protocol.Agent `json:"spec"`
+	Session string         `json:"session,omitempty"`
+	Fresh   bool           `json:"fresh,omitempty"`
 	// idle, busy, dialog or unknown.
 	State string    `json:"state,omitempty"`
 	Since time.Time `json:"since,omitzero"`
@@ -860,22 +855,14 @@ func (a *Agents) recordsLocked() []Record {
 
 func (a *Agents) report(name, status, reason string) {
 	select {
-	case a.reports <- statusReport{"status", name, status, reason}:
+	case a.reports <- statusReport{Type: "status", Name: name, Status: status, Error: reason}:
 	default:
 	}
 }
 
-type statusReport struct {
-	Type   string `json:"type"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
-}
+type statusReport = protocol.StatusReport
 
-type hostReport struct {
-	Type  string `json:"type"`
-	Error string `json:"error,omitempty"`
-}
+type hostReport = protocol.HostReport
 
 func reasonFor(err error, fallback string) string {
 	if err != nil {
@@ -913,9 +900,7 @@ func (a *Agents) push(ctx context.Context, name string, live *session.Session) e
 
 	// Markers travel with the screen, so the hub needs no adapter table.
 	currentCols, currentRows := live.Size()
-	hello, _ := json.Marshal(map[string]any{
-		"type": "screen", "cols": currentCols, "rows": currentRows, "markers": live.Markers(),
-	})
+	hello, _ := json.Marshal(protocol.ScreenHello{Type: "screen", Cols: currentCols, Rows: currentRows, Markers: live.Markers()})
 	if err := send(ctx, conn, hello); err != nil {
 		return err
 	}

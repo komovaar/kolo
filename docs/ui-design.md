@@ -19,7 +19,8 @@ neutral selected rows establish hierarchy without tinting large surfaces.
 Celadon remains reserved for actions, focus, and small selection indicators.
 
 `brand/tokens.css` is the canonical source for workspace tokens. Its served
-copy, `internal/hub/ui/assets/tokens.css`, must stay identical. The original
+copy in `web/static/tokens.css` must stay identical. The frontend build copies
+it into `internal/hub/ui/assets`. The original
 brand hues remain available for artwork and CLI output.
 
 Use the semantic surface tokens for the canvas, sidebar, header, input, and
@@ -84,9 +85,9 @@ retired sessions.
 
 ## Maintenance and review
 
-Shared controls and entry forms live in `assets/ui.css`; workspace styles live
-in `assets/workspace.css`. Reuse these treatments before adding another style.
-React workflows live in `public/app` and reuse these same tokens and CSS.
+Shared controls and entry forms live in `web/static/ui.css`; workspace styles
+live in `web/static/workspace.css`. Reuse these treatments before adding another
+style. React workflows live in `web/src/features` and reuse these tokens and CSS.
 Customized shadcn components provide dialog and command behavior without
 changing Kolo's visual language. See [React migration](react-migration.md) for
 the ownership boundaries and build workflow.

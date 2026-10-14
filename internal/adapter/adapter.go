@@ -362,3 +362,12 @@ func Load(path string) (added []string, err error) {
 	slices.Sort(added)
 	return added, nil
 }
+
+// Program returns the executable at the front of a command line.
+func Program(command string) string {
+	argv := Argv(command)
+	if len(argv) == 0 {
+		return ""
+	}
+	return argv[0]
+}

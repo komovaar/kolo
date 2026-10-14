@@ -13,6 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func TestBlockedPTYCannotStallHostControls(t *testing.T) {
@@ -139,7 +140,7 @@ fi
 					agents.mu.Lock()
 					defer agents.mu.Unlock()
 					p := agents.running["blocked"]
-					return p != nil && p.status == hub.StatusRunning && p.writes != old
+					return p != nil && p.status == protocol.StatusRunning && p.writes != old
 				})
 				restarted := dialViewer(t, ctx, server, memberToken, "blocked")
 				waitForOutput(t, ctx, restarted, "reading after restart")

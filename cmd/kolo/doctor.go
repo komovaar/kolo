@@ -14,7 +14,7 @@ import (
 	"github.com/whosgotch/kolo/internal/adapter"
 	"github.com/whosgotch/kolo/internal/config"
 	"github.com/whosgotch/kolo/internal/host"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // puzzled is how long an agent may go unrecognised before it counts as a fault.
@@ -77,7 +77,7 @@ func lends(w io.Writer, allows []string, kindsPath string) bool {
 	table := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, command := range allows {
 		// The wildcard lends whatever turns out to be on PATH.
-		if command == hub.AllowAny {
+		if command == protocol.AllowAny {
 			fmt.Fprintf(table, "  *\tok\tany command found on PATH\n")
 			continue
 		}
@@ -169,14 +169,14 @@ func running(w io.Writer, records []host.Record) bool {
 			held = " for " + since(rec.Since)
 		}
 		switch {
-		case rec.Spec.Status == hub.StatusFailed:
+		case rec.Spec.Status == protocol.StatusFailed:
 			reason := rec.Spec.Error
 			if reason == "" {
 				reason = "the program could not stay running"
 			}
 			fmt.Fprintf(table, "  %s\tfailed: %s; fix it on this machine, then choose Retry in the browser\n", rec.Spec.Name, reason)
 			well = false
-		case rec.Spec.Status == hub.StatusStarting:
+		case rec.Spec.Status == protocol.StatusStarting:
 			fmt.Fprintf(table, "  %s\tstarting\n", rec.Spec.Name)
 		case rec.State != "" && rec.State != "unknown":
 			fmt.Fprintf(table, "  %s\t%s%s\n", rec.Spec.Name, rec.State, held)
