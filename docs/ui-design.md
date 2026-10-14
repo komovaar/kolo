@@ -9,6 +9,7 @@ The interface uses neutral graphite surfaces, a celadon accent, Inter for
 controls, and JetBrains Mono for terminals and technical metadata. The Kolo
 ring stands alone in the sidebar and opens the workspace overview. Amber means
 attention is needed; red communicates a failure. Routine activity uses neutral text.
+The browser-tab mark is white on a transparent background in both appearances.
 
 The dark explorer sits below the workspace in brightness, so navigation recedes
 and terminal content stays central. Headers share the canvas tone; borders and

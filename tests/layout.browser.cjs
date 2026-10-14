@@ -19,7 +19,8 @@ before(async () => {
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify(fixture));
     }
-    const file = path.join(root, req.url === '/' ? 'index.html' : req.url);
+    const pathname = req.url.split('?')[0];
+    const file = path.join(root, pathname === '/' ? 'index.html' : pathname);
     const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
       '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
     res.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');

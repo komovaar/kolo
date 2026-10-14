@@ -1,15 +1,13 @@
-// Theme-aware, transparent browser-tab mark, using the shared Kolo geometry.
+// White, transparent browser-tab mark, using the shared Kolo geometry.
 // Run after npm ci and npx playwright install chromium:
 // node brand/favicon.mjs
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { markSvg } from './ring.ts';
 
 const assets = new URL('../internal/hub/ui/assets/', import.meta.url);
-const tokens = JSON.parse(readFileSync(new URL('./tokens.json', import.meta.url)));
-const svg = markSvg(256, tokens.color.void.value).replace(/(<svg[^>]*>)/,
-  `$1<style>@media (prefers-color-scheme: dark) { path { fill: ${tokens.color.chalk.value}; } }</style>`);
+const svg = markSvg(256, '#FFFFFF');
 writeFileSync(new URL('favicon.svg', assets), svg + '\n');
 
 const browser = await chromium.launch({ headless: true,
