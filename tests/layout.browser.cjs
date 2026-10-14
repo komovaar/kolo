@@ -931,6 +931,43 @@ test('authentication loss during creation clears the dialog and ignores its late
   } finally { release?.(); await page.close(); }
 });
 
+test('tab icons follow the browser preference independently of Kolo appearance', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 });
+  const icon = await browser.newPage();
+  try {
+    const source = await page.locator('link[rel="icon"][type="image/svg+xml"]').getAttribute('href');
+    await icon.goto(url + source);
+    for (const colorScheme of ['light', 'dark', 'light']) {
+      await page.emulateMedia({ colorScheme });
+      await icon.emulateMedia({ colorScheme });
+      await page.evaluate((scheme) => { document.documentElement.dataset.theme = scheme === 'dark' ? 'light' : 'dark'; }, colorScheme);
+      const value = colorScheme === 'dark' ? 255 : 0;
+      await icon.waitForFunction((value) => getComputedStyle(document.querySelector('path')).fill === `rgb(${value}, ${value}, ${value})`, value);
+      const fallbacks = await page.evaluate(() => [...document.querySelectorAll('link[rel="icon"][type="image/png"]')]
+        .filter((link) => matchMedia(link.media).matches).map((link) => link.href));
+      assert.equal(fallbacks.length, 2);
+      for (const source of fallbacks) {
+        const pixels = await page.evaluate(async ({ source, value }) => {
+          const image = new Image(); image.src = source; await image.decode();
+          const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+          const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+          const rgba = context.getImageData(0, 0, image.width, image.height).data;
+          let painted = 0, wrong = 0;
+          for (let i = 0; i < rgba.length; i += 4) {
+            if (!rgba[i + 3]) continue;
+            painted++;
+            if (rgba[i] !== value || rgba[i + 1] !== value || rgba[i + 2] !== value) wrong++;
+          }
+          return { painted, wrong };
+        }, { source, value });
+        assert.ok(pixels.painted > 0);
+        assert.equal(pixels.wrong, 0);
+      }
+    }
+    assert.deepEqual(errors, []);
+  } finally { await icon.close(); await page.close(); }
+});
+
 test('light appearance persists across entry pages with readable selected controls', async () => {
   const { page, errors } = await openSession({ width: 1440, height: 900 });
   try {
