@@ -32,7 +32,8 @@ export function drawSession(runtime: WorkspaceRuntime) {
   runtime.el('.session-head .session-state').dataset.state = state.key;
   runtime.el('.session-head .session-state').title = agent?.error ||
     (agent?.status === 'running' && state.key === 'unknown' ? 'Activity is unknown; typing still works.' : '');
-  runtime.el('.session-access').textContent = runtime.canControl() ? 'Control access' : 'Read-only access';
+  runtime.el('.session-access').textContent = runtime.canControl() ? '' : 'Read-only';
+  runtime.el('.session-access').hidden = runtime.canControl();
   runtime.el('.session-stop').disabled = !agent || !runtime.canControl() || !runtime.hosts.some((h) => h.id === agent.host);
   runtime.el('.session-error').textContent = agent?.error || (agent?.status === 'failed' ? 'The program could not stay running.' : '');
   runtime.el('.session-error').hidden = !runtime.el('.session-error').textContent;
