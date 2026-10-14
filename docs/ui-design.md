@@ -48,10 +48,12 @@ Stop controls are revealed on hover or keyboard focus; read-only viewers keep
 their activity indicators. Full names and paths are available in native
 tooltips. Activity is a separate navigation destination.
 
-The overview fills the available workspace width. Its 56px identity bar brings
-the session count, search, and creation together; search moves below the title
-on phones. Its table has aligned
-session, machine, and activity columns. Connected machines can be collapsed;
+The overview fills the available workspace width, with 24px content insets and
+a modest page title. A dedicated toolbar precedes compact 40px session rows.
+Session, program, directory, machine, and activity have separate columns so
+technical details can be compared across sessions. At narrower widths, machine
+and directory move into row metadata without losing their values. Connected
+machines form a separate ledger and can be collapsed;
 recovery guidance opens when machine availability is lost. Avoid metric cards,
 repeated headings, and decorative content added to fill an empty area.
 
