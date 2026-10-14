@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const source = ['drawSession', 'acknowledgeContext'].map((name) => html.match(new RegExp(
   `(?:async )?function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))[0]).join('\n');
 function page() {

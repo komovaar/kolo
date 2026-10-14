@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { Terminal } = require('../internal/hub/ui/assets/xterm.js');
 require('../internal/hub/ui/assets/terminal-queries.js');
 
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const functions = ['canControl', 'applyAccess', 'tell', 'createTerminal', 'resetTerminal',
   'close', 'connect', 'watch', 'signOut'];
 const source = functions.map((name) => html.match(new RegExp(

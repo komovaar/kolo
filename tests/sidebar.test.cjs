@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const source = html.match(/function drawGroups\(agents\) \{[\s\S]*?\n\}/)[0];
 
 function page({ inside = true, available = true, disabled = false } = {}) {

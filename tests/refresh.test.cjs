@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 // Exercise the page's actual refresh function with independently delayed HTTP
 // headers and bodies: an old body must not resurrect stale attention state.
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const refresh = html.match(/async function refresh\(\) \{[\s\S]*?\n\}/)[0];
 const signOut = html.match(/function signOut\(\) \{[\s\S]*?\n\}/)[0];
 const data = (name) => ({ you: { name: 'Dana' }, hosts: [], agents: [{ name }] });

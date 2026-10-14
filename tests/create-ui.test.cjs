@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const source = ['drawChoices', 'fill'].map((name) =>
   html.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n\\}`))[0]).join('\n');
 const host = (id, extra = {}) => ({ id, dirs: ['/work'], allow: ['sh'], ...extra });

@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../internal/hub/ui/assets/session-controller.js'), 'utf8');
 const names = ['canControl', 'applyAccess', 'sessionState', 'drawSession', 'canWatch',
   'reconcileWatch', 'retrySession', 'close'];
 const source = names.map((name) => html.match(new RegExp(

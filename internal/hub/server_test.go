@@ -884,7 +884,7 @@ func TestThePageIsServed(t *testing.T) {
 	if !bytes.Contains(body, []byte("<title>kolo</title>")) {
 		t.Errorf("not the page: %.80s", body)
 	}
-	for _, asset := range []string{"xterm.js", "attention.js"} {
+	for _, asset := range []string{"xterm.js", "attention.js", "session-controller.js"} {
 		got := call(t, s, "GET", "/assets/"+asset, "", "")
 		if got.StatusCode != http.StatusOK {
 			t.Errorf("asset %s: %s", asset, got.Status)
@@ -895,7 +895,7 @@ func TestThePageIsServed(t *testing.T) {
 
 func TestThePageDoesNotClaimUnknownScreensBlockTyping(t *testing.T) {
 	s, _, _ := hubFixture(t)
-	resp := call(t, s, "GET", "/", "", "")
+	resp := call(t, s, "GET", "/assets/session-controller.js", "", "")
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatal(err)
