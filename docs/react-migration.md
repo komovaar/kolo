@@ -8,7 +8,7 @@ that the same controls never have two owners.
 ## Checkpoints
 
 - [x] Extract the inline workspace controller without changing behavior.
-- [ ] Add a pinned React, TypeScript, and Vite production build and CI checks.
+- [x] Add a pinned React, TypeScript, and Vite production build and CI checks.
 - [ ] Migrate session creation to a customized shadcn/Radix dialog.
 - [ ] Migrate session browsing and supporting workspace controls incrementally.
 - [ ] Review desktop/mobile, keyboard access, permissions, polling, and recovery.

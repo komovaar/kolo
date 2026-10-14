@@ -5,11 +5,23 @@ confused you are all useful, and kolo is early enough that any of them still
 changes its shape. Thank you for caring about it.
 
 ```
+npm ci
+npm run build:ui        # after changing frontend/src; includes type checking
 go install ./cmd/kolo    # onto $(go env GOPATH)/bin, which may not be on PATH
 go run ./cmd/kolo up     # a hub, lending this directory
 go test ./...
 node --test tests/*.test.cjs
 ```
+
+React source lives in `frontend/src`. Node 22.12+ is needed to change it.
+Compiled assets in `internal/hub/ui/assets/react` are committed and embedded
+in the Go binary; users and Go-only builders do not need Node. CI runs
+`npm run check:ui` to catch stale assets. Commit source and generated assets
+together.
+
+For frontend hot reload, start the hub and then `npm run dev:ui`. Open the
+Vite URL; API requests and terminal WebSockets proxy to `127.0.0.1:7300`.
+Set `KOLO_DEV_HUB` to use a different hub address. Production runs only Go.
 
 The terminal layout also has real Chromium browser checks, including phone
 sizes, rotation, zoom, navigation, and bundled agent icons:

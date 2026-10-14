@@ -36,6 +36,17 @@ jobs:
       - name: toolchain
         run: go version
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: frontend dependencies
+        run: npm ci
+
+      - name: reproducible frontend build
+        run: npm run check:ui
+
       - name: vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -show verbose ./...
 
@@ -45,19 +56,15 @@ jobs:
       - name: vet
         run: go vet ./...
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
       - name: browser logic
         run: node --test tests/*.test.cjs
 
       - name: browser layout
         if: runner.os == 'Linux'
         run: |
-          npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium firefox
           npm run test:browser
+          KOLO_BROWSER=firefox npm run test:browser
 
       # gofmt exits zero whatever it finds, so the files it names are the test.
       - name: gofmt
