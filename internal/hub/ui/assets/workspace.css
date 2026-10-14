@@ -409,27 +409,29 @@ fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
 
 /* Kolo workspace. The sidebar is a compact explorer, with one selected row. */
 .side { background: var(--kolo-bg-sidebar); container: sidebar / inline-size; }
-.brand { height: var(--kolo-header-height); flex: none; padding: 0 var(--kolo-space-3); gap: var(--kolo-space-2); }
+.brand { height: 56px; flex: none; padding: 0 var(--kolo-space-4); gap: var(--kolo-space-3); border-bottom: none; }
 .brand-home { width: 20px; height: 28px; flex: none; }
 .brand .mark { width: 20px; height: 20px; opacity: 1; }
-.brand-name { font-size: 14px; }
-.workspace-label { min-width: 0; margin-left: auto; color: var(--dim); font-size: var(--kolo-type-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand-copy { display: grid; min-width: 0; gap: 1px; }
+.brand-name { font-size: 10px; line-height: 14px; color: var(--faint); }
+.workspace-label { min-width: 0; color: var(--text); font-size: var(--kolo-type-body); line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-nav { display: grid; gap: 2px; padding: var(--kolo-space-2) var(--kolo-space-2) 0; }
 .side-overview, .side-activity { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; width: 100%; padding: 5px var(--kolo-space-2); border: none; border-radius: var(--kolo-radius-small); text-align: left; color: var(--dim); text-decoration: none; transition: background-color var(--kolo-transition), color var(--kolo-transition); }
 .side-overview:hover, .side-activity:hover { background: var(--raised-hover); color: var(--text); }
 .side-overview[aria-current=page], .side-activity[aria-current=page] { background: var(--kolo-selection); color: var(--text); transition: none; }
 .side-nav svg { color: var(--faint); }
 .side-nav [aria-current=page] svg { color: var(--kolo-accent); }
-.side-tools { display: grid; gap: var(--kolo-space-1); padding: var(--kolo-space-3) var(--kolo-space-2) var(--kolo-space-1); }
+.side-tools { display: grid; padding: var(--kolo-space-3) var(--kolo-space-3) 0; }
 .switch-open { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; width: 100%; padding: var(--kolo-space-1) var(--kolo-space-2); border: 1px solid var(--line); border-radius: var(--kolo-radius-small); text-align: left; color: var(--dim); background: var(--kolo-bg-input); }
 .switch-open:hover { color: var(--text); border-color: var(--kolo-border-strong); }
 .switch-open > span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--kolo-type-small); }
 .switch-shortcut { flex: none; border: none; padding: 0; font-size: 10px; color: var(--faint); }
-.side-new { width: 100%; min-height: 32px; justify-content: flex-start; border: none; padding: var(--kolo-space-1) var(--kolo-space-2); font-size: var(--kolo-type-small); color: var(--dim); }
+.side-section-head { display: flex; align-items: center; justify-content: space-between; padding: var(--kolo-space-4) var(--kolo-space-3) var(--kolo-space-1); }
+.side-new { width: 24px; min-height: 24px; justify-content: center; border: none; padding: 0; color: var(--dim); }
 .side-new:hover:not(:disabled) { color: var(--text); }
-.side-caption { padding: var(--kolo-space-4) var(--kolo-space-4) var(--kolo-space-1); text-transform: none; letter-spacing: 0; color: var(--faint); font-size: var(--kolo-type-small); font-weight: 500; }
+.side-caption { padding: 0 var(--kolo-space-1); text-transform: none; letter-spacing: 0; color: var(--dim); font-size: var(--kolo-type-small); font-weight: 500; }
 .groups { padding: 0 var(--kolo-space-2) var(--kolo-space-3); gap: var(--kolo-space-2); }
-.group-head { min-height: 32px; padding: 2px var(--kolo-space-1); gap: var(--kolo-space-2); border-radius: var(--kolo-radius-small); }
+.group-head { min-height: 28px; padding: 2px var(--kolo-space-1); gap: var(--kolo-space-2); border-radius: var(--kolo-radius-small); }
 .group-head:hover { background: var(--raised-hover); }
 .group-head .chip { width: 14px; height: 14px; }
 .group-head .chip svg { width: 14px; height: 14px; }
@@ -437,15 +439,23 @@ fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
 .group-head .icon-btn { width: 24px; height: 24px; opacity: 0; }
 .group-head:hover .icon-btn, .group-head:focus-within .icon-btn { opacity: 1; }
 .group-body { gap: 2px; }
-.agent { padding: 6px var(--kolo-space-2); gap: 2px; border-radius: var(--kolo-radius-small); transition: background-color var(--kolo-transition); }
+.project { min-width: 0; }
+.project-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 28px; padding: 4px var(--kolo-space-2); color: var(--faint); text-align: left; border-radius: var(--kolo-radius-small); }
+.project-head:hover { color: var(--dim); background: var(--raised-hover); }
+.project-chevron { flex: none; }
+.project-head[aria-expanded=true] .project-chevron { transform: rotate(90deg); }
+.project-path { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--kolo-type-caption)/20px var(--kolo-mono); }
+.project-count { font: 11px/20px var(--kolo-mono); font-variant-numeric: tabular-nums; }
+.project-sessions { display: flex; flex-direction: column; min-width: 0; gap: 1px; padding-bottom: var(--kolo-space-2); }
+.agent { min-width: 0; min-height: 32px; padding: 6px var(--kolo-space-2) 6px var(--kolo-space-4); gap: 0; border-radius: var(--kolo-radius-small); transition: background-color var(--kolo-transition); }
 .agent:hover { background: var(--raised-hover); }
 .agent.on { background: var(--kolo-selection); transition: none; }
 .agent.on::before { left: 0; top: var(--kolo-space-2); bottom: var(--kolo-space-2); width: 2px; border-radius: 2px; background: var(--kolo-accent); }
-.agent .row { min-height: 20px; gap: var(--kolo-space-2); }
+.agent .row { min-width: 0; min-height: 20px; gap: var(--kolo-space-2); }
 .agent .name { font: 450 var(--kolo-type-body)/20px var(--ui); padding-right: 6px; }
 .agent.on .name { color: var(--text); font-weight: 500; }
 .agent .kind-chip { width: 16px; height: 16px; }
-.agent .dir { padding-left: 24px; color: var(--faint); font: var(--kolo-type-caption)/18px var(--kolo-mono); }
+.agent .dir { display: none; }
 .agent .rename { color: var(--text); font: var(--kolo-type-body)/18px var(--ui); }
 .agent .row > .dot { width: 6px; height: 6px; }
 .agent .row > .spinner { width: 12px; height: 12px; }

@@ -44,6 +44,7 @@ function page() {
     close() { this.readyState = 3; this.onclose?.(); }
   }
   const context = vm.createContext({
+    collapsedProjects: new Set(),
     window: { KoloUI: { creation: { clear() {} }, switcher: { close() {} }, share: { close() {} }, overview: { clear() {} } } }, drawChoices() {},
     retryPending: null, agentInURL: () => null, canWatch: () => true,
     signedIn: true, authLost: false, authRun: 0, refreshRun: 0,

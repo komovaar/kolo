@@ -135,6 +135,7 @@ function signOut() {
   window.KoloUI.share.close();
   applyAccess();
   attention.reset();
+  collapsedProjects.clear();
   window.KoloUI.creation.clear();
   el('.groups').replaceChildren();
   window.KoloUI.overview.clear();
@@ -334,6 +335,7 @@ async function commitRename() {
 // itself, its agents nested under it, rather than the host repeated as
 // text on every row.
 const collapsed = {};
+const collapsedProjects = new Set();
 function drawGroups(agents) {
   const container = el('.groups');
   const focused = container.contains(document.activeElement);
@@ -352,6 +354,7 @@ function renderGroups(agents) {
   const open = agentInURL();
   const container = el('.groups');
   container.replaceChildren();
+  let projectId = 0;
 
   const byHost = new Map();
   for (const a of agents) {
@@ -433,95 +436,127 @@ function renderGroups(agents) {
     const body = document.createElement('div');
     body.className = 'group-body' + (isCollapsed ? ' collapsed' : '');
 
-    for (const a of members) {
-      // A div, not a button: a real <button> can't legally contain the
-      // .drop stop button nested inside it, so this carries the button role
-      // and keyboard activation by hand instead.
-      const row = document.createElement('div');
-      row.setAttribute('role', 'button');
-      row.tabIndex = 0;
-      row.dataset.focusKey = JSON.stringify(['agent', a.host, a.name, a.created_at]);
-      row.className = 'agent' + (a.name === open ? ' on' : '');
-      if (a.name === open) row.setAttribute('aria-current', 'page');
-      row.innerHTML = `
-        <span class="row"></span>
-        <span class="dir"></span>`;
-      const rowInner = row.querySelector('.row');
-      // Lifecycle comes from the host control connection; busy, idle and a
-      // question waiting come from the live terminal screen.
-      const state = sessionState(a, !!hostInfo);
-      const busy = state.key === 'busy';
-      if (busy) {
-        const spinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        spinner.setAttribute('class', 'spinner');
-        spinner.setAttribute('width', '13'); spinner.setAttribute('height', '13'); spinner.setAttribute('viewBox', '0 0 13 13');
-        spinner.setAttribute('role', 'img');
-        spinner.setAttribute('aria-label', state.label);
-        const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-        spinner.innerHTML = `<circle class="track" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6"/>
-          <circle class="arc" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6" stroke-linecap="round"/>`;
-        title.textContent = state.label;
-        spinner.prepend(title);
-        rowInner.append(spinner);
-      } else {
-        const dot = document.createElement('span');
-        dot.className = `dot ${state.key}`;
-        dot.title = state.label;
-        dot.setAttribute('role', 'img');
-        dot.setAttribute('aria-label', state.label);
-        rowInner.append(dot);
-      }
-      if (a.name === renamingId) {
-        const input = document.createElement('input');
-        input.className = 'rename';
-        input.dataset.focusKey = row.dataset.focusKey;
-        input.setAttribute('aria-label', 'Session name');
-        input.value = renameDraft;
-        input.oninput = (ev) => { renameDraft = ev.target.value; };
-        input.onkeydown = (ev) => {
-          if (ev.key === 'Enter') { ev.preventDefault(); commitRename(); }
-          else if (ev.key === 'Escape') { ev.preventDefault(); cancelRename(); }
-        };
-        input.onblur = () => commitRename();
-        input.onclick = (ev) => ev.stopPropagation();
-        rowInner.append(input);
-        // Queued past the redraw it's born in, so the browser has actually
-        // laid it out before focus and selection try to land on it.
-        setTimeout(() => { input.focus(); input.select(); });
-      } else {
-        const name = document.createElement('span');
-        name.className = 'name';
-        name.textContent = a.label || a.title || a.name;
-        name.title = `${name.textContent} · ${canControl() ? 'Double-click or press F2 to rename' : 'Read-only access'}`;
-        name.ondblclick = (ev) => { ev.stopPropagation(); startRename(a); };
-        rowInner.append(name);
-      }
-      const chip = document.createElement('span');
-      chip.className = 'kind-chip';
-      chip.title = programOf(a.command) || a.command;
-      chip.append(kindIcon(a.command));
-      rowInner.append(chip);
-      const drop = document.createElement('button');
-      drop.type = 'button';
-      drop.hidden = !canControl();
-      drop.disabled = !hostInfo;
-      drop.className = 'drop';
-      drop.dataset.focusKey = JSON.stringify(['stop', a.host, a.name, a.created_at]);
-      drop.title = `Stop session ${a.label || a.title || a.name}`;
-      drop.setAttribute('aria-label', drop.title);
-      drop.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>';
-      drop.onclick = (ev) => { ev.stopPropagation(); stop(a.name); };
-      rowInner.append(drop);
-      row.querySelector('.dir').textContent = a.dir;
-      row.querySelector('.dir').title = a.dir;
-      row.title = a.error ? `${state.label}: ${a.error}` : state.label;
-      row.onclick = () => { setNavigation(false); location.hash = `#/agent/${a.name}`; };
-      row.onkeydown = (ev) => {
-        if (ev.target !== row) return;
-        if (ev.key === 'F2' && canControl()) { ev.preventDefault(); startRename(a); return; }
-        if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setNavigation(false); location.hash = `#/agent/${a.name}`; }
+    const projects = new Map();
+    for (const agent of members) {
+      if (!projects.has(agent.dir)) projects.set(agent.dir, []);
+      projects.get(agent.dir).push(agent);
+    }
+    for (const [directory, sessions] of projects) {
+      const key = JSON.stringify([host, directory]);
+      const project = document.createElement('section');
+      project.className = 'project';
+      const projectHead = document.createElement('button');
+      projectHead.type = 'button';
+      projectHead.className = 'project-head';
+      projectHead.id = `project-${projectId++}`;
+      projectHead.dataset.focusKey = JSON.stringify(['directory', host, directory]);
+      projectHead.setAttribute('aria-expanded', String(!collapsedProjects.has(key)));
+      projectHead.setAttribute('aria-label', `${sessions.length} ${sessions.length === 1 ? 'session' : 'sessions'} in ${directory}`);
+      projectHead.title = directory;
+      projectHead.innerHTML = '<svg class="project-chevron" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="project-path"></span><span class="project-count" aria-hidden="true"></span>';
+      projectHead.querySelector('.project-path').textContent = directory;
+      projectHead.querySelector('.project-count').textContent = sessions.length;
+      projectHead.onclick = () => {
+        collapsedProjects.has(key) ? collapsedProjects.delete(key) : collapsedProjects.add(key);
+        drawGroups(agents);
       };
-      body.append(row);
+      const projectBody = document.createElement('div');
+      projectBody.className = 'project-sessions';
+      projectBody.hidden = collapsedProjects.has(key);
+      project.append(projectHead, projectBody);
+      body.append(project);
+
+      for (const a of sessions) {
+        // A div, not a button: a real <button> can't legally contain the
+        // .drop stop button nested inside it, so this carries the button role
+        // and keyboard activation by hand instead.
+        const row = document.createElement('div');
+        row.setAttribute('role', 'button');
+        row.tabIndex = 0;
+        row.dataset.focusKey = JSON.stringify(['agent', a.host, a.name, a.created_at]);
+        row.className = 'agent' + (a.name === open ? ' on' : '');
+        row.setAttribute('aria-describedby', projectHead.id);
+        if (a.name === open) row.setAttribute('aria-current', 'page');
+        row.innerHTML = `
+          <span class="row"></span>
+          <span class="dir"></span>`;
+        const rowInner = row.querySelector('.row');
+        // Lifecycle comes from the host control connection; busy, idle and a
+        // question waiting come from the live terminal screen.
+        const state = sessionState(a, !!hostInfo);
+        const busy = state.key === 'busy';
+        if (busy) {
+          const spinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          spinner.setAttribute('class', 'spinner');
+          spinner.setAttribute('width', '13'); spinner.setAttribute('height', '13'); spinner.setAttribute('viewBox', '0 0 13 13');
+          spinner.setAttribute('role', 'img');
+          spinner.setAttribute('aria-label', state.label);
+          const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+          spinner.innerHTML = `<circle class="track" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6"/>
+            <circle class="arc" cx="6.5" cy="6.5" r="5" fill="none" stroke-width="1.6" stroke-linecap="round"/>`;
+          title.textContent = state.label;
+          spinner.prepend(title);
+          rowInner.append(spinner);
+        } else {
+          const dot = document.createElement('span');
+          dot.className = `dot ${state.key}`;
+          dot.title = state.label;
+          dot.setAttribute('role', 'img');
+          dot.setAttribute('aria-label', state.label);
+          rowInner.append(dot);
+        }
+        if (a.name === renamingId) {
+          const input = document.createElement('input');
+          input.className = 'rename';
+          input.dataset.focusKey = row.dataset.focusKey;
+          input.setAttribute('aria-label', 'Session name');
+          input.value = renameDraft;
+          input.oninput = (ev) => { renameDraft = ev.target.value; };
+          input.onkeydown = (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); commitRename(); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); cancelRename(); }
+          };
+          input.onblur = () => commitRename();
+          input.onclick = (ev) => ev.stopPropagation();
+          rowInner.append(input);
+          // Queued past the redraw it's born in, so the browser has actually
+          // laid it out before focus and selection try to land on it.
+          setTimeout(() => { input.focus(); input.select(); });
+        } else {
+          const name = document.createElement('span');
+          name.className = 'name';
+          name.textContent = a.label || a.title || a.name;
+          name.title = `${name.textContent} · ${canControl() ? 'Double-click or press F2 to rename' : 'Read-only access'}`;
+          name.ondblclick = (ev) => { ev.stopPropagation(); startRename(a); };
+          rowInner.append(name);
+        }
+        const chip = document.createElement('span');
+        chip.className = 'kind-chip';
+        chip.title = programOf(a.command) || a.command;
+        chip.append(kindIcon(a.command));
+        rowInner.append(chip);
+        const drop = document.createElement('button');
+        drop.type = 'button';
+        drop.hidden = !canControl();
+        drop.disabled = !hostInfo;
+        drop.className = 'drop';
+        drop.dataset.focusKey = JSON.stringify(['stop', a.host, a.name, a.created_at]);
+        drop.title = `Stop session ${a.label || a.title || a.name}`;
+        drop.setAttribute('aria-label', drop.title);
+        drop.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>';
+        drop.onclick = (ev) => { ev.stopPropagation(); stop(a.name); };
+        rowInner.append(drop);
+        row.querySelector('.dir').textContent = a.dir;
+        row.querySelector('.dir').title = a.dir;
+        row.title = a.error ? `${state.label}: ${a.error}` : state.label;
+        row.onclick = () => { setNavigation(false); location.hash = `#/agent/${a.name}`; };
+        row.onkeydown = (ev) => {
+          if (ev.target !== row) return;
+          if (ev.key === 'F2' && canControl()) { ev.preventDefault(); startRename(a); return; }
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setNavigation(false); location.hash = `#/agent/${a.name}`; }
+        };
+        projectBody.append(row);
+      }
     }
 
     group.append(head, body);
@@ -1250,7 +1285,10 @@ function setNavigation(open) {
   el('.mobile-menu').setAttribute('aria-expanded', String(mobile && open));
   el('.side').inert = mobile && !open;
   el('main').inert = mobile && open;
-  if (mobile && open) (el('.agent.on') || el('.side-overview')).focus();
+  if (mobile && open) {
+    const selected = el('.agent.on');
+    (selected?.getClientRects().length ? selected : el('.side-overview')).focus();
+  }
   else if (mobile && focusInSidebar) el('.mobile-menu').focus();
 }
 el('.mobile-menu').onclick = () => setNavigation(el('.mobile-menu').getAttribute('aria-expanded') !== 'true');

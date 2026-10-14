@@ -598,6 +598,32 @@ test('explorer navigation switches terminals with a compact header and bottom co
   } finally { await page.close(); }
 });
 
+test('directory groups preserve keyboard focus and collapsed state during polling', async () => {
+  const { page, errors } = await openSession({ width: 1440, height: 900 }, workspaceAgents);
+  try {
+    assert.equal(await page.locator('.project').count(), 2);
+    const project = page.getByRole('button', { name: '3 sessions in /work/api', exact: true });
+    await project.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await project.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('.agent.on').isVisible(), false);
+    await page.evaluate(() => refresh());
+    assert.equal(await project.getAttribute('aria-expanded'), 'false');
+    assert.equal(await project.evaluate((node) => node === document.activeElement), true);
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('.agent.on').isVisible(), true);
+    const state = await page.locator('.agent.on .dot').boundingBox();
+    const panel = await page.locator('.side').boundingBox();
+    assert.ok(state.x + state.width <= panel.x + panel.width, 'activity must stay inside the explorer');
+    await page.locator('.agent.on').focus();
+    await page.keyboard.press('F2');
+    await page.getByRole('textbox', { name: 'Session name', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.agent.on').evaluate((node) => node === document.activeElement), true);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
 test('session switcher keeps shell shortcuts available and focuses the next live terminal', async () => {
   const { page, errors, keys } = await openSession({ width: 1440, height: 900 }, workspaceAgents);
   try {

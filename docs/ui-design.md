@@ -26,7 +26,7 @@ avoid assigning new colours to individual components.
 
 ## Type and geometry
 
-- Interface text: 13px on a 20px line; supporting text: 12px, generally on
+- Interface text: 14px on a 20px line; supporting text: 12px, generally on
   an 18px line; pane titles: 14px.
 - Entry headings: 20px. Mobile text fields use 16px to avoid focus zoom.
 - Terminal text starts at 14px and is fitted through the existing PTY rules.
@@ -39,10 +39,13 @@ avoid assigning new colours to individual components.
 
 ## Layout and interaction
 
-The sidebar is an inset explorer, with one selected session and a readable
-directory beneath it. Stop controls are revealed on hover or keyboard focus;
-read-only viewers keep their activity indicators. Full names and paths are
-available in native tooltips. Activity is a separate navigation destination.
+The sidebar groups compact session rows by machine and directory. Shared paths
+appear once in collapsible directory headings, with counts that remain useful
+when closed. Group state and keyboard focus survive polling. The workspace
+name is the sidebar's primary identity; Kolo's mark and wordmark accompany it.
+Stop controls are revealed on hover or keyboard focus; read-only viewers keep
+their activity indicators. Full names and paths are available in native
+tooltips. Activity is a separate navigation destination.
 
 The overview fills the available workspace width. Its table has aligned
 session, machine, and activity columns. Connected machines can be collapsed;

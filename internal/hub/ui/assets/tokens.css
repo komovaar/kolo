@@ -22,9 +22,9 @@
   --kolo-bg-input: #191A1C;
   --kolo-bg-overlay: #202123;
   --kolo-bg-terminal: var(--kolo-void);
-  --kolo-fg: #E5E8EB;
-  --kolo-fg-muted: #90989F;
-  --kolo-fg-subtle: #A9B0B7;
+  --kolo-fg: #E8E8EA;
+  --kolo-fg-muted: #919398;
+  --kolo-fg-subtle: #B2B3B7;
   --kolo-accent: #A0C4B1;
   --kolo-accent-ink: #18271F;
   --kolo-focus: var(--kolo-accent);
@@ -50,7 +50,7 @@
   --kolo-space-8: 32px;
   --kolo-type-small: 12px;
   --kolo-type-caption: 12px;
-  --kolo-type-body: 13px;
+  --kolo-type-body: 14px;
   --kolo-type-heading: 14px;
   --kolo-type-title: 20px;
   --kolo-radius: 6px;
