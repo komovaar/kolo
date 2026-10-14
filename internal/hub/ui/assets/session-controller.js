@@ -134,9 +134,8 @@ function signOut() {
   applyAccess();
   attention.reset();
   el('.groups').replaceChildren();
-  el('.host-cards').replaceChildren();
-  el('.session-list').replaceChildren();
-  el('.session-query').value = '';
+  window.KoloUI.overview.clear();
+  drawChoices();
   el('.workspace-message').hidden = true;
   el('.log-rows').replaceChildren();
   el('.log-message').textContent = '';
@@ -218,65 +217,9 @@ async function refresh() {
   return data;
 }
 
-// Preserve machine action focus across polling when availability is unchanged.
-let homeSnapshot = '';
 function drawHome() {
-  const allowed = canControl();
   updateMobileTitle();
-  drawSessionList();
-  const count = lastAgents.length;
-  const waiting = lastAgents.filter((a) => sessionState(a, hosts.some((h) => h.id === a.host)).key === 'dialog').length;
-  el('.home-summary').textContent = count
-    ? `${count} ${count === 1 ? 'session' : 'sessions'}${waiting ? ` · ${waiting} waiting for input` : ''}`
-    : 'Start an agent or shell to work together.';
-  const snapshot = JSON.stringify([hosts, lastAgents.map((a) => a.host), allowed]);
-  if (snapshot === homeSnapshot) return;
-  homeSnapshot = snapshot;
-  el('.home-guide').textContent = allowed
-    ? 'Open a session to follow its progress or work together.'
-    : 'Read-only access. Open a session to follow your team’s progress.';
-  el('.home-new').disabled = !hosts.some((h) => h.allow?.length && h.dirs?.length);
-  el('.home-new').title = el('.home-new').disabled ? 'Connect a machine that shares programs and directories first.' : '';
-  el('.home-setup').hidden = hosts.length > 0;
-  if (!hosts.length) el('.machines-section').open = true;
-  el('.machine-count').textContent = `${hosts.length} connected`;
-  const cards = el('.host-cards');
-  cards.replaceChildren();
-  for (const host of hosts) {
-    const card = document.createElement('article');
-    card.className = 'host-card';
-    const title = document.createElement('h3');
-    title.textContent = host.id;
-    const detail = document.createElement('p');
-    const commands = host.allow || [];
-    detail.textContent = commands.includes('*') ? 'Allows any command'
-      : commands.length ? `Available: ${commands.join(', ')}` : 'No commands shared';
-    const sessions = document.createElement('p');
-    const count = lastAgents.filter((a) => a.host === host.id).length;
-    sessions.textContent = `${count} ${count === 1 ? 'session' : 'sessions'}`;
-    sessions.className = 'host-count';
-    const info = document.createElement('div');
-    info.className = 'host-detail';
-    info.append(title, detail);
-    card.append(info, sessions);
-    if (host.error) {
-      const error = document.createElement('p');
-      error.className = 'host-error';
-      error.textContent = host.error;
-      info.append(error);
-    }
-    if (allowed) {
-      const start = document.createElement('button');
-      start.type = 'button';
-      start.className = 'go';
-      start.textContent = 'New session';
-      start.setAttribute('aria-label', `New session on ${host.id}`);
-      start.disabled = !commands.length || !(host.dirs || []).length;
-      start.onclick = () => openCreate(host.id);
-      card.append(start);
-    }
-    cards.append(card);
-  }
+  window.KoloUI.overview.update({ hosts, agents: lastAgents, allowed: canControl() });
 }
 
 function updateMobileTitle() {
@@ -286,62 +229,6 @@ function updateMobileTitle() {
     : logInURL() ? 'Activity' : el('.workspace-label').textContent || 'Kolo';
 }
 
-let sessionListSnapshot = '';
-function drawSessionList() {
-  const query = el('.session-query').value.trim().toLocaleLowerCase();
-  const snapshot = JSON.stringify([lastAgents, hosts.map((h) => h.id), query, canControl()]);
-  if (snapshot === sessionListSnapshot) return;
-  sessionListSnapshot = snapshot;
-  const list = el('.session-list');
-  const focused = list.contains(document.activeElement);
-  const focusName = focused ? document.activeElement.dataset.session : null;
-  const matches = lastAgents.filter((a) => [a.name, a.label, a.title, a.host, a.dir, a.command]
-    .some((value) => String(value || '').toLocaleLowerCase().includes(query)));
-  list.replaceChildren();
-  el('.sessions-empty').hidden = matches.length > 0;
-  el('.session-list-head').hidden = matches.length === 0;
-  el('.sessions-empty-title').textContent = query ? 'No matching sessions' : 'No sessions yet';
-  el('.sessions-empty-detail').textContent = query ? 'Try another name, program, machine, or directory.'
-    : !hosts.length ? 'Connect a machine below, then start your first session.'
-    : canControl() ? 'Start a new session on a connected machine. Your team can join as soon as it starts.'
-    : 'Your team’s sessions will appear here when a member with control access starts one.';
-  el('.search-clear').hidden = !query;
-  for (const agent of matches) {
-    const link = document.createElement('a');
-    link.className = 'session-link';
-    link.href = `#/agent/${agent.name}`;
-    link.dataset.session = agent.name;
-    link.innerHTML = '<span class="session-cell"><span class="kind-chip" aria-hidden="true"></span><span class="session-cell-copy"><span class="session-name"></span><span class="session-directory"></span></span></span><span class="session-machine"></span><span class="overview-state"></span>';
-    link.querySelector('.kind-chip').append(kindIcon(agent.command));
-    link.querySelector('.session-name').textContent = agent.label || agent.title || agent.name;
-    link.querySelector('.session-name').title = agent.label || agent.title || agent.name;
-    const directory = link.querySelector('.session-directory');
-    const mobileMachine = document.createElement('span');
-    mobileMachine.className = 'session-mobile-machine';
-    mobileMachine.textContent = `${agent.host} · `;
-    directory.append(mobileMachine, `${programOf(agent.command)} · ${agent.dir}`);
-    directory.title = `${agent.host} · ${agent.command} · ${agent.dir}`;
-    const machine = link.querySelector('.session-machine');
-    machine.textContent = agent.host;
-    machine.title = agent.host;
-    const state = sessionState(agent, hosts.some((h) => h.id === agent.host));
-    const indicator = link.querySelector('.overview-state');
-    indicator.dataset.state = state.key;
-    indicator.textContent = state.key === 'unknown' ? 'Activity unknown' : state.label;
-    indicator.title = agent.error || state.label;
-    list.append(link);
-  }
-  if (focused) {
-    const replacement = [...list.children].find((node) => node.dataset.session === focusName);
-    (replacement || el('.session-query')).focus({ preventScroll: true });
-  }
-}
-el('.session-query').oninput = drawSessionList;
-el('.search-clear').onclick = () => {
-  el('.session-query').value = '';
-  drawSessionList();
-  el('.session-query').focus();
-};
 async function retryWorkspace() {
   el('.boot-message').textContent = 'Connecting to Kolo…';
   el('.boot-retry').disabled = true;
@@ -665,7 +552,6 @@ function closeCreate() {
   el('.app').inert = false;
   window.KoloUI.creation.close();
 }
-el('.home-new').onclick = () => openCreate(null);
 el('.side .log-open').onclick = () => { setNavigation(false); location.hash = '#/log'; };
 el('.brand-home').onclick = () => { setNavigation(false); location.hash = ''; };
 
@@ -728,7 +614,7 @@ async function createSession(ev) {
     if (!el('.scrim').hidden) el('form.create button[type=submit]')?.focus();
   }
 }
-window.KoloController = { createSession, closeCreate, kindGlyph, programKind };
+window.KoloController = { createSession, closeCreate, openCreate, kindGlyph, programKind, programOf, sessionState };
 
 async function stop(name) {
   if (!canControl()) return;

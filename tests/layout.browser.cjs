@@ -488,6 +488,7 @@ test('creation shows pending feedback and an actionable server error', async () 
     await page.getByRole('button', { name: 'Start session' }).click();
     await page.getByRole('button', { name: 'Starting…', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Starting…', exact: true }).isDisabled(), true);
+    assert.equal(await page.getByLabel('Directory', { exact: true }).isDisabled(), true);
     release();
     await page.waitForFunction(() => document.querySelector('.dialog-note').textContent.includes('Choose another name'));
     assert.equal(await page.getByRole('button', { name: 'Start session' }).isDisabled(), false);

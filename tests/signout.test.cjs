@@ -10,7 +10,7 @@ const source = ['signOut', 'close', 'connect', 'refresh', 'drawLog'].map((name) 
 
 function page() {
   const nodes = new Map(), timers = new Map(), writes = [], views = [], sockets = [];
-  let resets = 0, closed = 0, nextTimer = 0;
+  let resets = 0, closed = 0, nextTimer = 0, uiClears = 0;
   const el = (selector) => {
     if (!nodes.has(selector)) nodes.set(selector, {
       textContent: 'private', children: ['private'], classList: { toggle() {} }, focus() { this.focused = true; }, setAttribute() {},
@@ -24,6 +24,7 @@ function page() {
     close() { closed++; this.readyState = 3; this.onclose?.(); }
   }
   const context = vm.createContext({
+    window: { KoloUI: { overview: { clear() { uiClears++; } } } }, drawChoices() {},
     retryPending: null, canWatch: () => true,
     logRun: 0, signedIn: true, authLost: false, refreshRun: 0, authRun: 0,
     me: { name: 'Dana' }, hosts: [{ id: 'private' }], lastAgents: [{ name: 'private' }],
@@ -38,7 +39,7 @@ function page() {
     applyAccess() {}, show: (view) => views.push(view), attention: { reset() {} },
   });
   vm.runInContext(source, context);
-  return { context, el, timers, writes, views, sockets, resets: () => resets, closed: () => closed };
+  return { context, el, timers, writes, views, sockets, resets: () => resets, closed: () => closed, uiClears: () => uiClears };
 }
 
 test('authentication loss closes the terminal, clears private state, and stays signed out', async () => {
@@ -57,12 +58,12 @@ test('authentication loss closes the terminal, clears private state, and stays s
   assert.equal(p.resets(), 1);
   assert.equal(p.el('.context-warning').hidden, true);
   assert.equal(p.el('.context-warning-text').textContent, '');
-  for (const selector of ['.groups', '.host-cards', '.session-list', '.log-rows']) {
+  for (const selector of ['.groups', '.log-rows']) {
     assert.deepEqual(p.el(selector).children, []);
   }
   assert.deepEqual(p.views, ['signin']);
   assert.equal(p.el('#signin-token').focused, true);
-  assert.equal(p.el('.session-query').value, '');
+  assert.equal(p.uiClears(), 1);
   socket.onmessage({ data: new ArrayBuffer(1) });
   assert.deepEqual(p.writes, []);
   p.context.fetch = () => { throw new Error('signed-out page tried to authenticate again'); };
