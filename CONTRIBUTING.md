@@ -19,12 +19,13 @@ in the Go binary; users and Go-only builders do not need Node. CI runs
 `npm run check:ui` to catch stale assets. Commit source and generated assets
 together.
 
-For frontend hot reload, start the hub and then `npm run dev:ui`. Open the
+For frontend live reload, start the hub and then `npm run dev:ui`. Open the
 Vite URL; API requests and terminal WebSockets proxy to `127.0.0.1:7300`.
 Set `KOLO_DEV_HUB` to use a different hub address. Production runs only Go.
 
-The terminal layout also has real Chromium browser checks, including phone
-sizes, rotation, zoom, navigation, and bundled agent icons:
+The browser checks include layout, phone sizes, keyboard navigation, and a
+standalone binary that serves the UI and controls a real shell. They require
+Go as well as the browser development dependencies:
 
 ```sh
 npm ci

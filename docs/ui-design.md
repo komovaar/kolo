@@ -68,6 +68,10 @@ retired sessions.
 
 Shared controls and entry forms live in `assets/ui.css`; workspace styles live
 in `assets/workspace.css`. Reuse these treatments before adding another style.
+React workflows live in `frontend/src` and reuse these same tokens and CSS.
+Customized shadcn components provide dialog and command behavior without
+changing Kolo's visual language. See [React migration](react-migration.md) for
+the ownership boundaries and build workflow.
 Fonts are bundled locally; their source and licenses are recorded in
 `assets/fonts/NOTICE.md` and the accompanying OFL files.
 
