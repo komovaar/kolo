@@ -730,3 +730,9 @@ fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
 @media (max-width: 760px), (max-width: 1000px) and (max-height: 500px) {
   .log-head { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); }
 }
+
+.react-share-panel { position: relative; top: auto; right: auto; z-index: 45; max-height: var(--radix-popover-content-available-height); overflow-y: auto; }
+
+.switch-scrim .switch-dialog { position: relative; }
+.switch-command { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.switch-results { flex: 1; }

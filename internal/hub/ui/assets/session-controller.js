@@ -131,6 +131,8 @@ function signOut() {
   me = { read_only: true };
   hosts = [];
   lastAgents = [];
+  window.KoloUI.switcher.close(false);
+  window.KoloUI.share.close();
   applyAccess();
   attention.reset();
   el('.groups').replaceChildren();
@@ -614,7 +616,9 @@ async function createSession(ev) {
     if (!el('.scrim').hidden) el('form.create button[type=submit]')?.focus();
   }
 }
-window.KoloController = { createSession, closeCreate, openCreate, kindGlyph, programKind, programOf, sessionState };
+window.KoloController = { createSession, closeCreate, openCreate, kindGlyph, programKind, programOf, sessionState,
+  prepareOverlay() { setNavigation(false); setAccountMenu(false); window.KoloUI.share.close(); },
+};
 
 async function stop(name) {
   if (!canControl()) return;
@@ -900,6 +904,7 @@ function connect(name) {
         attention.update(lastAgents);
         if (!renamingId) drawGroups(lastAgents);
         drawSession();
+        drawHome();
         break;
       case 'interrupted':
         say('.watch .note', `${msg.from} stopped the agent`);

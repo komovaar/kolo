@@ -9,6 +9,8 @@ export interface CreationState {
 declare global {
   interface Window {
     KoloUI: {
+      switcher: { open(): void; close(restore?: boolean): void };
+      share: { close(): void };
       overview: { update(data: WorkspaceData): void; clear(): void };
       creation: {
         update(hosts: Host[], allowed: boolean): void;
@@ -24,6 +26,8 @@ declare global {
       openCreate(host: string | null): void;
       programOf(command: string): string;
       sessionState(agent: Agent | undefined, connected?: boolean): { key: string; label: string };
+      focusSession(name: string): void;
+      prepareOverlay(): void;
       createSession(event: { preventDefault(): void; target: HTMLFormElement }): Promise<void>;
       kindGlyph(command: string): { viewBox: string; inner: string };
       programKind(command: string): string;

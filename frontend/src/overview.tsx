@@ -5,7 +5,8 @@ import type { WorkspaceData } from './types';
 import { KindIcon } from './creation';
 
 const empty: WorkspaceData = { hosts: [], agents: [], allowed: false };
-const store = createStore(empty);
+export const workspaceStore = createStore(empty);
+const store = workspaceStore;
 let snapshot = '';
 let clearQuery: (() => void) | undefined;
 export const overview = {

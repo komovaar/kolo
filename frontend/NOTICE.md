@@ -2,6 +2,9 @@
 
 `src/components/ui/dialog.tsx` adapts the composition of shadcn/ui's `new-york`
 Dialog, retrieved from https://ui.shadcn.com/r/styles/new-york/dialog.json.
+`src/components/ui/command.tsx` adapts shadcn/ui's `new-york` Command from
+https://ui.shadcn.com/r/styles/new-york/command.json.
+
 Kolo replaces its Tailwind classes and decorative motion with existing CSS,
 omits the default icon dependency, and retains Radix's accessible behavior.
 

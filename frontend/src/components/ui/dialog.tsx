@@ -9,12 +9,12 @@ export const DialogClose = DialogPrimitive.Close;
 export const DialogTitle = DialogPrimitive.Title;
 export const DialogDescription = DialogPrimitive.Description;
 
-export function DialogContent({ open, children, ...props }: ComponentProps<typeof DialogPrimitive.Content> & { open: boolean; children: ReactNode }) {
+export function DialogContent({ open, children, frameClassName = 'scrim', className = 'dialog', ...props }: ComponentProps<typeof DialogPrimitive.Content> & { open: boolean; frameClassName?: string; children: ReactNode }) {
   const container = useRef<HTMLDivElement>(null);
-  return <div className="scrim" hidden={!open} ref={container}>
+  return <div className={frameClassName} hidden={!open} ref={container}>
     <DialogPrimitive.Portal container={container.current}>
       <DialogPrimitive.Overlay className="dialog-overlay" />
-      <DialogPrimitive.Content className="dialog" {...props}>{children}</DialogPrimitive.Content>
+      <DialogPrimitive.Content className={className} {...props}>{children}</DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   </div>;
 }

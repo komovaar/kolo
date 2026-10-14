@@ -676,6 +676,7 @@ for (const width of [390, 320]) {
       const panel = await page.locator('.share-panel').boundingBox();
       assert.ok(panel.x >= 0 && panel.x + panel.width <= width);
       await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.activeElement === document.querySelector('.session-share button'));
       assert.equal(await page.getByLabel('Share session', { exact: true }).evaluate((node) => node === document.activeElement), true);
       assert.equal(await page.locator('.session-access').isVisible(), true);
       assert.deepEqual(errors, []);
@@ -708,7 +709,7 @@ test('switcher actions respect changing permissions and clear session data on si
     await page.evaluate(() => refresh());
     await page.locator('.signin').waitFor({ state: 'visible' });
     assert.equal(await page.locator('.switch-scrim').isVisible(), false);
-    assert.equal(await page.locator('#switch-results').textContent(), '');
+    assert.equal(await page.locator('.switch-name').count(), 0);
     assert.equal(await page.getByLabel('Access token').evaluate((node) => node === document.activeElement), true);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
@@ -732,7 +733,7 @@ test('session sharing copies a member link and provides a manual fallback', asyn
     await page.waitForFunction(() => document.querySelector('.share-feedback').textContent.includes('manually'));
     assert.equal(await page.getByLabel('Session link', { exact: true }).evaluate((node) => node === document.activeElement && node.selectionEnd === node.value.length), true);
     await page.locator('.brand-home').click();
-    assert.equal(await page.locator('.session-share').evaluate((node) => node.open), false);
+    assert.equal(await page.getByLabel('Share session', { exact: true }).getAttribute('aria-expanded'), 'false');
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });
