@@ -884,10 +884,13 @@ func TestThePageIsServed(t *testing.T) {
 	if !bytes.Contains(body, []byte("<title>kolo</title>")) {
 		t.Errorf("not the page: %.80s", body)
 	}
-	for _, asset := range []string{"xterm.js", "attention.js", "session-controller.js", "react/workspace.js"} {
+	for _, asset := range []string{"xterm.js", "attention.js", "session-controller.js", "startup.js", "react/workspace.js", "react/LICENSES.txt"} {
 		got := call(t, s, "GET", "/assets/"+asset, "", "")
 		if got.StatusCode != http.StatusOK {
 			t.Errorf("asset %s: %s", asset, got.Status)
+		}
+		if strings.HasSuffix(asset, ".js") && !strings.Contains(got.Header.Get("Content-Type"), "javascript") {
+			t.Errorf("asset %s has incorrect module content type %q", asset, got.Header.Get("Content-Type"))
 		}
 		got.Body.Close()
 	}

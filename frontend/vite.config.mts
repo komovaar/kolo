@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url));
@@ -11,10 +12,30 @@ export default defineConfig(({ command }) => ({
   publicDir: path('../internal/hub/ui'),
   plugins: [react(), {
     name: 'kolo-development-page',
-    generateBundle(_, bundle) {
+    async generateBundle(_, bundle) {
       for (const asset of Object.values(bundle)) {
         if (asset.type === 'chunk') asset.code = asset.code.replace(/[\t ]+$/gm, '');
       }
+      const packages = new Map<string, string>();
+      for (const module of this.getModuleIds()) {
+        if (!module.includes('/node_modules/')) continue;
+        let directory = dirname(module.split('?')[0]);
+        while (directory.includes('/node_modules/')) {
+          try {
+            const metadata = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'));
+            packages.set(`${metadata.name}@${metadata.version}`, directory);
+            break;
+          } catch { directory = dirname(directory); }
+        }
+      }
+      let licenses = await readFile(path('./NOTICE.md'), 'utf8');
+      for (const [name, directory] of [...packages].sort(([a], [b]) => a.localeCompare(b, 'en'))) {
+        const license = (await readdir(directory)).sort().find((file) => /^(license|copying)(\.|$)/i.test(file));
+        const licensePath = license ? join(directory, license)
+          : path(`./licenses/${name.replace('@', '-').replace(/\//g, '_')}.txt`);
+        licenses += `\n\n--- ${name} ---\n\n${await readFile(licensePath, 'utf8')}`;
+      }
+      this.emitFile({ type: 'asset', fileName: 'LICENSES.txt', source: licenses });
     },
     handleHotUpdate({ file, server }) {
       // The transitional controller has a single lifetime. Reload the page

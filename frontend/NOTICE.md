@@ -8,6 +8,12 @@ https://ui.shadcn.com/r/styles/new-york/command.json.
 Kolo replaces its Tailwind classes and decorative motion with existing CSS,
 omits the default icon dependency, and retains Radix's accessible behavior.
 
+The build includes licenses for bundled npm packages in
+`assets/react/LICENSES.txt`. `react-remove-scroll-bar@2.3.8` omits its license
+file from the npm tarball. Its local notice includes the standard MIT license
+text and attribution from the published package metadata (author Anton
+Korzunov), https://registry.npmjs.org/react-remove-scroll-bar/2.3.8.
+
 shadcn/ui is licensed under the MIT License, Copyright (c) 2023 shadcn.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
