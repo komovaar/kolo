@@ -300,6 +300,9 @@ function startRename(a) {
   renamingId = a.name;
   renameDraft = a.label || a.title || a.name;
   drawGroups(lastAgents);
+  const input = el('.groups .rename');
+  input.focus();
+  input.select();
 }
 
 function cancelRename() {
@@ -519,9 +522,6 @@ function renderGroups(agents) {
           input.onblur = () => commitRename();
           input.onclick = (ev) => ev.stopPropagation();
           rowInner.append(input);
-          // Queued past the redraw it's born in, so the browser has actually
-          // laid it out before focus and selection try to land on it.
-          setTimeout(() => { input.focus(); input.select(); });
         } else {
           const name = document.createElement('span');
           name.className = 'name';
