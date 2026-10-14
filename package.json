@@ -8,7 +8,7 @@
     "typecheck": "tsc --project frontend/tsconfig.json",
     "build:ui": "npm run typecheck && vite build --config frontend/vite.config.mts",
     "check:ui": "node frontend/check-build.mjs",
-    "test:browser": "node --test tests/layout.browser.cjs"
+    "test:browser": "node --test tests/*.browser.cjs"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
