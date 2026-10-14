@@ -22,7 +22,11 @@ export const overview = {
     const focused = document.activeElement as HTMLElement | null;
     const session = focused?.classList.contains('session-link') ? focused.dataset.session : null;
     store.set(structuredClone(data));
-    if (session && !focused?.isConnected) document.querySelector<HTMLInputElement>('.session-query')?.focus();
+    if (session && !focused?.isConnected) {
+      const search = document.querySelector<HTMLInputElement>('.session-query');
+      if (search?.getClientRects().length) search.focus();
+      else document.querySelector<HTMLElement>('.machines-section > summary')?.focus();
+    }
   },
   clear() { snapshot = ''; store.set(empty); clearFilters?.(); },
 };
@@ -54,7 +58,7 @@ export function Overview() {
     <div className="home-intro"><div className="home-identity"><h1>Sessions</h1><p className="home-summary">{agents.length ? `${agents.length} ${agents.length === 1 ? 'session' : 'sessions'}${waiting ? ` · ${waiting} waiting for input` : ''}` : 'Start an agent or shell to work together.'}</p><p className="home-guide sr-only">{allowed ? 'Open a session to follow its progress or work together.' : 'Read-only access. Open a session to follow your team’s progress.'}</p></div>
       <button type="button" className="go primary home-new" hidden={!allowed} disabled={!ready} title={!ready ? 'Connect a machine that shares programs and directories first.' : ''} onClick={() => window.KoloController.openCreate(null)}><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>New session</button>
     </div>
-    <div className="session-toolbar">
+    <div className="session-toolbar" hidden={!agents.length && !hasFilters}>
       <label className="session-search"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" fill="none" /><path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg><input ref={search} type="search" className="session-query" aria-label="Search sessions" placeholder="Search sessions…" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
       <select className="session-filter" aria-label="Filter by machine" value={machine} onChange={(event) => setMachine(event.target.value)}><option value="">All machines</option>{machineOptions.map((id) => <option key={id} value={id}>{id}</option>)}</select>
       <select className="session-filter" aria-label="Filter by activity" value={activity} onChange={(event) => setActivity(event.target.value)}><option value="">All activity</option>{activityOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>

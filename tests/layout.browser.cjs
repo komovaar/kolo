@@ -493,11 +493,15 @@ test('empty workspace guidance respects machine availability and read-only acces
   for (const readOnly of [false, true]) {
     const { page, errors } = await openSession({ width: 390, height: 844 }, fixture.agents, readOnly);
     try {
+      await page.evaluate(() => { location.hash = ''; });
+      await page.locator('.session-link').focus();
       await page.route('**/v1/agents', (route) => route.fulfill({ json: {
         ...fixture, agents: [], you: { ...fixture.you, read_only: readOnly },
       } }));
-      await page.evaluate(() => { location.hash = ''; });
+      await page.evaluate(() => refresh());
       await page.locator('.sessions-empty').waitFor({ state: 'visible' });
+      assert.equal(await page.locator('.session-toolbar').isVisible(), false);
+      assert.equal(await page.locator('.machines-section > summary').evaluate((node) => node === document.activeElement), true);
       assert.equal(await page.locator('.home-new').isVisible(), !readOnly);
       assert.match(await page.locator('.sessions-empty-detail').textContent(), readOnly ? /member with control access/ : /Start a new session/);
       await saveReview(page, readOnly ? 'workspace-readonly-empty' : 'workspace-empty');

@@ -55,6 +55,8 @@ waiting, failed, and disconnected sessions; ordinary startup is separate.
 Filtering preserves the machine choice during interruptions and offers one
 reset action. Polling moves focus to search when a focused result no longer
 matches, and authentication loss clears all filters.
+An empty workspace hides the browsing toolbar unless filters are active.
+When the last unfiltered session disappears, keyboard focus moves to machines.
 Session, program, directory, machine, and activity have separate columns so
 technical details can be compared across sessions. At narrower widths, machine
 and directory move into row metadata without losing their values. Connected

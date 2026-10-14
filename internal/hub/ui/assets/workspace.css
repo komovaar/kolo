@@ -625,6 +625,7 @@ fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
   .session-search input { font-size: 16px; }
   .session-filter { flex: 1; min-width: 0; width: calc(50% - 4px); min-height: 44px; font-size: 16px; }
   .session-filter-feedback { flex-basis: 100%; justify-content: space-between; }
+  .filter-reset { min-height: 44px; }
   .session-list-head { display: none; }
   .session-link { grid-template-columns: minmax(0, 1fr) auto; gap: var(--kolo-space-1) var(--kolo-space-3); padding: var(--kolo-space-2) var(--kolo-space-3); }
   .session-link .session-cell { grid-column: 1 / -1; grid-row: 1; }
