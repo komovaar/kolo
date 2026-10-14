@@ -412,8 +412,6 @@ fieldset.dialog-body { margin: 0; border: none; min-width: 0; }
 .brand { height: 56px; flex: none; padding: 0 var(--kolo-space-4); gap: var(--kolo-space-3); border-bottom: none; }
 .brand-home { width: 20px; height: 28px; flex: none; }
 .brand .mark { width: 20px; height: 20px; opacity: 1; }
-.brand-copy { display: grid; min-width: 0; gap: 1px; }
-.brand-name { font-size: 10px; line-height: 14px; color: var(--faint); }
 .workspace-label { min-width: 0; color: var(--text); font-size: var(--kolo-type-body); line-height: 20px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-nav { display: grid; gap: 2px; padding: var(--kolo-space-2) var(--kolo-space-2) 0; }
 .side-overview, .side-activity { display: flex; align-items: center; gap: var(--kolo-space-2); min-height: 32px; width: 100%; padding: 5px var(--kolo-space-2); border: none; border-radius: var(--kolo-radius-small); text-align: left; color: var(--dim); text-decoration: none; transition: background-color var(--kolo-transition), color var(--kolo-transition); }

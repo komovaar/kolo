@@ -7,7 +7,7 @@ keep sessions easy to find, and make connection and permission states legible.
 
 The interface uses neutral graphite surfaces, a celadon accent, Inter for
 controls, and JetBrains Mono for terminals and technical metadata. The Kolo
-ring and monospace wordmark identify the workspace. Amber means attention is
+ring identifies the application; the workspace name appears beside it. Amber means attention is
 needed; red communicates a failure. Routine activity uses neutral text.
 
 The dark explorer sits below the workspace in brightness, so navigation recedes
@@ -43,7 +43,7 @@ avoid assigning new colours to individual components.
 The sidebar groups compact session rows by machine and directory. Shared paths
 appear once in collapsible directory headings, with counts that remain useful
 when closed. Group state and keyboard focus survive polling. The workspace
-name is the sidebar's primary identity; Kolo's mark and wordmark accompany it.
+name is the sidebar's primary identity, accompanied by Kolo's ring mark.
 Stop controls are revealed on hover or keyboard focus; read-only viewers keep
 their activity indicators. Full names and paths are available in native
 tooltips. Activity is a separate navigation destination.
