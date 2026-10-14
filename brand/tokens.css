@@ -1,5 +1,5 @@
 /* Kolo design tokens. Edited here; node brand/build.mjs copies this file to
-   internal/hub/ui/assets/tokens.css, which is the one the page serves. */
+   web/static/tokens.css; the UI build copies it into the Go embed tree. */
 
 :root {
   /* surfaces + ink */

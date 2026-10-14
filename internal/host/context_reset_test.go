@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/whosgotch/kolo/internal/detect"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 	"github.com/whosgotch/kolo/internal/session"
 )
 
@@ -37,7 +37,7 @@ sleep 30
 		}
 		saved = s
 		r := s.Agents[0]
-		return r.Spec.Status == hub.StatusRunning && !r.Fresh && len(r.Spec.ContextResets) == 1 && r.Session != "" && r.Session != previous
+		return r.Spec.Status == protocol.StatusRunning && !r.Fresh && len(r.Spec.ContextResets) == 1 && r.Session != "" && r.Session != previous
 	})
 	reset := saved.Agents[0].Spec.ContextResets[0]
 	if reset.PreviousSession != previous || reset.ID == "" || reset.At.IsZero() || reset.Acknowledged {
@@ -65,7 +65,9 @@ sleep 30
 	if err := a.Restart("work", "Artem"); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, func() bool { return len(a.Specs()[0].ContextResets) == 2 && a.Specs()[0].Status == hub.StatusRunning })
+	waitFor(t, func() bool {
+		return len(a.Specs()[0].ContextResets) == 2 && a.Specs()[0].Status == protocol.StatusRunning
+	})
 	if err := a.acknowledgeContext("work", reset.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -90,8 +92,8 @@ func TestRestoreRetainsAcknowledgedAndUnacknowledgedContextResets(t *testing.T) 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agents.json")
 	wanted := spec("work", dir, "cat")
-	wanted.Status = hub.StatusFailed
-	wanted.ContextResets = []hub.ContextReset{
+	wanted.Status = protocol.StatusFailed
+	wanted.ContextResets = []protocol.ContextReset{
 		{ID: "first", At: time.Now(), PreviousSession: "old", Acknowledged: true},
 		{ID: "second", At: time.Now(), PreviousSession: "new"},
 	}
@@ -130,7 +132,9 @@ func TestIntentionalFreshDoesNotWarnAboutFailedResume(t *testing.T) {
 	if err := a.Fresh("work", "Artem"); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, func() bool { return a.Specs()[0].Status == hub.StatusRunning && sessionOf(t, a, "work") != previous })
+	waitFor(t, func() bool {
+		return a.Specs()[0].Status == protocol.StatusRunning && sessionOf(t, a, "work") != previous
+	})
 	if len(a.Specs()[0].ContextResets) != 0 {
 		t.Fatal("intentional fresh reported as a failed resume")
 	}
@@ -145,14 +149,16 @@ sleep 30
 `)
 	path := filepath.Join(dir, "agents.json")
 	wanted := spec("work", dir, script)
-	wanted.Status = hub.StatusRunning
+	wanted.Status = protocol.StatusRunning
 	savedState(t, path, State{Agents: []Record{{Spec: wanted}}})
 	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{script}}, path)
 	t.Cleanup(a.StopAll)
 	if err := a.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, func() bool { return len(a.Specs()[0].ContextResets) == 1 && a.Specs()[0].Status == hub.StatusRunning })
+	waitFor(t, func() bool {
+		return len(a.Specs()[0].ContextResets) == 1 && a.Specs()[0].Status == protocol.StatusRunning
+	})
 	r := a.Specs()[0].ContextResets[0]
 	if r.PreviousSession != "" || r.Acknowledged {
 		t.Fatalf("continue reset: %+v", r)

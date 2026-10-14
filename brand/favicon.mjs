@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { markSvg } from './ring.ts';
 
-const assets = new URL('../internal/hub/ui/assets/', import.meta.url);
+const assets = new URL('../web/static/', import.meta.url);
 const svg = markSvg(256, '#000000').replace(/(<svg[^>]*>)/,
   '$1<style>@media (prefers-color-scheme: dark) { path { fill: #FFFFFF; } }</style>');
 writeFileSync(new URL('favicon.svg', assets), svg + '\n');

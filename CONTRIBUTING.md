@@ -6,22 +6,38 @@ changes its shape. Thank you for caring about it.
 
 ```
 npm ci
-npm run build:ui        # after changing public/app; includes type checking
+npm run build:ui        # after changing web/; includes type checking
 go install ./cmd/kolo    # onto $(go env GOPATH)/bin, which may not be on PATH
 go run ./cmd/kolo up     # a hub, lending this directory
 go test ./...
-node --test tests/*.test.cjs
+npm run test:ui
 ```
 
-React source lives in `public/app`, following Grafana's separation of shared
-`core` code and product `features`. Session workflows live in
-`public/app/features/sessions`; shared primitives and the controller boundary
-live in `public/app/core`. Vite and TypeScript configuration live at the
-repository root. Node 22.12+ is needed to change the UI.
-Compiled assets in `internal/hub/ui/assets/react` are committed and embedded
-in the Go binary; users and Go-only builders do not need Node. CI runs
-`npm run check:ui` to catch stale assets. Commit source and generated assets
-together.
+Frontend source lives in `web/`: entry pages at its root, TypeScript and React
+under `src/`, and styles, fonts, icons, and vendored scripts under `static/`.
+`src/app` composes the page; `src/features` owns product workflows;
+`src/core` holds shared primitives and runtime types. Terminal transport,
+fitting, and input live in `src/terminal`, outside React's render lifecycle.
+Controllers receive page state and browser dependencies explicitly and install
+listeners once at startup. Unit tests beside these modules import their actual
+operations; `web/test` holds the shared test fixture.
+
+Vite and TypeScript configuration and the single npm package live at the
+repository root. Node 22.12+ is needed to change the UI. Everything under
+`internal/hub/ui` is generated, committed, and embedded in the Go binary;
+users and Go-only builders do not need Node. Edit `web/`, run
+`npm run build:ui`, and commit source and output together. CI runs
+`npm run check:ui` to compare the complete embedded tree with a fresh build.
+
+Go entry points live in `cmd/`. `internal/hub` owns HTTP, authentication,
+registry state, and host/viewer connections; `internal/host` owns machine
+connections, process supervision, and persistence. Both consume the JSON
+contract in `internal/protocol`; host implementation code does not import the
+hub. Registry dispatch claims stay private to the hub. Smaller packages own
+PTY processes (`agent`), screen fan-out (`session`), terminal emulation (`term`),
+serialized input (`relay`), and agent descriptions and detection (`adapter`,
+`detect`). Go tests stay beside their packages; full browser and standalone
+binary tests live in `tests/browser`.
 
 For frontend live reload, start the hub and then `npm run dev:ui`. Open the
 Vite URL; API requests and terminal WebSockets proxy to `127.0.0.1:7300`.
@@ -45,7 +61,7 @@ The session switcher also has Firefox keyboard checks:
 
 ```sh
 npx playwright install firefox
-KOLO_BROWSER=firefox node --test --test-name-pattern='session switcher' tests/layout.browser.cjs
+KOLO_BROWSER=firefox node --test --test-name-pattern='session switcher' tests/browser/layout.browser.cjs
 ```
 
 To run all browser checks in Firefox, use `KOLO_BROWSER=firefox npm run test:browser`.

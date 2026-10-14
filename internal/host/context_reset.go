@@ -4,19 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"time"
 
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
-type contextReport struct {
-	Type          string             `json:"type"`
-	Name          string             `json:"name"`
-	CreatedAt     time.Time          `json:"created_at"`
-	ContextResets []hub.ContextReset `json:"context_resets"`
-	Request       uint64             `json:"request,omitempty"`
-	Error         string             `json:"error,omitempty"`
-}
+type contextReport = protocol.ContextReport
 
 func (a *Agents) contextSnapshot(name string) contextReport {
 	a.mu.Lock()
@@ -38,7 +30,7 @@ func (a *Agents) acknowledgeContext(name, id string) error {
 	if p == nil || p.stopping || a.closing || a.restoring || a.restoreErr != "" {
 		return fmt.Errorf("session unavailable")
 	}
-	i := slices.IndexFunc(p.spec.ContextResets, func(x hub.ContextReset) bool { return x.ID == id })
+	i := slices.IndexFunc(p.spec.ContextResets, func(x protocol.ContextReset) bool { return x.ID == id })
 	if i < 0 {
 		return fmt.Errorf("unknown context reset")
 	}

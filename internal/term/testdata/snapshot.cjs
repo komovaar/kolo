@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { Terminal } = require('../../hub/ui/assets/xterm.js');
-require('../../hub/ui/assets/terminal-queries.js');
+const { hostReplies } = require('../../../web/src/terminal/queries.ts');
 
 const write = (term, data) => new Promise((resolve) => term.write(data, resolve));
 
@@ -31,8 +31,8 @@ async function main() {
   for (const fixture of cases) {
     const live = new Terminal({ cols: 40, rows: 8 });
     const joined = new Terminal({ cols: 40, rows: 8 });
-    KoloTerminalQueries.hostReplies(live);
-    KoloTerminalQueries.hostReplies(joined);
+    hostReplies(live);
+    hostReplies(joined);
     await write(live, fixture.input);
     await write(joined, fixture.snapshot);
     assert.deepEqual(state(joined), state(live), `${fixture.name}: snapshot`);

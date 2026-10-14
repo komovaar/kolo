@@ -57,7 +57,7 @@ jobs:
         run: go vet ./...
 
       - name: browser logic
-        run: node --test tests/*.test.cjs
+        run: npm run test:ui
 
       - name: browser layout
         if: runner.os == 'Linux'

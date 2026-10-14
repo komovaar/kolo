@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kolo</title>
+<script src="/assets/theme.js"></script>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=adaptive" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-dark-32.png?v=adaptive" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/favicon-256.png?v=adaptive" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/favicon-dark-256.png?v=adaptive" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=adaptive">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/ui.css">
+<link rel="stylesheet" href="/assets/xterm.css">
+
+<link rel="stylesheet" href="/assets/workspace.css">
+</head>
+<body>
+
+<section class="boot" role="status">
+  <h1>Opening your workspace</h1>
+  <p class="boot-message">Connecting to Kolo…</p>
+  <button class="go secondary boot-retry" type="button" hidden>Try again</button>
+</section>
+
+<section class="signin auth" hidden>
+  <div class="auth-content">
+    <div class="auth-brand"><svg width="20" height="20" viewBox="0 0 22 22" role="img" aria-label="Kolo"><path fill="currentColor" fill-rule="evenodd" d="M0.88,11 a10.12,10.12 0 1,0 20.24,0 a10.12,10.12 0 1,0 -20.24,0 Z M5.1194,9.6954 a7.1852,7.1852 0 1,0 14.3704,0 a7.1852,7.1852 0 1,0 -14.3704,0 Z"/></svg></div>
+    <h1>Sign in to your workspace</h1>
+    <p>Paste the token from your workspace owner.</p>
+    <form method="post" action="/login">
+      <label for="signin-token">Access token</label>
+      <input id="signin-token" name="token" type="password" placeholder="kolo_…" autocomplete="off" spellcheck="false" aria-describedby="signin-problem" required>
+      <button type="submit" class="go primary">Sign in</button>
+    </form>
+    <p id="signin-problem" class="problem" role="alert" hidden>That token is not recognized. Check it and try again.</p>
+    <p class="source">Kolo is AGPL-3.0 free software. <a href="https://github.com/whosgotch/kolo">View source</a></p>
+  </div>
+</section>
+
+<div class="app" hidden>
+  <nav class="mobile-nav" aria-label="Workspace navigation">
+    <button class="mobile-menu" type="button" aria-label="Sessions" title="Browse sessions" aria-expanded="false" aria-controls="session-navigation"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h10" stroke-linecap="round"/></svg></button>
+    <span class="mobile-title">Kolo</span>
+  </nav>
+  <button class="nav-shade" type="button" aria-label="Close session navigation" tabindex="-1"></button>
+  <aside class="side" id="session-navigation">
+    <div class="brand">
+      <button class="icon-btn brand-home" title="Workspace overview" aria-label="Workspace overview">
+        <svg class="mark" width="26" height="26" viewBox="0 0 22 22" role="img" aria-label="Kolo">
+          <path fill-rule="evenodd" fill="currentColor"
+            d="M0.88,11 a10.12,10.12 0 1,0 20.24,0 a10.12,10.12 0 1,0 -20.24,0 Z
+               M5.1194,9.6954 a7.1852,7.1852 0 1,0 14.3704,0 a7.1852,7.1852 0 1,0 -14.3704,0 Z"/>
+        </svg>
+      </button>
+      <span class="workspace-label" hidden></span>
+    </div>
+    <nav class="side-nav" aria-label="Workspace">
+      <a class="side-overview" href="#" aria-current="page"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 6h12M6 6v8" stroke="currentColor" stroke-width="1.5"/></svg>Overview</a>
+      <button class="side-activity log-open" type="button" title="Activity log" aria-label="Activity log"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/></svg>Activity</button>
+    </nav>
+    <div class="side-tools">
+      <button class="switch-open" type="button" aria-label="Switch session" aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3" stroke-linecap="round"/></svg><span>Find a session</span><kbd class="switch-shortcut" aria-hidden="true"></kbd></button>
+    </div>
+    <div class="side-section-head"><div class="side-caption">Sessions</div><button class="go secondary side-new" type="button" aria-label="New session"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="sr-only">New session</span></button></div>
+    <div class="groups"></div>
+    <div class="me-wrap">
+      <button class="me" type="button" aria-expanded="false" aria-controls="account-menu">
+        <span class="avatar"><span class="initial"></span><span class="presence"></span></span>
+        <span class="who"><span class="name"></span><span class="status">online</span></span>
+        <svg class="care" width="11" height="11" viewBox="0 0 11 11" aria-hidden="true">
+          <path d="M2 6.5 5.5 3l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </button>
+      <div class="me-menu" id="account-menu" hidden>
+        <button class="me-item attention-toggle" type="button" aria-pressed="false">Enable desktop alerts</button>
+        <button class="me-item theme-toggle" type="button">Use light appearance</button>
+        <a class="me-item" href="https://github.com/whosgotch/kolo" target="_blank" rel="noreferrer">Source code</a>
+        <form method="post" action="/logout"><button class="me-item" type="submit">Sign out</button></form>
+      </div>
+    </div>
+    <div class="side-resize" role="separator" tabindex="0" aria-label="Resize sidebar"
+         aria-orientation="vertical" aria-controls="session-navigation"></div>
+  </aside>
+
+  <main>
+    <div class="workspace-message" role="status" hidden>
+      <p>Workspace updates paused. Session details may be out of date.</p>
+      <button class="go secondary workspace-retry" type="button">Reconnect</button>
+    </div>
+    <section class="home" hidden></section>
+
+    <section class="watch" aria-label="Shared terminal" hidden>
+      <header class="session-head">
+        <div class="session-info">
+          <h1 class="session-title">Session</h1>
+          <p class="session-context"></p>
+          <p class="session-error" role="status" hidden></p>
+          <div class="context-warning" role="status" hidden>
+            <p class="context-warning-text"></p>
+            <button class="go secondary context-ack">Acknowledge reset</button>
+          </div>
+          <div class="session-badges">
+            <span class="session-state"></span>
+          </div>
+        </div>
+        <div class="share-mount"></div>
+        <button class="go session-stop" type="button" aria-label="Stop session" title="Stop session">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor"/></svg>
+          <span class="session-stop-label">Stop</span>
+        </button>
+      </header>
+      <div class="screen">
+        <div id="term"></div>
+      </div>
+      <div class="watch-bar" role="region" aria-label="Terminal status and controls">
+        <div class="status-details"><span class="session-connection" role="status">Connecting…</span><span class="session-access"></span></div>
+        <p class="note" role="status"></p>
+        <span class="typist" hidden></span>
+        <div class="zoom" role="group" aria-label="Terminal zoom">
+          <button class="out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          <button class="at" title="Fit terminal to window" aria-label="Fit terminal to window">fit</button>
+          <button class="in" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
+        <button type="button" class="watch-action restart" disabled>restart</button>
+      </div>
+    </section>
+
+    <!-- Everyone can read who used the shared agent controls. -->
+    <section class="log" hidden>
+      <div class="log-head">
+        <h2>Activity</h2>
+      </div>
+      <p class="log-description">Session actions and member input. Terminal output is not recorded.</p>
+      <div class="log-columns" aria-hidden="true"><span>Time</span><span>Member</span><span>Action</span><span>Session</span><span>Input</span></div>
+      <p class="log-message" role="status">Loading activity…</p>
+      <button class="go log-retry" type="button" hidden>Retry loading activity</button>
+      <div class="log-rows"></div>
+    </section>
+  </main>
+</div>
+
+<div id="react-root"></div>
+<script src="/assets/startup.js"></script>
+<script type="module" id="workspace-code" src="/assets/react/workspace.js"></script>
+<script src="/assets/xterm.js"></script>
+<script src="/assets/addon-canvas.js"></script>
+</body>
+</html>

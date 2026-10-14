@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>join kolo</title>
+<script src="/assets/theme.js"></script>
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=adaptive" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-dark-32.png?v=adaptive" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/favicon-256.png?v=adaptive" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" sizes="256x256" href="/assets/favicon-dark-256.png?v=adaptive" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=adaptive">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<link rel="stylesheet" href="/assets/fonts.css">
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/ui.css">
+</head>
+<body class="auth" data-org="{{.Org}}">
+<main class="auth-content">
+  <div class="auth-brand"><svg width="20" height="20" viewBox="0 0 22 22" role="img" aria-label="Kolo"><path fill="currentColor" fill-rule="evenodd" d="M0.88,11 a10.12,10.12 0 1,0 20.24,0 a10.12,10.12 0 1,0 -20.24,0 Z M5.1194,9.6954 a7.1852,7.1852 0 1,0 14.3704,0 a7.1852,7.1852 0 1,0 -14.3704,0 Z"/></svg></div>
+  <h1>Join <span class="org"></span></h1>
+
+  <section class="ask" hidden>
+    <p id="name-help">Use the name your teammates will recognize.</p>
+    <form method="post" action="/join">
+      <input name="invite" type="hidden">
+      <label for="join-name">Your name</label>
+      <input id="join-name" name="name" placeholder="e.g. Alex" maxlength="40" autocomplete="nickname" aria-describedby="name-help" required>
+      <button class="go primary" type="submit">Join workspace</button>
+    </form>
+  </section>
+
+  <p role="alert" class="problem nolink" hidden>This link is missing its invite. Ask for the whole
+     of it. Everything after the <code>#</code> is the part that matters.</p>
+  <p role="alert" class="problem refused" hidden>This invite is no longer available. Ask the host for a new link.</p>
+
+  <p class="source">Kolo is AGPL-3.0 free software. <a href="https://github.com/whosgotch/kolo">View source</a></p>
+</main>
+
+<script>
+  // The invite rides in the fragment, which browsers do not send anywhere: it
+  // stays out of the hub's logs, out of proxies in between, and out of the
+  // Referer header of everything this page could go on to load.
+  let invite = '';
+  try { invite = decodeURIComponent(location.hash.slice(1)); } catch (_) {}
+  const org = document.querySelector('.org');
+  org.textContent = document.body.dataset.org || 'kolo';
+
+  const show = sel => document.querySelector(sel).hidden = false;
+  if (new URLSearchParams(location.search).has('refused')) {
+    show('.refused');
+  } else if (!invite.startsWith('kolo_')) {
+    show('.nolink');
+  } else {
+    document.querySelector('input[name=invite]').value = invite;
+    show('.ask');
+    document.querySelector('#join-name').focus();
+  }
+</script>
+<script type="module" src="/assets/auth.js"></script>
+</body>
+</html>

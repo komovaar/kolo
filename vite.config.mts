@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, cp } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,10 +8,15 @@ const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.u
 
 export default defineConfig(({ command }) => ({
   define: { 'process.env.NODE_ENV': JSON.stringify(command === 'build' ? 'production' : 'development') },
-  root: path('./public'),
-  publicDir: path('./internal/hub/ui'),
+  root: path('./web'),
+  publicDir: false,
   plugins: [react(), {
     name: 'kolo-development-page',
+    async closeBundle() {
+      if (command !== 'build') return;
+      await cp(path('./web/static'), path('./internal/hub/ui/assets'), { recursive: true });
+      for (const page of ['index.html', 'join.html']) await cp(path(`./web/${page}`), path(`./internal/hub/ui/${page}`));
+    },
     async generateBundle(_, bundle) {
       for (const asset of Object.values(bundle)) {
         if (asset.type === 'chunk') asset.code = asset.code.replace(/[\t ]+$/gm, '');
@@ -28,29 +33,46 @@ export default defineConfig(({ command }) => ({
           } catch { directory = dirname(directory); }
         }
       }
-      let licenses = await readFile(path('./public/NOTICE.md'), 'utf8');
+      let licenses = await readFile(path('./web/NOTICE.md'), 'utf8');
       for (const [name, directory] of [...packages].sort(([a], [b]) => a.localeCompare(b, 'en'))) {
         const license = (await readdir(directory)).sort().find((file) => /^(license|copying)(\.|$)/i.test(file));
         const licensePath = license ? join(directory, license)
-          : path(`./public/licenses/${name.replace('@', '-').replace(/\//g, '_')}.txt`);
+          : path(`./web/licenses/${name.replace('@', '-').replace(/\//g, '_')}.txt`);
         licenses += `\n\n--- ${name} ---\n\n${await readFile(licensePath, 'utf8')}`;
       }
-      this.emitFile({ type: 'asset', fileName: 'LICENSES.txt', source: licenses });
+      this.emitFile({ type: 'asset', fileName: 'assets/react/LICENSES.txt', source: licenses });
     },
     handleHotUpdate({ file, server }) {
-      // The transitional controller has a single lifetime. Reload the page
-      // rather than running global initialization twice during migration.
-      if (file.startsWith(path('./public/app/'))) {
+      // Controllers own page-lifetime listeners and terminals. Reload after a
+      // source edit so a hot update cannot install a second set of listeners.
+      if (file.startsWith(path('./web/'))) {
         server.ws.send({ type: 'full-reload' });
         return [];
       }
     },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
-        if (request.url?.split('?')[0] !== '/') return next();
+        const pathname = request.url?.split('?')[0];
+        if (pathname === '/assets/auth.js') {
+          response.writeHead(302, { Location: '/src/features/auth/join.ts' });
+          response.end();
+          return;
+        }
+        if (pathname?.startsWith('/assets/')) {
+          try {
+            const asset = decodeURIComponent(pathname.slice('/assets/'.length));
+            if (asset.startsWith('/') || asset.includes('\\') || asset.split('/').includes('..')) return next();
+            const content = await readFile(join(path('./web/static'), asset));
+            const mime: Record<string, string> = { js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png', woff2: 'font/woff2' };
+            response.setHeader('Content-Type', mime[asset.split('.').pop()!] || 'text/plain');
+            response.end(content);
+            return;
+          } catch { return next(); }
+        }
+        if (pathname !== '/') return next();
         try {
-          const source = await readFile(path('./internal/hub/ui/index.html'), 'utf8');
-          const page = source.replace('/assets/react/workspace.js', '/app/index.tsx');
+          const source = await readFile(path('./web/index.html'), 'utf8');
+          const page = source.replace('/assets/react/workspace.js', '/src/index.tsx');
           response.setHeader('Content-Type', 'text/html');
           response.end(await server.transformIndexHtml(request.url!, page));
         } catch (error) { next(error as Error); }
@@ -63,12 +85,12 @@ export default defineConfig(({ command }) => ({
       [route, { target: process.env.KOLO_DEV_HUB || 'http://127.0.0.1:7300', ws: true }])),
   },
   build: {
-    outDir: path('./internal/hub/ui/assets/react'),
+    outDir: path('./internal/hub/ui'),
     emptyOutDir: true,
     copyPublicDir: false,
     sourcemap: false,
     minify: true,
-    rolldownOptions: { output: { minify: true } },
-    lib: { entry: path('./public/app/index.tsx'), formats: ['es'], fileName: () => 'workspace.js' },
+    rolldownOptions: { output: { minify: true, chunkFileNames: 'assets/[name]-[hash].js' } },
+    lib: { entry: { workspace: path('./web/src/index.tsx'), auth: path('./web/src/features/auth/join.ts') }, formats: ['es'], fileName: (_format, name) => name === 'workspace' ? 'assets/react/workspace.js' : 'assets/auth.js' },
   },
 }));

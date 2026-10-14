@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"github.com/whosgotch/kolo/internal/detect"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // Restore retains every saved specification before any process can save its
@@ -68,7 +68,7 @@ func (a *Agents) loadState() ([]string, error) {
 	for _, rec := range state.Agents {
 		spec := rec.Spec
 		spec.Dir = filepath.Clean(spec.Dir)
-		p := newProcess(spec, rec.Fresh && spec.Status == hub.StatusFailed, rec.Session)
+		p := newProcess(spec, rec.Fresh && spec.Status == protocol.StatusFailed, rec.Session)
 		p.since = rec.Since
 		for _, state := range []detect.State{detect.Idle, detect.Busy, detect.Dialog} {
 			if state.String() == rec.State {
@@ -76,8 +76,8 @@ func (a *Agents) loadState() ([]string, error) {
 			}
 		}
 		desired[spec.Name] = p
-		if spec.Status == hub.StatusFailed {
-			p.status, p.error, p.supervising = hub.StatusFailed, spec.Error, false
+		if spec.Status == protocol.StatusFailed {
+			p.status, p.error, p.supervising = protocol.StatusFailed, spec.Error, false
 			continue
 		}
 		err := a.permitted(spec)
@@ -89,8 +89,8 @@ func (a *Agents) loadState() ([]string, error) {
 			}
 		}
 		if err != nil {
-			p.status, p.error, p.supervising = hub.StatusFailed, err.Error(), false
-			rejected = append(rejected, statusReport{"status", spec.Name, hub.StatusFailed, err.Error()})
+			p.status, p.error, p.supervising = protocol.StatusFailed, err.Error(), false
+			rejected = append(rejected, statusReport{Type: "status", Name: spec.Name, Status: protocol.StatusFailed, Error: err.Error()})
 			continue
 		}
 		accepted = append(accepted, p)

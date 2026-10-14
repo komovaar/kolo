@@ -13,7 +13,7 @@ import (
 	"github.com/whosgotch/kolo/internal/adapter"
 	"github.com/whosgotch/kolo/internal/agent"
 	"github.com/whosgotch/kolo/internal/detect"
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 	"github.com/whosgotch/kolo/internal/relay"
 	"github.com/whosgotch/kolo/internal/session"
 )
@@ -24,8 +24,8 @@ func agentsFixture(t *testing.T) (*Agents, string) {
 	return NewAgents(Config{Dirs: []string{dir}, Allow: []string{"cat", "true"}}, ""), dir
 }
 
-func spec(name, dir, command string) hub.Agent {
-	return hub.Agent{Name: name, Dir: dir, Command: command, CreatedBy: hub.Person{ID: "artem", Name: "Artem"}}
+func spec(name, dir, command string) protocol.Agent {
+	return protocol.Agent{Name: name, Dir: dir, Command: command, CreatedBy: protocol.Person{ID: "artem", Name: "Artem"}}
 }
 
 func nextReport(t *testing.T, a *Agents) statusReport {
@@ -49,7 +49,7 @@ func TestStartAndStop(t *testing.T) {
 	if err := a.Start(spec("checkups", dir, "cat")); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Name != "checkups" || got.Status != hub.StatusRunning {
+	if got := nextReport(t, a); got.Name != "checkups" || got.Status != protocol.StatusRunning {
 		t.Fatalf("reported %+v", got)
 	}
 	if names := a.Names(); len(names) != 1 || names[0] != "checkups" {
@@ -126,20 +126,20 @@ func TestAnAgentThatDiesComesBack(t *testing.T) {
 	if err := a.Start(spec("checkups", dir, "cat")); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusRunning {
+	if got := nextReport(t, a); got.Status != protocol.StatusRunning {
 		t.Fatalf("reported %+v", got)
 	}
 	first := processOf(t, a, "checkups")
 
 	first.Close() // as if it had crashed: no Stop marked it stopping
 
-	if got := nextReport(t, a); got.Status != hub.StatusStarting {
+	if got := nextReport(t, a); got.Status != protocol.StatusStarting {
 		t.Fatalf("after dying, reported %+v", got)
 	}
-	if got := a.Specs(); len(got) != 1 || got[0].Status != hub.StatusStarting {
+	if got := a.Specs(); len(got) != 1 || got[0].Status != protocol.StatusStarting {
 		t.Fatalf("reconnect snapshot while restarting = %+v", got)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusRunning {
+	if got := nextReport(t, a); got.Status != protocol.StatusRunning {
 		t.Fatalf("after restarting, reported %+v", got)
 	}
 	waitFor(t, func() bool { return processOf(t, a, "checkups") != first })
@@ -156,7 +156,7 @@ func TestStoppingCancelsAWaitingRestart(t *testing.T) {
 	}
 	nextReport(t, a)
 	processOf(t, a, "checkups").Close()
-	if got := nextReport(t, a); got.Status != hub.StatusStarting {
+	if got := nextReport(t, a); got.Status != protocol.StatusStarting {
 		t.Fatalf("after dying, reported %+v", got)
 	}
 
@@ -183,20 +183,20 @@ func TestAnAgentThatCannotRestartIsRetained(t *testing.T) {
 	}
 	processOf(t, a, "checkups").Close()
 
-	if got := nextReport(t, a); got.Status != hub.StatusStarting {
+	if got := nextReport(t, a); got.Status != protocol.StatusStarting {
 		t.Fatalf("after dying, reported %+v", got)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusFailed {
+	if got := nextReport(t, a); got.Status != protocol.StatusFailed {
 		t.Fatalf("after failing to restart, reported %+v", got)
 	}
-	if got := a.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed || got[0].Error == "" {
+	if got := a.Specs(); len(got) != 1 || got[0].Status != protocol.StatusFailed || got[0].Error == "" {
 		t.Fatalf("failed session was not retained: %+v", got)
 	}
 	fakeAgent(t, dir, "sleep 30\n")
 	if err := a.Retry("checkups"); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusRunning {
+	if got := nextReport(t, a); got.Status != protocol.StatusRunning {
 		t.Fatalf("retry after repair: %+v", got)
 	}
 }
@@ -211,14 +211,14 @@ func TestGivingUp(t *testing.T) {
 	var last statusReport
 	for range 2*restartLimit + 1 {
 		last = nextReport(t, a)
-		if last.Status == hub.StatusFailed {
+		if last.Status == protocol.StatusFailed {
 			break
 		}
 	}
-	if last.Status != hub.StatusFailed {
+	if last.Status != protocol.StatusFailed {
 		t.Fatalf("never gave up; last report %+v", last)
 	}
-	if got := a.Specs(); len(got) != 1 || got[0].Status != hub.StatusFailed || got[0].Error == "" {
+	if got := a.Specs(); len(got) != 1 || got[0].Status != protocol.StatusFailed || got[0].Error == "" {
 		t.Fatalf("failed session was not retained: %+v", got)
 	}
 	// A manual retry gets the complete automatic restart budget again.
@@ -228,10 +228,10 @@ func TestGivingUp(t *testing.T) {
 	runs := 0
 	for range 2*restartLimit + 1 {
 		report := nextReport(t, a)
-		if report.Status == hub.StatusRunning {
+		if report.Status == protocol.StatusRunning {
 			runs++
 		}
-		if report.Status == hub.StatusFailed {
+		if report.Status == protocol.StatusFailed {
 			break
 		}
 	}
@@ -329,7 +329,7 @@ func TestRestoreReportsARejectedAgentOnce(t *testing.T) {
 	if err := a.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusFailed {
+	if got := nextReport(t, a); got.Status != protocol.StatusFailed {
 		t.Fatalf("reported %+v", got)
 	}
 	select {
@@ -641,7 +641,7 @@ sleep 30
 	var told bool
 	for range 2*restartLimit + 1 {
 		r := nextReport(t, a)
-		if r.Status == hub.StatusFailed {
+		if r.Status == protocol.StatusFailed {
 			t.Fatalf("gave up instead of starting fresh: %+v", r)
 		}
 		if strings.Contains(r.Error, "could not resume") {
@@ -843,7 +843,7 @@ func TestTheStateFileSaysHowAScreenIsReading(t *testing.T) {
 // cannot know, so this is where it is found out.
 func TestAHostThatLendsAnyCommandRunsWhatsOnItsPath(t *testing.T) {
 	dir := t.TempDir()
-	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{hub.AllowAny}}, "")
+	a := NewAgents(Config{Dirs: []string{dir}, Allow: []string{protocol.AllowAny}}, "")
 
 	if err := a.Start(spec("checkups", dir, "cat")); err != nil {
 		t.Fatalf("a command on PATH: %v", err)
@@ -857,7 +857,7 @@ func TestAHostThatLendsAnyCommandRunsWhatsOnItsPath(t *testing.T) {
 	if err := a.Start(spec("ghost", dir, "no-such-agent-anywhere")); err == nil {
 		t.Fatal("missing executable launched")
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusFailed || got.Error == "" {
+	if got := nextReport(t, a); got.Status != protocol.StatusFailed || got.Error == "" {
 		t.Fatalf("missing executable did not report a recoverable failure: %+v", got)
 	}
 	if got := a.Specs(); len(got) != 2 {
@@ -961,7 +961,7 @@ func TestCodexConversationTitleReportsAndPersists(t *testing.T) {
 	a.state = filepath.Join(dir, "state.json")
 	live := session.New(120, 40, detect.Markers{})
 	created := time.Now().UTC()
-	a.running["work"] = &process{spec: hub.Agent{Name: "work", Dir: dir, Command: "codex", CreatedAt: created}, live: live, status: hub.StatusRunning}
+	a.running["work"] = &process{spec: protocol.Agent{Name: "work", Dir: dir, Command: "codex", CreatedAt: created}, live: live, status: protocol.StatusRunning}
 	id := "12345678-1234-1234-1234-123456789abc"
 	live.Write([]byte("\x1b]0;" + id[:18]))
 	a.readSession("work", adapter.For("codex"), live)

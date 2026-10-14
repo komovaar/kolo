@@ -5,16 +5,13 @@ import (
 	"net/http"
 	"slices"
 	"time"
+
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 // ContextReset survives process restarts and acknowledgement. A short-lived
 // resume is only evidence of a failed attempt, not proof the old history is gone.
-type ContextReset struct {
-	ID              string    `json:"id"`
-	At              time.Time `json:"at"`
-	PreviousSession string    `json:"previous_session,omitempty"`
-	Acknowledged    bool      `json:"acknowledged,omitempty"`
-}
+type ContextReset = protocol.ContextReset
 
 func (r *Registry) setContextResets(hostID, name string, created time.Time, resets []ContextReset) bool {
 	r.mu.Lock()

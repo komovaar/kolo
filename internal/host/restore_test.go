@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func savedState(t *testing.T, path string, state State) []byte {
@@ -39,7 +39,7 @@ func TestPartialRestoreKeepsEveryDesiredSession(t *testing.T) {
 		return Record{Spec: s, Session: "conversation-" + name, State: "idle", Since: time.Unix(1, 0)}
 	}
 	oldFailure := record("old-failure", t.TempDir(), "true", 6)
-	oldFailure.Spec.Status, oldFailure.Spec.Error, oldFailure.Fresh = hub.StatusFailed, "previous failure", true
+	oldFailure.Spec.Status, oldFailure.Spec.Error, oldFailure.Fresh = protocol.StatusFailed, "previous failure", true
 	original := savedState(t, path, State{Lends: []string{dir, noLongerLent}, Allows: []string{"cat", "true"}, Agents: []Record{
 		record("conflict", dir, "cat", 5), // Unsorted legacy file: oldest work must win.
 		record("healthy", dir, "cat", 1),
@@ -64,10 +64,10 @@ func TestPartialRestoreKeepsEveryDesiredSession(t *testing.T) {
 				t.Fatalf("restore lost identity or conversation data: %+v", rec)
 			}
 			if rec.Spec.Name == "healthy" {
-				if rec.Spec.Status != hub.StatusRunning {
+				if rec.Spec.Status != protocol.StatusRunning {
 					t.Fatalf("healthy session was not restored: %+v", rec)
 				}
-			} else if rec.Spec.Status != hub.StatusFailed || rec.Spec.Error == "" {
+			} else if rec.Spec.Status != protocol.StatusFailed || rec.Spec.Error == "" {
 				t.Fatalf("unrestorable session has no diagnostic: %+v", rec)
 			}
 		}
@@ -104,7 +104,7 @@ func TestPartialRestoreKeepsEveryDesiredSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, got := range back.Specs() {
-		if got.Name == "unlent" && got.Status != hub.StatusRunning {
+		if got.Name == "unlent" && got.Status != protocol.StatusRunning {
 			t.Fatalf("retry after repairing permissions: %+v", got)
 		}
 	}
@@ -128,11 +128,11 @@ func TestAllRejectedSessionsAreSavedWithoutALiveProcess(t *testing.T) {
 	if err := a.Restore(); err != nil {
 		t.Fatal(err)
 	}
-	if got := nextReport(t, a); got.Status != hub.StatusFailed || !strings.Contains(got.Error, "does not lend") {
+	if got := nextReport(t, a); got.Status != protocol.StatusFailed || !strings.Contains(got.Error, "does not lend") {
 		t.Fatalf("rejection: %+v", got)
 	}
 	state, err := ReadState(path)
-	if err != nil || len(state.Agents) != 1 || state.Agents[0].Spec.Status != hub.StatusFailed {
+	if err != nil || len(state.Agents) != 1 || state.Agents[0].Spec.Status != protocol.StatusFailed {
 		t.Fatalf("all-rejected state was not persisted: %+v, %v", state, err)
 	}
 	if processOf(t, a, "unlent") != nil {

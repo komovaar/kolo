@@ -473,21 +473,28 @@ internal/config   ~/.kolo
 internal/detect   screen state classification
 internal/host     the machine half: supervision, state file, streaming
 internal/hub      the server half: auth, registry, screens, journal, the page
+internal/protocol shared host-hub JSON messages, session snapshots, identity
 internal/relay    sole writer to a PTY; keystroke gating rules
 internal/session  one agent's screen fanned out to viewers
 internal/term     vt10x-backed screen model and repaint
+web               frontend source: pages, TypeScript/React, static assets
+tests/browser     browser interactions and standalone binary integration
 ```
 
-**Why the page lives in `internal/hub/ui`.** `go:embed` can reach into a
+**Why the built page lives in `internal/hub/ui`.** `go:embed` can reach into a
 directory below the package it is written in, but never outside one. A page in
 a package of its own would be a package whose only job was holding one embed
 directive. `internal` keeps it from becoming importable API the module would
-owe compatibility on.
+owe compatibility on. Frontend source lives in `web/`; `npm run build:ui`
+regenerates this embedded tree, including both entry pages and static assets.
+The output is tracked so building or installing the Go binary needs no Node.
 
 **The icons and token stylesheet are build output.** They are checked in under
-`internal/hub/ui/assets`, but `node brand/build.mjs` regenerates them from
-`brand/ring.ts` and `brand/tokens.css`. That needs Node and a Chrome. Edit the
-sources under `brand/`, never the generated files.
+`web/static`, and copied into `internal/hub/ui/assets` by the frontend build.
+`node brand/build.mjs` regenerates them from `brand/ring.ts` and
+`brand/tokens.css`; `node brand/favicon.mjs` regenerates the browser-theme tab
+icons. That needs Node and a Chrome. Edit the sources under `brand/`, then run
+`npm run build:ui` to refresh the embedded copies.
 
 Disconnected sessions remain visible as **Machine disconnected** while the hub runs.
 Their controls are unavailable. Reconnecting replaces the last-known list with

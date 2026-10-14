@@ -1,0 +1,66 @@
+import * as controllers from './controllers.ts';
+import type { WorkspaceRuntime, WorkspaceActions } from '../core/runtime.ts';
+
+// Composition is explicit so changes to controller signatures are type checked.
+export function controllerActions(runtime: WorkspaceRuntime): WorkspaceActions {
+  return {
+    programOf: controllers.programOf.bind(undefined, runtime),
+    kindGlyph: controllers.kindGlyph.bind(undefined, runtime),
+    kindIcon: controllers.kindIcon.bind(undefined, runtime),
+    programKind: controllers.programKind.bind(undefined, runtime),
+    automaticSessionName: controllers.automaticSessionName.bind(undefined, runtime),
+    createTerminal: controllers.createTerminal.bind(undefined, runtime),
+    room: controllers.room.bind(undefined, runtime),
+    fit: controllers.fit.bind(undefined, runtime),
+    setZoom: controllers.setZoom.bind(undefined, runtime),
+    sayZoom: controllers.sayZoom.bind(undefined, runtime),
+    canWatch: controllers.canWatch.bind(undefined, runtime),
+    reconcileWatch: controllers.reconcileWatch.bind(undefined, runtime),
+    watch: controllers.watch.bind(undefined, runtime),
+    resetTerminal: controllers.resetTerminal.bind(undefined, runtime),
+    close: controllers.close.bind(undefined, runtime),
+    connect: controllers.connect.bind(undefined, runtime),
+    describe: controllers.describe.bind(undefined, runtime),
+    keyboardChanged: controllers.keyboardChanged.bind(undefined, runtime),
+    tell: controllers.tell.bind(undefined, runtime),
+    drawHome: controllers.drawHome.bind(undefined, runtime),
+    sessionState: controllers.sessionState.bind(undefined, runtime),
+    drawSession: controllers.drawSession.bind(undefined, runtime),
+    drawChoices: controllers.drawChoices.bind(undefined, runtime),
+    openCreate: controllers.openCreate.bind(undefined, runtime),
+    closeCreate: controllers.closeCreate.bind(undefined, runtime),
+    createSession: controllers.createSession.bind(undefined, runtime),
+    stop: controllers.stop.bind(undefined, runtime),
+    say: controllers.say.bind(undefined, runtime),
+    acknowledgeContext: controllers.acknowledgeContext.bind(undefined, runtime),
+    retrySession: controllers.retrySession.bind(undefined, runtime),
+    canControl: controllers.canControl.bind(undefined, runtime),
+    applyAccess: controllers.applyAccess.bind(undefined, runtime),
+    signOut: controllers.signOut.bind(undefined, runtime),
+    refresh: controllers.refresh.bind(undefined, runtime),
+    show: controllers.show.bind(undefined, runtime),
+    agentInURL: controllers.agentInURL.bind(undefined, runtime),
+    logInURL: controllers.logInURL.bind(undefined, runtime),
+    updateMobileTitle: controllers.updateMobileTitle.bind(undefined, runtime),
+    retryWorkspace: controllers.retryWorkspace.bind(undefined, runtime),
+    setAccountMenu: controllers.setAccountMenu.bind(undefined, runtime),
+    updateSidebarWidth: controllers.updateSidebarWidth.bind(undefined, runtime),
+    endSidebarDrag: controllers.endSidebarDrag.bind(undefined, runtime),
+    setNavigation: controllers.setNavigation.bind(undefined, runtime),
+    route: controllers.route.bind(undefined, runtime),
+    startRename: controllers.startRename.bind(undefined, runtime),
+    cancelRename: controllers.cancelRename.bind(undefined, runtime),
+    commitRename: controllers.commitRename.bind(undefined, runtime),
+    drawGroups: controllers.drawGroups.bind(undefined, runtime),
+    renderGroups: controllers.renderGroups.bind(undefined, runtime),
+    drawLog: controllers.drawLog.bind(undefined, runtime),
+    entryRow: controllers.entryRow.bind(undefined, runtime),
+    didWhat: controllers.didWhat.bind(undefined, runtime),
+    when: controllers.when.bind(undefined, runtime),
+    labelOf: controllers.labelOf.bind(undefined, runtime),
+  };
+}
+
+export function bindControllers(runtime: WorkspaceRuntime) {
+  return Object.assign(runtime, controllerActions(runtime));
+}

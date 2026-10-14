@@ -15,6 +15,7 @@ import (
 	"github.com/whosgotch/kolo/internal/config"
 	"github.com/whosgotch/kolo/internal/host"
 	"github.com/whosgotch/kolo/internal/hub"
+	"github.com/whosgotch/kolo/internal/protocol"
 )
 
 func hostCmd(args []string) error {
@@ -106,7 +107,7 @@ func hostCmd(args []string) error {
 }
 
 func displayDirs(dirs list) list {
-	if len(dirs) == 1 && dirs[0] == hub.DirAny {
+	if len(dirs) == 1 && dirs[0] == protocol.DirAny {
 		return list{"anywhere"}
 	}
 	return dirs
@@ -114,7 +115,7 @@ func displayDirs(dirs list) list {
 
 func resolveDirs(dirs list) error {
 	for i, d := range dirs {
-		if d == hub.DirAny {
+		if d == protocol.DirAny {
 			continue
 		}
 		abs, err := filepath.Abs(d)
