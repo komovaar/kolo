@@ -10,6 +10,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Exact commit to check before packaging'
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -26,6 +32,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       # go.mod is the one place the version is written down.
       - uses: actions/setup-go@v6
@@ -35,6 +43,9 @@ jobs:
 
       - name: toolchain
         run: go version
+
+      - name: workflow validation
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -shellcheck=
 
       - uses: actions/setup-node@v4
         with:
@@ -58,6 +69,9 @@ jobs:
 
       - name: browser logic
         run: npm run test:ui
+
+      - name: installer and release references
+        run: npm run test:release
 
       - name: browser layout
         if: runner.os == 'Linux'

@@ -9,7 +9,8 @@
     "build:ui": "npm run typecheck && vite build --config vite.config.mts",
     "check:ui": "node scripts/check-ui-build.mjs",
     "test:browser": "node --test tests/browser/*.browser.cjs",
-    "test:ui": "node --test 'web/src/**/*.test.cjs'"
+    "test:ui": "node --test 'web/src/**/*.test.cjs'",
+    "test:release": "node --test tests/release.test.cjs"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

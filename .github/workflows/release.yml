@@ -20,18 +20,50 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ref.outputs.tag }}
+      sha: ${{ steps.ref.outputs.sha }}
+      prerelease: ${{ steps.ref.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: resolve version tag
+        id: ref
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: bash scripts/release-ref.sh "$TAG" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
   release:
+    needs: [resolve, check]
+    permissions:
+      contents: write
     # Use the compiler setup-go selected for scans and builds alike.
     env:
       GOTOOLCHAIN: local
+      TAG: ${{ needs.resolve.outputs.tag }}
+      SHA: ${{ needs.resolve.outputs.sha }}
+      PRERELEASE: ${{ needs.resolve.outputs.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.resolve.outputs.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-go@v6
@@ -42,20 +74,12 @@ jobs:
       - name: toolchain
         run: go version
 
-      - name: vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -show verbose ./...
-
-      - name: version
-        id: v
-        run: echo "tag=${{ inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
-
       # The tag is passed in rather than read back out of the build: at a
       # tagged commit the toolchain still reports the commit, and a downloaded
       # binary should call itself by the tag somebody chose it from.
       - name: build
         env:
           CGO_ENABLED: '0'
-          TAG: ${{ steps.v.outputs.tag }}
         run: |
           mkdir -p dist
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
@@ -72,31 +96,37 @@ jobs:
 
       - name: sanity-check the linux build
         run: |
-          tar -xzf dist/kolo_${{ steps.v.outputs.tag }}_linux_amd64.tar.gz -C /tmp kolo
-          /tmp/kolo doctor | head -3
+          tar -xzf "dist/kolo_${TAG}_linux_amd64.tar.gz" -C /tmp kolo
+          /tmp/kolo version
+
+      - name: verify the tag still names the checked commit
+        run: |
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$SHA"
 
       - name: release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.v.outputs.tag }}
         run: |
+          cat > notes.md <<EOF
+          Experimental software for trusted teams. Agents run with the host user's permissions.
+
+          Install this version:
+
+          \`\`\`sh
+          curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$SHA/install | KOLO_VERSION=$TAG sh
+          \`\`\`
+
+          Checksums are in \`SHA256SUMS\`.
+          EOF
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
           else
-            # --generate-notes on top of --notes, which gh prepends: every
-            # release said the same three sentences about installing, and
-            # somebody deciding whether kolo is alive reads this page to find
-            # out what changed.
             gh release create "$TAG" dist/* \
               --title "kolo $TAG" \
+              --verify-tag --target "$SHA" \
+              --prerelease="$PRERELEASE" \
               --generate-notes \
-              --notes "Install:
-
-          \`\`\`
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install | sh
-          \`\`\`
-
-          Or with Go: \`go install github.com/whosgotch/kolo/cmd/kolo@$TAG\`
-
-          Checksums are in \`SHA256SUMS\`."
+              --notes-file notes.md
           fi

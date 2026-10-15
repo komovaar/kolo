@@ -1,19 +1,20 @@
 #!/bin/sh
 # Installs kolo, the binary a host machine runs.
 #
-#   curl -fsSL https://raw.githubusercontent.com/whosgotch/kolo/main/install | sh
+#   curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=nightly sh
 #
 # It downloads one release binary, checks it against the checksums published
 # with it, and puts it somewhere on your PATH. Nothing else. Read it first if
 # you would rather. That is why it is short, and why it is in the repository
 # rather than somewhere only a URL knows about.
 #
-#   KOLO_VERSION      a tag to install instead of the latest release
+#   KOLO_VERSION      a tag to install instead of the latest non-prerelease
+#                     release; use nightly for the experimental alpha
 #   KOLO_INSTALL_DIR  where to put it, instead of the first writable of
 #                     /usr/local/bin and ~/.local/bin
 set -eu
 
-REPO=whosgotch/kolo
+REPO=komovaar/kolo
 
 say()  { printf 'kolo: %s\n' "$1"; }
 fail() { printf 'kolo: %s\n' "$1" >&2; exit 1; }
@@ -26,7 +27,7 @@ need tar
 if command -v curl >/dev/null 2>&1; then
   fetch() { curl -fsSL "$1" -o "$2"; }
   read_url() { curl -fsSL "$1"; }
-  redirect_of() { curl -sSI "$1" | sed -n 's/^[Ll]ocation: *//p' | tr -d '\r' | tail -1; }
+  redirect_of() { curl -sSIL "$1" | sed -n 's/^[Ll]ocation: *//p' | tr -d '\r' | tail -1; }
 elif command -v wget >/dev/null 2>&1; then
   fetch() { wget -qO "$2" "$1"; }
   read_url() { wget -qO- "$1"; }
@@ -50,12 +51,12 @@ esac
 case "$(uname -m)" in
   x86_64|amd64)  arch=amd64 ;;
   arm64|aarch64) arch=arm64 ;;
-  *) fail "no kolo build for $(uname -m); go install github.com/$REPO/cmd/kolo@latest builds one" ;;
+  *) fail "no kolo build for $(uname -m); build from source with Go (see CONTRIBUTING.md)" ;;
 esac
 
 version="${KOLO_VERSION:-}"
 if [ -z "$version" ]; then
-  say "looking up the latest release"
+  say "looking up the latest non-prerelease release"
   # Where /releases/latest redirects to, rather than the API, which allows
   # sixty unauthenticated calls an hour per address. A company sits behind one
   # address, and the first person to install kolo there should not be able to
@@ -67,7 +68,7 @@ if [ -z "$version" ]; then
     version=$(read_url "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
       | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
   fi
-  [ -n "$version" ] || fail "could not find a release; set KOLO_VERSION to a tag"
+  [ -n "$version" ] || fail "could not find a non-prerelease release; set KOLO_VERSION=nightly for the experimental alpha, or set it to a release tag"
 fi
 
 # Somewhere to put it: a directory this user can actually write to, rather
