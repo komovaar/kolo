@@ -23,15 +23,15 @@
 ## Install
 
 Experimental alpha for trusted teams. On the machine you are lending, the
-only one that installs anything, install the rolling nightly build:
+only one that installs anything, install the fixed alpha build:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=nightly sh
+curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=v0.2.0-alpha.1 sh
 ```
 
 Linux and macOS, on amd64 and arm64. Windows hosts need WSL2.
-For a specific version, replace `nightly` with its tag from
-[releases](https://github.com/komovaar/kolo/releases). Omitting `KOLO_VERSION`
+For rolling development builds, replace `v0.2.0-alpha.1` with `nightly`.
+Other tagged builds are listed in [releases](https://github.com/komovaar/kolo/releases). Omitting `KOLO_VERSION`
 selects the latest non-prerelease release, when one is available.
 
 Agents have the host user's account permissions. Start in a dedicated VM with

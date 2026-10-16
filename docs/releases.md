@@ -2,14 +2,16 @@
 
 ## Alpha installation
 
-The README explicitly installs `nightly` while Kolo is an experimental alpha:
+The README pins the named alpha so installations and bug reports refer to
+the same build:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=nightly sh
+curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=v0.2.0-alpha.1 sh
 ```
 
 `KOLO_VERSION` must be set on `sh`, which runs the installer, rather than on
-`curl`. The installer never silently switches from a version release to a
+`curl`. Set `KOLO_VERSION=nightly` explicitly for the rolling development
+build. The installer never silently switches from a version release to a
 nightly. Without a version it looks for GitHub's latest non-prerelease;
 when none exists, it explains how to select the alpha explicitly.
 
