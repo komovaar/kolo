@@ -1,0 +1,36 @@
+# One-time correction of the mistakenly published version. This branch is
+# deleted after the job, and this workflow is never merged into main.
+name: remove-mistaken-release
+on:
+  push:
+    branches: [fix/remove-mistaken-release]
+permissions:
+  contents: read
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: verify the replacement before removing the mistaken release
+        run: |
+          gh api repos/komovaar/kolo/releases/tags/v0.1.0 > replacement.json
+          gh api repos/komovaar/kolo/releases/tags/v0.2.0-alpha.1 > mistaken.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          replacement = json.loads(Path('replacement.json').read_text())
+          mistaken = json.loads(Path('mistaken.json').read_text())
+          assert replacement['tag_name'] == 'v0.1.0'
+          assert replacement['target_commitish'] == '8e146eef45ab946d80bbbd2aaf131b2e26456b94'
+          assert replacement['prerelease'] and not replacement['draft']
+          expected = {f'kolo_v0.1.0_{os}_{arch}.tar.gz' for os in ['linux', 'darwin'] for arch in ['amd64', 'arm64']}
+          assert {a['name'] for a in replacement['assets']} == expected | {'SHA256SUMS'}
+          assert mistaken['id'] == 415196212
+          assert mistaken['tag_name'] == 'v0.2.0-alpha.1'
+          assert mistaken['target_commitish'] == 'bc46404643b910f32f116890221e65a17f00cb8e'
+          PY
+          gh release delete v0.2.0-alpha.1 --yes --cleanup-tag
