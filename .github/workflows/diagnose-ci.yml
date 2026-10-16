@@ -1,0 +1,35 @@
+name: diagnose macOS CI
+
+on:
+  push:
+    branches: [diagnose/macos-ci]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: read the original failed test step
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run view 38935441399 --repo "$GITHUB_REPOSITORY" --job 117089649974 --log-failed > failure.txt
+
+      - name: publish failing test details as a check annotation
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          lines = Path('failure.txt').read_text().splitlines()
+          selected = set()
+          for index, line in enumerate(lines):
+              if re.search(r'--- FAIL:|WARNING: DATA RACE|panic:|fatal error:', line):
+                  selected.update(range(max(0, index - 3), min(len(lines), index + 25)))
+          if not selected:
+              selected.update(range(max(0, len(lines) - 60), len(lines)))
+          message = '\n'.join(lines[index] for index in sorted(selected))[:12000]
+          message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print('::notice title=Original macOS test failure::' + message)
+          PY
