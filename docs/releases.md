@@ -22,6 +22,8 @@ including workflow validation, the vulnerability scan, reproducible UI build,
 installer tests, Go race tests, and Chromium/Firefox browser checks on Linux.
 Packaging depends on that workflow succeeding and checks out the exact commit it tested.
 Only the publishing jobs receive repository write permission.
+CI also runs on branch pushes, so a candidate commit can pass the required
+checks before it is fast-forwarded to `main`.
 
 To publish a version, push a tag such as `v0.2.0-alpha.1`, or dispatch the
 release workflow with an existing version tag. Tags containing a prerelease
@@ -35,6 +37,8 @@ invite another person from a second machine to use a real supported agent.
 Check restart/resume and read-only access with the agent versions you intend
 to support. Browser automation uses a real shell, so it does not replace this
 agent-specific check. Use the [isolated alpha setup](../SECURITY.md#alpha-isolation-setup).
+Record versions and results in [alpha validation](alpha-validation.md).
+That page also describes the opt-in real-Codex browser check.
 
 ## Go toolchain and vulnerability checks
 

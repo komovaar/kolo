@@ -61,7 +61,7 @@ tunnel. The hub still has to accept browser and host connections; `kolo up`
 runs that hub on the same machine and listens on the address it prints.
 
 **Anything that draws a terminal.** Claude Code, Codex CLI, and opencode out of the box,
-and one small file describes another.
+and one small file describes another. See [tested versions and limits](docs/alpha-validation.md).
 
 ## Early
 

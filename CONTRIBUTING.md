@@ -71,6 +71,10 @@ Firefox phone checks use narrow viewports and touch input; Playwright's
 
 Interface tokens, layout, and review guidance are in [UI design](docs/ui-design.md).
 
+The opt-in [real-agent smoke check](docs/alpha-validation.md#repeat-the-codex-check)
+uses an authenticated Codex CLI and independent browser identities. It makes
+real model requests and is separate from the automated shell-based CI tests.
+
 ## What lands
 
 Build, vet, `gofmt -l .` and the tests clean. CI runs those on Linux and macOS.
