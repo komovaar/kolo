@@ -11,6 +11,7 @@ go install ./cmd/kolo    # onto $(go env GOPATH)/bin, which may not be on PATH
 go run ./cmd/kolo up     # a hub, lending this directory
 go test ./...
 npm run test:ui
+npm run test:release     # installer fixtures and version-tag resolution; no network
 ```
 
 Frontend source lives in `web/`: entry pages at its root, TypeScript and React

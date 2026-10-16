@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whosgotch/kolo/actions/workflows/ci.yml"><img src="https://github.com/whosgotch/kolo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/whosgotch/kolo/releases/latest"><img src="https://img.shields.io/github/v/release/whosgotch/kolo?color=2C6F62&labelColor=1C2123" alt="Latest release"></a>
+  <a href="https://github.com/komovaar/kolo/actions/workflows/ci.yml"><img src="https://github.com/komovaar/kolo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/komovaar/kolo/releases"><img src="https://img.shields.io/github/v/release/komovaar/kolo?include_prereleases&color=2C6F62&labelColor=1C2123" alt="Releases, including prereleases"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-2C6F62?labelColor=1C2123" alt="AGPL-3.0"></a>
 </p>
 
@@ -22,11 +22,21 @@
 
 ## Install
 
-On the machine you are lending, the only one that installs anything:
+Experimental alpha for trusted teams. On the machine you are lending, the
+only one that installs anything, install the rolling nightly build:
 
+```sh
+curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=nightly sh
 ```
-curl -fsSL https://raw.githubusercontent.com/whosgotch/kolo/main/install | sh
-```
+
+Linux and macOS, on amd64 and arm64. Windows hosts need WSL2.
+For a specific version, replace `nightly` with its tag from
+[releases](https://github.com/komovaar/kolo/releases). Omitting `KOLO_VERSION`
+selects the latest non-prerelease release, when one is available.
+
+Agents have the host user's account permissions. Start in a dedicated VM with
+only the projects and credentials you intend to share; see the
+[alpha isolation setup](SECURITY.md#alpha-isolation-setup).
 
 ## Run
 
@@ -55,9 +65,9 @@ and one small file describes another.
 
 ## Early
 
-Kolo is pre-1.0, so expect rough edges. It reads what an agent is doing off
-that agent's own screen, so a CLI that changes its wording quietly breaks the
-status line. `kolo doctor` says when that has happened.
+Kolo is an experimental alpha, so expect rough edges. It reads what an agent
+is doing off that agent's own screen, so a CLI that changes its wording quietly
+breaks the status line. `kolo doctor` says when that has happened.
 
 The hub runs code on the host by design. Read [SECURITY.md](SECURITY.md)
 before pointing kolo at anything you care about.
