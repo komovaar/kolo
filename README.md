@@ -1,9 +1,11 @@
-<p align="center">
+<p align="left">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="brand/logo-dark.png">
-    <img src="brand/logo-light.png" width="330" alt="">
+    <img src="brand/logo-light.png" width="100" alt="Kolo logo">
   </picture>
 </p>
+
+![A shared Codex session in Kolo](docs/images/kolo-session.png)
 
 <h3 align="center">Kolo</h3>
 
@@ -17,10 +19,6 @@
   <a href="https://github.com/komovaar/kolo/releases"><img src="https://img.shields.io/github/v/release/komovaar/kolo?include_prereleases&color=2C6F62&labelColor=1C2123" alt="Releases, including prereleases"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-2C6F62?labelColor=1C2123" alt="AGPL-3.0"></a>
 </p>
-
-<br>
-
-![A shared Codex session in Kolo](docs/images/kolo-session.png)
 
 ## Install
 
