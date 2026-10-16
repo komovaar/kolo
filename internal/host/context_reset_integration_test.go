@@ -49,6 +49,15 @@ func TestRestoredContextResetReachesHubAndAcknowledgementReturnsToDisk(t *testin
 	// Reconnect with identical host history, then allow periodic reports too.
 	cancel()
 	<-done
+	// Run returning only confirms the host closed its socket. Wait for the
+	// hub to remove that connection before accepting a later greeting as new.
+	waitFor(t, func() bool {
+		resp := memberRequest(t, server, memberToken, "GET", "/v1/agents", "")
+		defer resp.Body.Close()
+		var list struct{ Hosts []hub.HostInfo }
+		json.NewDecoder(resp.Body).Decode(&list)
+		return len(list.Hosts) == 0
+	})
 	ctx2, cancel2 := context.WithCancel(context.Background())
 	done2 := make(chan struct{})
 	t.Cleanup(func() { cancel2(); <-done2 })
