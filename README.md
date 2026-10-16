@@ -1,7 +1,7 @@
 <h1>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="web/static/favicon-dark-256.png">
-    <img src="web/static/favicon-256.png" width="32" height="32" align="middle" alt="">
+    <img src="web/static/favicon-256.png" width="24" height="24" alt="">
   </picture>
   Kolo
 </h1>
