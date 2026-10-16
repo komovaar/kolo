@@ -20,6 +20,8 @@
 
 <br>
 
+![A shared Codex session in Kolo](docs/images/kolo-session.png)
+
 ## Install
 
 Experimental alpha for trusted teams. On the machine you are lending, the
