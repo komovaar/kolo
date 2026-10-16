@@ -1,0 +1,39 @@
+# One-time release metadata update; this workflow is not merged into main.
+name: promote-v0.1.0
+on:
+  push:
+    branches: [release/promote-v0.1.0]
+permissions:
+  contents: read
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: verify and promote the published release
+        run: |
+          gh api repos/komovaar/kolo/releases/tags/v0.1.0 > release.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          release = json.loads(Path('release.json').read_text())
+          assert release['tag_name'] == 'v0.1.0'
+          assert release['target_commitish'] == '8e146eef45ab946d80bbbd2aaf131b2e26456b94'
+          assert not release['draft']
+          expected = {f'kolo_v0.1.0_{os}_{arch}.tar.gz' for os in ['linux', 'darwin'] for arch in ['amd64', 'arm64']}
+          assert {a['name'] for a in release['assets']} == expected | {'SHA256SUMS'}
+          PY
+          gh release edit v0.1.0 --prerelease=false --latest
+          gh api repos/komovaar/kolo/releases/latest > latest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          release = json.loads(Path('latest.json').read_text())
+          assert release['tag_name'] == 'v0.1.0'
+          assert not release['prerelease'] and not release['draft']
+          print(release['html_url'])
+          PY
