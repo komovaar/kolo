@@ -6,7 +6,7 @@ The README pins the named alpha so installations and bug reports refer to
 the same build:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=v0.2.0-alpha.1 sh
+curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=v0.1.0 sh
 ```
 
 `KOLO_VERSION` must be set on `sh`, which runs the installer, rather than on
@@ -27,10 +27,11 @@ Only the publishing jobs receive repository write permission.
 CI also runs on branch pushes, so a candidate commit can pass the required
 checks before it is fast-forwarded to `main`.
 
-To publish a version, push a tag such as `v0.2.0-alpha.1`, or dispatch the
+To publish a version, push a tag such as `v0.1.0`, or dispatch the
 release workflow with an existing version tag. Tags containing a prerelease
-suffix are marked as GitHub prereleases. Release notes select that exact
-version, so their install command also works for prereleases. Version tags
+suffix are marked as GitHub prereleases. The initial `v0.1.0` release is
+also marked as a prerelease because it is the public alpha. Release notes
+select that exact version, so their install command also works for prereleases. Version tags
 must still point to the checked commit when publishing; moving one fails the
 job. The rolling `nightly` tag deliberately advances to its checked commit.
 

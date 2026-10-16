@@ -80,19 +80,19 @@ test('explicit nightly installs and runs a checked archive without latest-releas
 });
 
 test('an explicit alpha tag installs without needing a non-prerelease release', (t) => {
-  const fixture = installer(t, { version: 'v0.2.0-alpha.1', stable: false });
+  const fixture = installer(t, { version: 'v0.1.0', stable: false });
   const result = fixture.run();
   assert.equal(result.status, 0, result.stderr);
-  assert.match(fixture.requests(), /releases\/download\/v0\.2\.0-alpha\.1\//);
+  assert.match(fixture.requests(), /releases\/download\/v0\.1\.0\//);
   assert.doesNotMatch(fixture.requests(), /releases\/latest/);
 });
 
 test('default installation follows the latest version-release redirect', (t) => {
-  const fixture = installer(t, { version: 'v0.2.0' });
+  const fixture = installer(t, { version: 'v0.1.1' });
   const result = fixture.run(false);
   assert.equal(result.status, 0, result.stderr);
   assert.match(fixture.requests(), /releases\/latest/);
-  assert.match(fixture.requests(), /releases\/download\/v0\.2\.0\//);
+  assert.match(fixture.requests(), /releases\/download\/v0\.1\.1\//);
 });
 
 test('no version release explains how to select alpha and never silently installs nightly', (t) => {
@@ -126,18 +126,19 @@ test('release references resolve lightweight and annotated tags to their commits
   git('-c', 'user.name=Release test', '-c', 'user.email=release@example.invalid',
     '-c', 'commit.gpgSign=false', 'commit', '--allow-empty', '-qm', 'fixture');
   const sha = git('rev-parse', 'HEAD');
-  git('tag', 'v0.2.0');
+  git('tag', 'v0.1.0');
+  git('tag', 'v0.1.1');
   git('-c', 'user.name=Release test', '-c', 'user.email=release@example.invalid',
     'tag', '-a', 'v0.3.0-alpha.1', '-m', 'alpha');
   git('tag', 'v0.3.0+build-one');
   const resolve = (tag) => spawnSync('bash', [path.join(root, 'scripts/release-ref.sh'), tag],
     { cwd: dir, encoding: 'utf8' });
-  for (const [tag, prerelease] of [['v0.2.0', false], ['v0.3.0-alpha.1', true], ['v0.3.0+build-one', false]]) {
+  for (const [tag, prerelease] of [['v0.1.0', true], ['v0.1.1', false], ['v0.3.0-alpha.1', true], ['v0.3.0+build-one', false]]) {
     const result = resolve(tag);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, `tag=${tag}\nsha=${sha}\nprerelease=${prerelease}\n`);
   }
-  for (const tag of ['main', 'v0.9.0', 'v0.2.0\nsha=forged', 'v0.2.0; echo injected']) {
+  for (const tag of ['main', 'v0.9.0', 'v0.1.1\nsha=forged', 'v0.1.1; echo injected']) {
     const result = resolve(tag);
     assert.notEqual(result.status, 0, tag);
     assert.equal(result.stdout, '', tag);
