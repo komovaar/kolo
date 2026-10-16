@@ -1,81 +1,73 @@
-<p align="left">
+<h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-dark.png">
-    <img src="brand/logo-light.png" width="100" alt="Kolo logo">
+    <source media="(prefers-color-scheme: dark)" srcset="web/static/favicon-dark-256.png">
+    <img src="web/static/favicon-256.png" width="32" height="32" alt="">
   </picture>
-</p>
+  Kolo
+</h1>
 
-![A shared Codex session in Kolo](docs/images/kolo-session.png)
+**Multiplayer AI coding agents.**
 
-<h3 align="center">Kolo</h3>
+Run agents on one machine and work together in the browser. Share a link so your
+team can watch, type, and take over the same session. Only the host installs Kolo.
 
-<p align="center">
-  Multiplayer AI coding agents.<br>
-  One machine runs them. Everybody else opens a link.
-</p>
+[![CI](https://github.com/komovaar/kolo/actions/workflows/ci.yml/badge.svg)](https://github.com/komovaar/kolo/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/badge/release-v0.1.0-2C6F62?labelColor=1C2123)](https://github.com/komovaar/kolo/releases)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-2C6F62?labelColor=1C2123)](LICENSE)
 
-<p align="center">
-  <a href="https://github.com/komovaar/kolo/actions/workflows/ci.yml"><img src="https://github.com/komovaar/kolo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/komovaar/kolo/releases"><img src="https://img.shields.io/github/v/release/komovaar/kolo?include_prereleases&color=2C6F62&labelColor=1C2123" alt="Releases, including prereleases"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-2C6F62?labelColor=1C2123" alt="AGPL-3.0"></a>
-</p>
+![A shared Codex session in Kolo, with sessions grouped by machine and project](docs/images/kolo-session.png)
 
-## Install
+## Why Kolo
 
-Experimental alpha for trusted teams. On the machine you are lending, the
-only one that installs anything, install the fixed alpha build:
+- **Work in the same session.** Everyone sees the same terminal. Type a prompt,
+  approve a step, or pick up where a teammate left off.
+- **Bring your terminal agents.** Built-in adapters for Claude Code, Codex CLI,
+  and opencode, with custom agent descriptions for other tools.
+- **Give observers a seat.** Read-only members can follow along while the host
+  decides who can control sessions.
+
+## Quick start
+
+Kolo is an experimental alpha for trusted teams. Agents run with the host user's
+permissions. Start in a dedicated VM with only the projects and credentials you
+intend to share; see the [isolation setup](SECURITY.md#alpha-isolation-setup).
+
+Install on the machine that will run the agents:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/komovaar/kolo/main/install | KOLO_VERSION=v0.1.0 sh
 ```
 
-Linux and macOS, on amd64 and arm64. Windows hosts need WSL2.
+Then open a project and start Kolo:
+
+```sh
+cd /path/to/project
+kolo up
+```
+
+Send your team the invitation link printed in the terminal. They open it in a
+browser, choose a name, and join. No install or token to paste.
+
+Hosts support Linux and macOS on amd64 and arm64. Use WSL2 on Windows.
 For rolling development builds, replace `v0.1.0` with `nightly`.
-Other tagged builds are listed in [releases](https://github.com/komovaar/kolo/releases). Omitting `KOLO_VERSION`
-selects the latest non-prerelease release, when one is available.
 
-Agents have the host user's account permissions. Start in a dedicated VM with
-only the projects and credentials you intend to share; see the
-[alpha isolation setup](SECURITY.md#alpha-isolation-setup).
+## How it works
 
-## Run
+One Go binary runs the hub your team opens and the host that starts agents.
+`kolo up` runs both together. Use `kolo serve` and `kolo host` to run them on
+separate machines. Hosts connect out to the hub; the hub needs to be reachable
+from your team's browsers.
 
-```
-$ kolo up
+Kolo detects agent status from terminal output, so CLI updates can affect status
+and resume behavior. Run `kolo doctor` to check your setup, and see
+[tested versions and limits](docs/alpha-validation.md) for current compatibility.
 
-api is up at http://192.168.0.12:7300
-Lending /home/alex/work/api · claude opencode · 3 members
+## Documentation
 
-Invite  http://192.168.0.12:7300/join#kolo_yPNNK8ZnHdvgKFDiQV2Oc…
-        10 uses left, until Mon 31 Aug 20:34
-```
+Start with `kolo help` or `kolo help <command>`.
 
-Send the link. Whoever opens it picks a name and is in. Nothing to install,
-no token to paste.
-
-**One screen, everybody on it.** Watch an agent work, type at it, take over
-mid-sentence. Whoever typed last drives, and everyone sees who.
-
-**Hosts dial out.** A machine running `kolo host` needs no inbound port or
-tunnel. The hub still has to accept browser and host connections; `kolo up`
-runs that hub on the same machine and listens on the address it prints.
-
-**Anything that draws a terminal.** Claude Code, Codex CLI, and opencode out of the box,
-and one small file describes another. See [tested versions and limits](docs/alpha-validation.md).
-
-## Early
-
-Kolo is an experimental alpha, so expect rough edges. It reads what an agent
-is doing off that agent's own screen, so a CLI that changes its wording quietly
-breaks the status line. `kolo doctor` says when that has happened.
-
-The hub runs code on the host by design. Read [SECURITY.md](SECURITY.md)
-before pointing kolo at anything you care about.
-
-## Docs
-
-`kolo help` is the manual. Beyond it:
-[reference](docs/reference.md) · [security](SECURITY.md) · [contributing](CONTRIBUTING.md)
+[Reference](docs/reference.md) · [Security](SECURITY.md) ·
+[Contributing](CONTRIBUTING.md) · [Releases](https://github.com/komovaar/kolo/releases)
 
 ## License
 
