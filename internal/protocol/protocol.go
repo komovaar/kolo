@@ -102,12 +102,13 @@ type AgentReport struct {
 }
 
 type AgentInput struct {
-	Cols int    `json:"cols,omitempty"`
-	Rows int    `json:"rows,omitempty"`
-	Type string `json:"type"`
-	Name string `json:"name"`
-	From string `json:"from"`
-	Keys string `json:"keys,omitempty"`
+	Viewer string `json:"viewer,omitempty"`
+	Cols   int    `json:"cols,omitempty"`
+	Rows   int    `json:"rows,omitempty"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	From   string `json:"from"`
+	Keys   string `json:"keys,omitempty"`
 }
 
 type Spawn struct {
@@ -122,6 +123,7 @@ type Stop struct {
 }
 
 type HostCommand struct {
+	Viewer  string `json:"viewer,omitempty"`
 	Cols    int    `json:"cols"`
 	Rows    int    `json:"rows"`
 	Reset   string `json:"reset,omitempty"`

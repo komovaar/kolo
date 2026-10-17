@@ -26,6 +26,8 @@ export interface TerminalView {
   options: { disableStdin?: boolean; fontSize?: number };
   open(element: HTMLElement): void;
   loadAddon(addon: unknown): void;
+  attachCustomKeyEventHandler(callback: (event: KeyboardEvent) => boolean): void;
+  hasSelection(): boolean; getSelection(): string; paste(text: string): void;
   onData(callback: (keys: string) => void): unknown;
   write(data: Uint8Array, callback?: () => void): void;
   resize(cols: number, rows: number): void;
@@ -64,6 +66,7 @@ export interface WorkspaceState {
   collapsed: Record<string, boolean>; collapsedProjects: Set<string>;
   authChannel: BroadcastChannel | null; attention: AttentionView;
   term: TerminalView; socket: WebSocket | null; terminalOwner: WebSocket | null;
+  clipboardViewer: string | null; viewerID: string | null; activeViewer: string | null; viewportSize: { cols: number; rows: number } | null;
   screenReady: boolean; watching: string | null; typist: string | null;
   reconnectTimer: number | null;
   baseFont: number; zoom: number; zoomRange: { least: number; most: number };
@@ -90,7 +93,7 @@ export interface WorkspaceActions {
   connect(name: string): void;
   describe(state: string): string;
   keyboardChanged(): void;
-  tell(what: { type: string; keys?: string }): boolean;
+  tell(what: { type: string; keys?: string; cols?: number; rows?: number }): boolean;
   drawHome(): void;
   sessionState(agent: Agent | null | undefined, connected?: boolean): { key: string; label: string };
   drawSession(): void;

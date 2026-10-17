@@ -89,10 +89,14 @@ done
 
 	viewer := dialViewer(t, ctx, server, memberToken, "checkups")
 	waitForOutput(t, ctx, viewer, "? for shortcuts")
-	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"keys","keys":"hello\r"}`)); err != nil {
+	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"keys","keys":"hello\r","cols":100,"rows":30}`)); err != nil {
 		t.Fatal(err)
 	}
 	waitForOutput(t, ctx, viewer, "heard hello")
+	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"keys","keys":"size\r"}`)); err != nil {
+		t.Fatal(err)
+	}
+	waitForOutput(t, ctx, viewer, "30 100")
 	if err := viewer.Write(ctx, websocket.MessageText, []byte(`{"type":"resize","cols":180,"rows":48}`)); err != nil {
 		t.Fatal(err)
 	}

@@ -201,7 +201,7 @@ func obey(ctx context.Context, conn *websocket.Conn, agents *Agents) error {
 				agents.refuse(c.Name, err.Error())
 			}
 		case "keys":
-			if err := agents.Type(c.Name, c.Keys); err != nil {
+			if err := agents.typeFrom(c.Name, c.Keys, c.Viewer, c.Cols, c.Rows); err != nil {
 				agents.refuse(c.Name, err.Error())
 			}
 		case "interrupt":

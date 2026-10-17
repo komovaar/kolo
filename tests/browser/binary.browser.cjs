@@ -54,6 +54,41 @@ test('standalone binary serves React, joins members, and controls a real termina
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => Array.from({ length: window.testTerminal.buffer.active.length }, (_, i) =>
       window.testTerminal.buffer.active.getLine(i).translateToString()).join('\n').includes('terminal output: 323'));
+    // Two tabs of the same member must still own separate view preferences
+    // and clipboards. A passive tab cannot resize the real PTY.
+    const second = await browser.newPage({ viewport: { width: 900, height: 650 },
+      storageState: await page.context().storageState() });
+    await installTerminalProbe(second);
+    for (const client of [page, second]) {
+      await client.addInitScript(() => {
+        window.terminalCopies = [];
+        Object.defineProperty(navigator, 'clipboard', { configurable: true,
+          value: { writeText: async (text) => window.terminalCopies.push(text) } });
+      });
+    }
+    await page.evaluate(() => {
+      window.terminalCopies = [];
+      Object.defineProperty(navigator, 'clipboard', { configurable: true,
+        value: { writeText: async (text) => window.terminalCopies.push(text) } });
+    });
+    await second.goto(`${origin}/#/agent/binary-shell`);
+    await second.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+    const originalGrid = await page.evaluate(() => [window.testTerminal.cols, window.testTerminal.rows]);
+    await second.locator('.zoom .in').click();
+    await second.setViewportSize({ width: 1000, height: 700 });
+    await second.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.deepEqual(await page.evaluate(() => [window.testTerminal.cols, window.testTerminal.rows]), originalGrid,
+      'a passive browser changed the app layout');
+    await second.locator('.xterm-helper-textarea').focus();
+    await second.keyboard.type("stty size; printf 'participant clipboard: \\342\\234\\223' | pbcopy");
+    await second.keyboard.press('Enter');
+    await second.waitForFunction(() => window.terminalCopies.length === 1);
+    assert.deepEqual(await second.evaluate(() => window.terminalCopies), ['participant clipboard: ✓']);
+    assert.deepEqual(await page.evaluate(() => window.terminalCopies), [], 'another tab received the app clipboard');
+    const secondGrid = await second.evaluate(() => [window.testTerminal.cols, window.testTerminal.rows]);
+    assert.ok(secondGrid[0] < originalGrid[0], 'typing did not adopt the second browser viewport');
+    assert.deepEqual(await page.evaluate(() => [window.testTerminal.cols, window.testTerminal.rows]), secondGrid);
+    await second.close();
     await page.reload();
     await page.waitForFunction(() => location.hash.slice('#/agent/'.length) === 'binary-shell' && (document.querySelector('.session-connection').textContent === 'Live connection'));
     await page.locator('.switch-open').click();

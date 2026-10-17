@@ -82,6 +82,10 @@ export function startWorkspace(runtime: WorkspaceRuntime) {
   runtime.zoomRange = { least: 0.5, most: 4 };
   runtime.fitting = false;
   runtime.requestedSize = null;
+  runtime.clipboardViewer = null;
+  runtime.viewerID = null;
+  runtime.activeViewer = null;
+  runtime.viewportSize = null;
   runtime.watcher = new runtime.ResizeObserver(() => runtime.fit());
   runtime.watcher.observe(runtime.el('#term'));
   runtime.addEventListener('resize', runtime.fit);

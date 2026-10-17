@@ -1,4 +1,5 @@
 import type { WorkspaceRuntime, Control } from '../core/runtime.ts';
+import { installClipboard } from './clipboard.ts';
 
 export function createTerminal(runtime: WorkspaceRuntime) {
   const next = new runtime.Terminal({
@@ -20,6 +21,7 @@ export function createTerminal(runtime: WorkspaceRuntime) {
   runtime.el('#term').append(stage);
   next.open(stage);
   runtime.KoloTerminalQueries.hostReplies(next);
+  installClipboard(runtime, next);
 
   // The DOM renderer sets block glyphs in whatever font the browser picks,
   // leaving seams between quadrants. The canvas renderer draws them itself.
@@ -31,7 +33,11 @@ export function createTerminal(runtime: WorkspaceRuntime) {
   // xterm has encoded arrows and pastes as the running program requested.
   next.onData((keys) => {
     if (next !== runtime.term || !runtime.socket) return;
-    runtime.tell({ type: 'keys', keys });
+    if (!runtime.screenReady || !runtime.canControl()) return;
+    if (runtime.activeViewer !== runtime.viewerID) runtime.requestedSize = null;
+    runtime.activeViewer = runtime.viewerID;
+    runtime.fit();
+    runtime.tell({ type: 'keys', keys, ...runtime.viewportSize });
   });
   return next;
 }
@@ -51,21 +57,22 @@ export function fit(runtime: WorkspaceRuntime) {
   if (!grid || !grid.offsetWidth || !grid.offsetHeight || !box.w || !box.h) return;
   runtime.fitting = true;
   try {
-    if (runtime.canControl()) {
-      runtime.term.options.fontSize = runtime.baseFont * runtime.zoom;
-      const cellWidth = grid.offsetWidth / runtime.term.cols;
-      const cellHeight = grid.offsetHeight / runtime.term.rows;
-      const cols = Math.max(2, Math.min(500, Math.floor(box.w / cellWidth)));
-      const rows = Math.max(2, Math.min(200, Math.floor(box.h / cellHeight)));
+    // Measure this window at its own preferred font, independent of the
+    // shared grid. Only the browser typing may resize the real PTY.
+    runtime.term.options.fontSize = runtime.baseFont * runtime.zoom;
+    const cellWidth = grid.offsetWidth / runtime.term.cols;
+    const cellHeight = grid.offsetHeight / runtime.term.rows;
+    const cols = Math.max(2, Math.min(500, Math.floor(box.w / cellWidth)));
+    const rows = Math.max(2, Math.min(200, Math.floor(box.h / cellHeight)));
+    runtime.viewportSize = { cols, rows };
+    const driving = !!runtime.viewerID && runtime.activeViewer === runtime.viewerID && runtime.canControl();
+    if (driving) {
       const size = `${cols}x${rows}`;
-      if (runtime.screenReady && runtime.socket && runtime.socket.readyState === runtime.WebSocket.OPEN && runtime.requestedSize !== size) {
+      if (runtime.screenReady && runtime.socket?.readyState === runtime.WebSocket.OPEN && runtime.requestedSize !== size) {
         runtime.requestedSize = size;
         runtime.socket.send(JSON.stringify({ type: 'resize', cols, rows }));
       }
-      // Wait for the host's size announcement before changing our buffer.
-      // This keeps incoming output and all viewers on the same grid.
     } else {
-      // Read-only viewers fit the shared grid without resizing the agent.
       let low = 1, high = 64;
       for (let i = 0; i < 10; i++) {
         const candidate = (low + high) / 2;
@@ -139,6 +146,10 @@ export function resetTerminal(runtime: WorkspaceRuntime) {
   runtime.terminalOwner = null;
   runtime.screenReady = false;
   runtime.requestedSize = null;
+  runtime.clipboardViewer = null;
+  runtime.viewerID = null;
+  runtime.activeViewer = null;
+  runtime.viewportSize = null;
   runtime.applyAccess();
   runtime.fit();
   if (focused) runtime.term.focus();
@@ -191,6 +202,12 @@ export function connect(runtime: WorkspaceRuntime, name: string) {
     }
     const msg = JSON.parse(ev.data);
     switch (msg.type) {
+      case 'input':
+        runtime.clipboardViewer = msg.viewer;
+        break;
+      case 'viewer':
+        runtime.viewerID = msg.id;
+        break;
       // Apply the host's authoritative PTY dimensions before its repaint.
       case 'size':
         view.resize(msg.cols, msg.rows);
@@ -212,6 +229,9 @@ export function connect(runtime: WorkspaceRuntime, name: string) {
       // arrives in step with what the agent does.
       case 'keyboard':
         runtime.typist = msg.who || null;
+        runtime.activeViewer = msg.viewer || null;
+        runtime.requestedSize = null;
+        runtime.fit();
         runtime.keyboardChanged();
         break;
       // Both arrive just before the screen goes, so they are the last thing
@@ -267,7 +287,7 @@ export function keyboardChanged(runtime: WorkspaceRuntime) {
   bar.title = bar.textContent;
 }
 
-export function tell(runtime: WorkspaceRuntime, what: { type: string; keys?: string }) {
+export function tell(runtime: WorkspaceRuntime, what: { type: string; keys?: string; cols?: number; rows?: number }) {
   if (!runtime.canControl()) {
     runtime.say('.watch .note', 'read-only access: you can watch this agent');
     return false;

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"net/http"
 
@@ -103,9 +104,16 @@ func (s *Server) handleWatch(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(authCtx)
 	defer cancel()
 	defer s.conns.add(held{id: member.ID, hash: member.TokenHash, cancel: cancel})()
+	viewer := rand.Text()
+	if err := write(ctx, conn, struct {
+		Type string `json:"type"`
+		ID   string `json:"id"`
+	}{"viewer", viewer}); err != nil {
+		return
+	}
 	go func() {
 		defer cancel()
-		s.takeFrom(ctx, conn, member, name)
+		s.takeFrom(ctx, conn, member, name, viewer)
 	}()
 	go func() {
 		defer cancel()
@@ -127,10 +135,11 @@ func (s *Server) handleWatch(w http.ResponseWriter, r *http.Request) {
 	// have known who holds the keyboard since they arrived.
 	if who, typed := s.typists.get(name); typed {
 		b, err := json.Marshal(struct {
-			Type string `json:"type"`
-			Who  string `json:"who"`
-			ID   string `json:"id"`
-		}{"keyboard", who.Name, who.ID})
+			Type   string `json:"type"`
+			Who    string `json:"who"`
+			ID     string `json:"id"`
+			Viewer string `json:"viewer"`
+		}{"keyboard", who.Name, who.ID, s.typists.viewer(name)})
 		if err == nil {
 			if err := session.Send(ctx, conn, session.Message{Control: true, Data: b}); err != nil {
 				return
@@ -162,7 +171,7 @@ func catchUp(live *session.Session) session.Message {
 
 // Who a message is from comes from the connection's credentials, never from
 // the message.
-func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Member, name string) {
+func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Member, name, viewer string) {
 	for {
 		msg, err := read[viewerMessage](ctx, conn, 0)
 		if err != nil {
@@ -196,13 +205,25 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 			}
 			continue
 		}
+		// Other windows keep their viewport local until they type. Legacy
+		// clients may still resize before anybody has used the keyboard.
+		if msg.Type == "resize" {
+			driver := s.typists.viewer(name)
+			if driver != "" && driver != viewer {
+				continue
+			}
+		}
+		if msg.Type == "keys" && (msg.Cols != 0 || msg.Rows != 0) &&
+			(msg.Cols < 2 || msg.Rows < 2 || msg.Cols > maxScreenCols || msg.Rows > maxScreenRows) {
+			continue
+		}
 		member = current
 		send, ok := s.registry.Sender(name)
 		if !ok {
 			s.refuseViewer(name, "the agent is no longer available")
 			continue
 		}
-		if err := send(toAgent{Type: msg.Type, Name: name, From: member.Name, Keys: msg.Keys, Cols: msg.Cols, Rows: msg.Rows}); err != nil {
+		if err := send(toAgent{Type: msg.Type, Name: name, From: member.Name, Keys: msg.Keys, Cols: msg.Cols, Rows: msg.Rows, Viewer: viewer}); err != nil {
 			s.refuseViewer(name, "the host went away before the command could be delivered")
 			continue
 		}
@@ -211,8 +232,8 @@ func (s *Server) takeFrom(ctx context.Context, conn *websocket.Conn, member Memb
 		case "resize":
 			// Geometry changes are not keyboard or activity-log events.
 		case "keys":
-			if was, changed := s.typists.set(name, member.Person()); changed {
-				s.sayKeyboard(name, member.Person(), was)
+			if was, changed := s.typists.set(name, member.Person(), viewer); changed {
+				s.sayKeyboard(name, member.Person(), was, viewer)
 			}
 			s.journal.typed(name, member.Person(), msg.Keys)
 		default:
@@ -244,17 +265,18 @@ func done(action string) string {
 	}
 }
 
-func (s *Server) sayKeyboard(name string, who, was Person) {
+func (s *Server) sayKeyboard(name string, who, was Person, viewer string) {
 	live, ok := s.screens.get(name)
 	if !ok {
 		return
 	}
 	live.Announce(struct {
-		Type string `json:"type"`
-		Who  string `json:"who,omitempty"`
-		ID   string `json:"id,omitempty"`
-		Was  string `json:"was,omitempty"`
-	}{"keyboard", who.Name, who.ID, was.Name})
+		Type   string `json:"type"`
+		Who    string `json:"who,omitempty"`
+		ID     string `json:"id,omitempty"`
+		Was    string `json:"was,omitempty"`
+		Viewer string `json:"viewer"`
+	}{"keyboard", who.Name, who.ID, was.Name, viewer})
 }
 
 // Serialises writes to one host: two members dispatching at once must not

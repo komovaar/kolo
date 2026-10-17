@@ -24,8 +24,9 @@ var scrubbed = []string{
 }
 
 type Agent struct {
-	cmd *exec.Cmd
-	pty *os.File
+	cmd              *exec.Cmd
+	pty              *os.File
+	clipboardCleanup func()
 
 	mu sync.Mutex
 }
@@ -37,21 +38,26 @@ func Start(argv []string, dir string, cols, rows int) (*Agent, error) {
 	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = dir
-	cmd.Env = childEnv(os.Environ())
+	env, cleanup, err := clipboardEnv(childEnv(os.Environ()))
+	if err != nil {
+		return nil, fmt.Errorf("agent: clipboard bridge: %w", err)
+	}
+	cmd.Env = env
 
 	f, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
 	if err != nil {
+		cleanup()
 		return nil, fmt.Errorf("agent: start %s: %w", argv[0], err)
 	}
 	pollable, err := pollablePTY(f)
 	if err != nil {
-		a := &Agent{cmd: cmd, pty: f}
+		a := &Agent{cmd: cmd, pty: f, clipboardCleanup: cleanup}
 		a.Close()
 		a.Wait()
 		return nil, fmt.Errorf("agent: cancellable PTY: %w", err)
 	}
 	f.Close()
-	return &Agent{cmd: cmd, pty: pollable}, nil
+	return &Agent{cmd: cmd, pty: pollable, clipboardCleanup: cleanup}, nil
 }
 
 func pollablePTY(f *os.File) (*os.File, error) {
@@ -111,12 +117,20 @@ func (a *Agent) Resize(cols, rows int) error {
 	return pty.Setsize(a.pty, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
 }
 
-func (a *Agent) Wait() error { return a.cmd.Wait() }
+func (a *Agent) Wait() error {
+	if a.clipboardCleanup != nil {
+		defer a.clipboardCleanup()
+	}
+	return a.cmd.Wait()
+}
 
 // Close kills the process group and releases the PTY, ending any in-flight
 // Read. The group, because closing the PTY only sends children a SIGHUP they
 // are free to ignore.
 func (a *Agent) Close() error {
+	if a.clipboardCleanup != nil {
+		defer a.clipboardCleanup()
+	}
 	if p := a.cmd.Process; p != nil {
 		if pgid, err := syscall.Getpgid(p.Pid); err == nil {
 			syscall.Kill(-pgid, syscall.SIGKILL)

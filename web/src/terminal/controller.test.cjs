@@ -11,6 +11,7 @@ const write = (term, bytes) => new Promise((resolve) => term.write(bytes, resolv
 const flush = (term) => write(term, '');
 
 function page() {
+  const copies = [];
   const nodes = new Map(), observed = new Set(), timers = new Map(), frames = [], terminals = [];
   let nextTimer = 0;
   const el = (selector) => {
@@ -41,7 +42,7 @@ function page() {
   }
   const context = fixture({
     collapsedProjects: new Set(),
-    window: { KoloUI: { creation: { clear() {} }, switcher: { close() {} }, share: { close() {} }, overview: { clear() {} } } }, drawChoices() {},
+    window: { navigator: { clipboard: { writeText: async (text) => copies.push(text) } }, atob: globalThis.atob, KoloUI: { creation: { clear() {} }, switcher: { close() {} }, share: { close() {} }, overview: { clear() {} } } }, drawChoices() {},
     retryPending: null, agentInURL: () => null, canWatch: () => true,
     signedIn: true, authLost: false, authRun: 0, refreshRun: 0,
     me: { name: 'Artem', read_only: false }, hosts: [], lastAgents: [],
@@ -68,7 +69,7 @@ function page() {
     socket.open();
     return socket;
   };
-  return { context, el, frames, observed, timers, terminals, binary, connected,
+  return { context, el, copies, frames, observed, timers, terminals, binary, connected,
     dispose() { context.close(); context.term.dispose(); } };
 }
 
@@ -181,5 +182,32 @@ test('sign-out detaches buffered private output and leaves an empty terminal', a
     assert.equal(p.context.term.options.disableStdin, true);
     assert.equal(p.context.socket, null);
     assert.equal(p.context.watching, null);
+  } finally { p.dispose(); }
+});
+
+
+test('app clipboard writes are local to the initiating connection and parse split Unicode OSC 52', async () => {
+  const p = page();
+  try {
+    const socket = p.connected('screen');
+    p.binary(socket, 'snapshot');
+    await flush(p.context.term);
+    socket.onmessage({ data: JSON.stringify({ type: 'viewer', id: 'this-tab' }) });
+    const encoded = Buffer.from('copied ✓\nsecond line').toString('base64');
+    for (const viewer of ['other-tab', 'this-tab']) {
+      socket.onmessage({ data: JSON.stringify({ type: 'input', viewer }) });
+      p.binary(socket, '\x1b]52;c;' + encoded.slice(0, 7));
+      p.binary(socket, encoded.slice(7) + '\x1b\\');
+      await flush(p.context.term);
+    }
+    assert.deepEqual(p.copies, ['copied ✓\nsecond line']);
+    p.binary(socket, '\x1b]52;c;?\x07\x1b]52;c;invalid!\x07');
+    await flush(p.context.term);
+    assert.deepEqual(p.copies, ['copied ✓\nsecond line']);
+    assert.deepEqual(p.frames, [], 'clipboard output and reads never become keystrokes');
+    const old = p.context.term;
+    p.context.watch('replacement');
+    await write(old, '\x1b]52;c;' + encoded + '\x07');
+    assert.equal(p.copies.length, 1);
   } finally { p.dispose(); }
 });

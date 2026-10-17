@@ -417,7 +417,12 @@ func (a *Agents) Resize(name string, cols, rows int) error {
 }
 
 // Type queues a member's keystrokes without waiting for the process to read.
-func (a *Agents) Type(name, keys string) error {
+func (a *Agents) Type(name, keys string) error { return a.typeFrom(name, keys, "", 0, 0) }
+
+func (a *Agents) typeFrom(name, keys, viewer string, cols, rows int) error {
+	if (cols != 0 || rows != 0) && (cols < 2 || rows < 2 || cols > 500 || rows > 200) {
+		return fmt.Errorf("invalid terminal dimensions")
+	}
 	v, err := a.reach(name)
 	if err != nil {
 		return err
@@ -428,7 +433,27 @@ func (a *Agents) Type(name, keys string) error {
 	if keys == "" {
 		return nil
 	}
-	return v.writes.enqueue(len(keys), func() error { return v.input.Type(keys) })
+	return v.writes.enqueue(len(keys), func() error {
+		// Keep the initiating viewport and keys in one queue entry: a full
+		// input queue must not resize the app for input it refused.
+		if cols != 0 {
+			if c, r := v.live.Size(); c != cols || r != rows {
+				v.live.Resize(cols, rows)
+				if err := v.agent.Resize(cols, rows); err != nil {
+					return err
+				}
+			}
+		}
+		// Ownership travels on the output stream before the input can produce
+		// an app clipboard write, including when the host answers immediately.
+		if viewer != "" {
+			v.live.Announce(struct {
+				Type   string `json:"type"`
+				Viewer string `json:"viewer"`
+			}{"input", viewer})
+		}
+		return v.input.Type(keys)
+	})
 }
 
 func (a *Agents) Interrupt(name, from string) error {

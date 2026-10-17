@@ -405,18 +405,42 @@ The agent is one process on one PTY, and a PTY has one size. An agent draws a
 full screen, boxes and all, sized to the width it was told, so there is no
 version of this where it draws differently for different people.
 
-A controlling browser uses a readable font size and sends its available columns
-and rows to the host. The host resizes the PTY, so the agent redraws naturally
-for that window. Opening a session, resizing the window, rotating a phone, and
-changing zoom can change the shared grid. With multiple controlling windows,
-the most recent size request sets the grid for everyone. Read-only viewers
-fit that shared grid locally and cannot resize the agent.
+Each browser keeps its own fit and zoom. Opening a second window, resizing a
+passive viewer, or zooming while watching does not change the agent's layout.
+When someone types or pastes, their available columns and rows become the PTY
+size before their input reaches the app. That browser then controls layout
+changes until another browser types. The other viewers fit the shared screen
+locally. Separate tabs of the same member count as separate browsers.
 
 On phones and narrow windows, **Sessions** opens a navigation drawer. Selecting
 a session closes it. The terminal uses the available viewport, including when
-the keyboard reduces the visible area. **+** enlarges text; for a controller,
-the agent reflows into fewer columns and rows. **fit** restores the default font
-size. Read-only viewers can zoom and pan without changing the host's grid.
+the keyboard reduces the visible area. **+** enlarges text and **fit** restores
+the default view. Viewers can zoom and pan; read-only viewers never resize the
+agent. The person typing uses a readable default font, with the app redrawing
+for their window and zoom.
+
+## Clipboard
+
+Selecting terminal text and copying uses the participant's browser clipboard,
+including for read-only members. Ctrl+C copies when text is selected; otherwise
+it remains terminal input. Ctrl+Shift+C and Command+C also copy a selection.
+Paste uses the local browser paste event, including the running app's
+bracketed-paste mode. Use the browser's paste shortcut (Ctrl+V, Ctrl+Shift+V, or
+Command+V) rather than an app command that reads the host clipboard.
+
+App copies using OSC 52 are delivered to the browser whose input the host most
+recently processed. They do not overwrite other viewers' clipboards or get
+replayed when someone joins. Browser clipboard reads are never exposed to the
+app. If automatic copying is denied or unavailable on an HTTP origin, Kolo
+shows selectable text for manual copying.
+
+Newly started agents also receive session-local versions of `pbcopy`, `xclip`,
+`xsel`, and `wl-copy` that send copied text through the PTY using OSC 52. Their
+clipboard-read counterparts cannot read the host clipboard. These helpers
+support text copied through standard input, up to 768 KiB. Applications that
+access an OS clipboard directly or invoke a clipboard utility by absolute path
+bypass these helpers; use terminal selection or configure such apps for OSC 52.
+Existing agent processes need a restart to receive the helpers.
 
 ## Where files live
 

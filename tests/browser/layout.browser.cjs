@@ -63,6 +63,8 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
       if (msg.type === 'resize') { resizeRequests.push(msg); paint(msg.cols, msg.rows); }
       if (msg.type === 'keys') keys.push(msg.keys);
     });
+    ws.send(JSON.stringify({ type: 'viewer', id: 'test-viewer' }));
+    if (!readOnly) ws.send(JSON.stringify({ type: 'keyboard', who: fixture.you.name, viewer: 'test-viewer' }));
     paint(120, 40);
   });
   await page.goto(`${url}/#/agent/${agents[0]?.name || "layout"}`);
@@ -75,7 +77,7 @@ async function openSession(viewport, agents = fixture.agents, readOnly = false) 
   };
 }
 
-async function assertFits(page) {
+async function assertFits(page, preferredFont = true) {
   // Wait for ResizeObserver and xterm rendering to settle, including after a
   // viewport or zoom change. Check painted bounds, not untransformed layout.
   await page.waitForFunction(() => {
@@ -103,7 +105,7 @@ async function assertFits(page) {
   assert.ok(metrics.fontSize > 0);
   assert.ok(metrics.cols >= 2);
   assert.ok(metrics.rows >= 2);
-  assert.equal(metrics.fontSize, 14);
+  if (preferredFont) assert.equal(metrics.fontSize, 14);
 }
 
 test('live activity immediately updates the sidebar indicator and its label', async () => {
@@ -651,7 +653,7 @@ test('explorer navigation switches terminals with a compact header and bottom co
     const session = page.locator('.agent').filter({ has: page.locator('.name', { hasText: 'Build the settings page' }) });
     await session.focus();
     await page.keyboard.press('Enter');
-    await page.waitForFunction(() => location.hash === '#/agent/web-build' && document.querySelector('.session-title').textContent === 'Build the settings page');
+    await page.waitForFunction(() => location.hash === '#/agent/web-build' && document.querySelector('.session-title').textContent === 'Build the settings page' && document.querySelector('.agent.on .name')?.textContent === 'Build the settings page');
     assert.equal(await page.locator('.agent.on .name').textContent(), 'Build the settings page');
     assert.equal(await page.locator('.session-title').isVisible(), true);
     const frame = await page.locator('#term').boundingBox();
@@ -1024,9 +1026,9 @@ for (const width of [1440, 390]) {
       await assertFits(page);
       sendState('busy');
       paint();
-      sendMessage({ type: 'keyboard', who: 'Mira' });
+      sendMessage({ type: 'keyboard', who: 'Mira', viewer: 'mira-tab' });
       await page.waitForFunction(() => document.querySelector('.typist').textContent === 'Last input: Mira');
-      await assertFits(page);
+      await assertFits(page, false);
       paint();
       await saveReview(page, `terminal-crafted-${width}`);
       closeStream();
@@ -1094,3 +1096,71 @@ for (const width of [320, 390]) {
     } finally { await page.close(); }
   });
 }
+
+
+test('read-only terminal selections copy to the local browser without sending keys', async () => {
+  const { page, keys, errors } = await openSession({ width: 1440, height: 900 }, fixture.agents, true);
+  try {
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true,
+        value: { writeText: async (text) => { window.localCopy = text; } } });
+      window.testTerminal.select(0, 0, 8);
+      window.testTerminal.focus();
+    });
+    await page.keyboard.press('Control+Shift+C');
+    await page.waitForFunction(() => window.localCopy === 'top left');
+    assert.deepEqual(keys, []);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('native paste uses the participant clipboard and preserves bracketed paste', async () => {
+  const { page, keys, errors, sendOutput } = await openSession({ width: 1440, height: 900 });
+  try {
+    sendOutput('\x1b[?2004h');
+    await page.waitForFunction(() => window.testTerminal.modes.bracketedPasteMode);
+    await page.locator('.xterm-helper-textarea').evaluate((textarea) => {
+      const data = new DataTransfer();
+      data.setData('text/plain', 'local clipboard\nsecond line');
+      textarea.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }));
+    });
+    assert.deepEqual(keys, ['\x1b[200~local clipboard\rsecond line\x1b[201~']);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('denied app clipboard access offers selectable text and dismisses it cleanly', async () => {
+  const { page, errors, sendOutput, sendMessage } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { writeText: async () => { throw new Error('denied'); } } }));
+    sendMessage({ type: 'input', viewer: 'test-viewer' });
+    const text = 'app copy ✓\nsecond line';
+    sendOutput('\x1b]52;c;' + Buffer.from(text).toString('base64') + '\x07');
+    await page.getByRole('dialog', { name: 'Copy terminal text' }).waitFor();
+    assert.equal(await page.getByLabel('Text to copy').inputValue(), text);
+    assert.equal(await page.getByLabel('Text to copy').evaluate((field) => field.selectionEnd - field.selectionStart), text.length);
+    await saveReview(page, 'terminal-clipboard-fallback');
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.locator('.terminal-clipboard').waitFor({ state: 'detached' });
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+
+test('a delayed clipboard denial cannot reveal text after the terminal reconnects', async () => {
+  const { page, errors, sendOutput, sendMessage, closeStream } = await openSession({ width: 1440, height: 900 });
+  try {
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { writeText: () => new Promise((_, reject) => { window.denyTerminalCopy = reject; }) } }));
+    sendMessage({ type: 'input', viewer: 'test-viewer' });
+    sendOutput('\x1b]52;c;' + Buffer.from('private old screen').toString('base64') + '\x07');
+    await page.waitForFunction(() => window.denyTerminalCopy);
+    closeStream();
+    await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Reconnecting…');
+    await page.waitForFunction(() => document.querySelector('.session-connection').textContent === 'Live connection');
+    await page.evaluate(() => window.denyTerminalCopy(new Error('late denial')));
+    assert.equal(await page.locator('.terminal-clipboard').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
