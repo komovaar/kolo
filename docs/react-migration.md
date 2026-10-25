@@ -68,7 +68,7 @@ cannot update a newly opened session's sharing panel.
   directory, join, create a shell, send input, receive actual PTY output, reload,
   switch/share, and stop the session. No external UI asset requests.
 - 62 JavaScript logic tests; Go race tests, vet, and build with both the installed
-  compiler and Go 1.26.9 from `go.mod`.
+  compiler and Go 1.26.10 from `go.mod`.
 - Type checking, reproducible generated assets, correct embedded JavaScript
   content types, and a live Vite proxy/reload check.
 - npm audit reported no production vulnerabilities. The pinned Go scanner found
