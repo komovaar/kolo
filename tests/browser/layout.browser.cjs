@@ -1120,9 +1120,13 @@ test('native paste uses the participant clipboard and preserves bracketed paste'
     sendOutput('\x1b[?2004h');
     await page.waitForFunction(() => window.testTerminal.modes.bracketedPasteMode);
     await page.locator('.xterm-helper-textarea').evaluate((textarea) => {
-      const data = new DataTransfer();
-      data.setData('text/plain', 'local clipboard\nsecond line');
-      textarea.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }));
+      const event = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+      // Firefox drops DataTransfer contents on synthetic ClipboardEvents.
+      // Supply the local clipboard payload directly for the paste handler.
+      Object.defineProperty(event, 'clipboardData', { value: {
+        getData: (type) => type === 'text/plain' ? 'local clipboard\nsecond line' : '',
+      } });
+      textarea.dispatchEvent(event);
     });
     assert.deepEqual(keys, ['\x1b[200~local clipboard\rsecond line\x1b[201~']);
     assert.deepEqual(errors, []);
