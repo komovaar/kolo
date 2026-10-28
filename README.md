@@ -6,10 +6,9 @@
   Kolo
 </h1>
 
-**Multiplayer AI coding agents.**
+**Share live AI coding sessions with a link.**
 
-Run agents on one machine and work together in the browser. Share a link so your
-team can watch, type, and take over the same session. Only the host installs Kolo.
+Run Claude Code, Codex, or OpenCode anywhere. Invite anyone into your session instantly, right from their browser.
 
 [![CI](https://github.com/komovaar/kolo/actions/workflows/ci.yml/badge.svg)](https://github.com/komovaar/kolo/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-v0.1.0-2C6F62?labelColor=1C2123)](https://github.com/komovaar/kolo/releases)
